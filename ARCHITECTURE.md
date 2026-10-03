@@ -813,8 +813,8 @@ Docker separa volumen de usuario, modelos y estado TLS. La imagen excluye el
 proyecto personal mediante una lista de inclusión .dockerignore. La única URL
 Ollama no loopback admitida es http://ollama:11434 bajo ARKHE_SERVER_MODE=1; no se
 admiten destinos arbitrarios introducidos desde el navegador. La interfaz local
-no establece esa variable. Redes de salida permiten descargar modelos y llamar
-al proveedor; los sockets servidores se fijan a las IP de la red privada.
+no establece esa variable. Cada servicio tiene su propia red de salida para descargar modelos o llamar
+al proveedor; solo comparten la privada para que DNS resuelva la IP de escucha; los sockets servidores se fijan a las IP de la red privada.
 
 
 Las cuentas y hashes se montan aparte y las claves IA entran exclusivamente por
@@ -835,3 +835,9 @@ configurables proceden del entorno y se escapan como texto. Su descripción sepa
 ubicación prevista del droplet y alcance UE/AELC del proveedor, sin inventar ZDR.
 Los prompts remotos siguen excluyendo session_records/session_feedback; incluyen
 el contexto pedagógico no privado y las reparaciones ya documentadas.
+
+La fase 1 conserva un único Compose y una sola cuenta, sin datos iniciales. La fase 2
+está descrita en docs/despliegue-digitalocean.md: dominio/proceso/volumen/red/hash propios
+por docente, con Caddy frontal único o un droplet por docente. No se implementa
+provisión ni registro masivo. Cambiar de volumen por restauración se declara mediante
+COMPOSE_FILE en el entorno administrativo para mantener copias y arranques coherentes.

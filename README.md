@@ -896,13 +896,13 @@ cancelada mientras espera en cola no llama al modelo ni crea un registro generat
 Recargar o cerrar el canal de progreso no cancela una consulta: se recupera su
 estado al volver a abrir la aplicación.
 
-## Piloto servidor (en preparación)
+## Piloto servidor
 
 `docente-ai serve --server --public-host arkhe.ejemplo.es --workspace /datos/usuario`
 activa una frontera distinta del modo `ui`: IP privada de escucha, Host público
 único y proxy HTTPS explícito. No publica acciones de Finder ni cierre del proceso;
 la biblioteca se utiliza con subida y descarga. El modo local permanece igual.
-No publicar este modo sin la autenticación y el despliegue completo del piloto.
+Seguir la [guía de DigitalOcean](docs/despliegue-digitalocean.md) antes de publicar el piloto.
 
 El acceso del servidor utiliza una cuenta por instancia creada con `docente-ai
 server-user --auth-file /ruta/protegida/user.json --username docente` (contraseña
@@ -932,6 +932,9 @@ Se añade sqlite3 como herramienta del sistema en la imagen, sin dependencia Pyt
 
 El piloto publica `/privacy` antes del acceso. Describe almacenamiento en la región
 UE elegida, retención de copias, envío a Mistral, prohibición de datos del alumnado
- y contacto de borrado. Completa responsable, región y correo antes de publicarlo.
+y contacto de borrado. Completa responsable, región y correo antes de publicarlo.
 Mistral declara región europea UE/AELC: confirmar contractualmente UE estricta si
 es requisito; el dominio europeo no demuestra por sí solo todas las ubicaciones.
+
+La guía incluye instalación, cuenta inicial, DNS/HTTPS, firewall, copias, actualización
+y recuperación, además del diseño futuro de una instancia aislada por profesor.
