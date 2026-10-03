@@ -903,3 +903,9 @@ activa una frontera distinta del modo `ui`: IP privada de escucha, Host público
 único y proxy HTTPS explícito. No publica acciones de Finder ni cierre del proceso;
 la biblioteca se utiliza con subida y descarga. El modo local permanece igual.
 No publicar este modo sin la autenticación y el despliegue completo del piloto.
+
+El acceso del servidor utiliza una cuenta por instancia creada con `docente-ai
+server-user --auth-file /ruta/protegida/user.json --username docente` (contraseña
+interactiva). El hash scrypt vive fuera del volumen de la biblioteca. Sesiones
+opacas de ocho horas, cookie Secure/HttpOnly/SameSite=Strict, cinco intentos por
+IP cada quince minutos y cierre de sesión. Reiniciar revoca todas las sesiones.

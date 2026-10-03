@@ -45,12 +45,25 @@ def main(argv: list[str] | None = None) -> int:
     server.add_argument('--proxy-ip', default='172.30.0.2')
     server.add_argument('--bind', default='172.30.0.3')
     server.add_argument('--port', type=int, default=8765)
+    server.add_argument('--auth-file', default='/run/arkhe-auth/user.json')
+    user = commands.add_parser('server-user', help='Crear la cuenta única de una instancia del piloto.')
+    user.add_argument('--auth-file', type=Path, required=True)
+    user.add_argument('--username', required=True)
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
         return 0
     if args.command != "doctor":
         try:
+            if args.command == 'server-user':
+                import getpass
+                from docente_ai.web.auth import create_user
+                password = getpass.getpass('Contraseña (mínimo 12 caracteres): ')
+                if password != getpass.getpass('Repite la contraseña: '):
+                    raise ValueError('Las contraseñas no coinciden.')
+                create_user(args.auth_file, args.username, password)
+                print('Usuario creado. La contraseña no se guarda en texto plano.')
+                return 0
             if args.command == 'serve':
                 from docente_ai.web.server import serve
                 return serve(args)

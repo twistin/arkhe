@@ -800,3 +800,10 @@ IP privada configurada del proxy; Host se compara exactamente, Proto debe ser
 HTTPS y For una sola dirección IP. Uvicorn no interpreta forwarded headers por
 su cuenta. La UI oculta acciones de escritorio y la API las rechaza. El workspace
 nuevo comienza sin materias, grupos ni fuentes. El modo ui mantiene su contrato.
+
+El piloto conserva una cuenta por instancia, creada por el administrador. scrypt
+usa N=16384/r=8/p=1, sal aleatoria de 16 bytes y derivación de 64 bytes. El archivo
+protegido no reside en el workspace. Las sesiones y límites son RAM acotada de un
+único proceso: reiniciar los borra. El token por proceso solo se entrega después
+de iniciar sesión; la API exige ambos. Login valida Origin y nonce/cookie previa.
+No hay registro público, recuperación por correo ni alta masiva.

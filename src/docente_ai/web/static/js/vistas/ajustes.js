@@ -307,6 +307,7 @@ async function formularioModels({form, data}) {
 }
 
 export const actions = {
+  'logout': accionLogout,
   'shutdown-dialog': accionShutdownDialog,
   'shutdown': accionShutdown,
   'delete-api-key': accionDeleteApiKey,
@@ -333,3 +334,9 @@ export const events = {
     },
   },
 };
+
+
+async function accionLogout() {
+  await api('/logout', {});
+  location.href = '/login';
+}

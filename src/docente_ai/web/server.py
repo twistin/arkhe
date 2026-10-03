@@ -14,6 +14,7 @@ class ServerSettings:
     public_host: str
     proxy_ip: str = '172.30.0.2'
     bind: str = '172.30.0.3'
+    auth_file: str = '/run/arkhe-auth/user.json'
 
     def __post_init__(self):
         if not re.fullmatch(r'[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?', self.public_host) or '.' not in self.public_host:
@@ -42,9 +43,9 @@ def public_data(value):
 
 
 class ServerOnly(BaseHTTPMiddleware):
-    def __init__(self, app, *, settings, token):
+    def __init__(self, app, *, settings, token, auth):
         super().__init__(app)
-        self.settings, self.token = settings, token
+        self.settings, self.token, self.auth = settings, token, auth
 
     async def dispatch(self, request, call_next):
         host = request.headers.get('host', '')
@@ -64,6 +65,13 @@ class ServerOnly(BaseHTTPMiddleware):
         if origin and origin != 'https://' + self.settings.public_host:
             return JSONResponse({'error': 'Origen no permitido.'}, status_code=403)
         path = request.url.path
+        from docente_ai.web.auth import COOKIE
+        if path not in ('/login', '/privacy') and not path.startswith('/assets/'):
+            if not self.auth.authenticated(request.cookies.get(COOKIE, '')):
+                if path.startswith('/api/'):
+                    return JSONResponse({'error': 'Inicia sesión para acceder.'}, status_code=401)
+                from starlette.responses import RedirectResponse
+                return RedirectResponse('/login', status_code=303)
         if path in ('/api/shutdown', '/api/reveal', '/api/reveal-diary') or path.endswith('/reveal'):
             return JSONResponse({'error': 'Acción local desactivada; utiliza subida o descarga.'}, status_code=403)
         if path.startswith('/api/') and not secrets.compare_digest(request.headers.get('x-docente-token', ''), self.token):
@@ -81,7 +89,7 @@ def serve(args):
     from docente_ai.web.app import create_app
     if not args.server:
         raise ValueError('serve requiere --server; utiliza ui para el modo local.')
-    settings = ServerSettings(args.public_host, args.proxy_ip, args.bind)
+    settings = ServerSettings(args.public_host, args.proxy_ip, args.bind, args.auth_file)
     app = create_app(args.workspace, port=args.port, server=settings)
     uvicorn.run(app, host=settings.bind, port=args.port, proxy_headers=False, access_log=False, log_level='warning')
     return 0

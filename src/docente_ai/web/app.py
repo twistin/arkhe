@@ -101,6 +101,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             mtime = 1
         html = (STATIC / 'index.html').read_text().replace('__TOKEN__', token).replace('__VERSION__', str(mtime))
         workspace_id = hashlib.sha256(str(ws.root).encode()).hexdigest()
+        if server:
+            html = html.replace('</header>', '<button data-action="logout" class="button">Cerrar sesión</button></header>')
         return HTMLResponse(html, headers={
             'X-Arkhe-Workspace': workspace_id,
             'X-Enjambre-Workspace': workspace_id,  # Compatibilidad con lanzadores anteriores.
@@ -381,10 +383,16 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
     routes.insert(0, Route('/api/secrets/provider', delete_api_key, methods=['DELETE']))
     routes.insert(0, Route('/api/provider/confirm', confirm_provider, methods=['POST']))
     routes.insert(0, Route('/api/runs/stats', stats))
+    auth = None
+    if server:
+        from docente_ai.web.auth import AuthStore, routes as access_routes
+        auth = AuthStore(server.auth_file)
+        login, logout = access_routes(auth, server.public_host)
+        routes.extend([Route('/login', login, methods=['GET', 'POST']), Route('/api/logout', logout, methods=['POST'])])
     app = Starlette(routes=routes, lifespan=lifespan, exception_handlers={ValueError: error, OSError: error, sqlite3.Error: error})
     if server:
         from docente_ai.web.server import ServerOnly
-        app.add_middleware(ServerOnly, settings=server, token=token)
+        app.add_middleware(ServerOnly, settings=server, token=token, auth=auth)
     else:
         app.add_middleware(LocalOnly, token=token, port=port, allowed_hosts=allowed_hosts)
     app.state.workspace = ws
