@@ -76,7 +76,7 @@ def test_confirmacion_persistida_y_reconfirmacion_por_cambio(web):
     assert client.post('/api/models', json={'provider':'custom','generation':'modelo','base_url':'https://privado.example/v1'}).status_code == 200
     assert not client.get('/api/state').json()['provider_info']['remote_confirmed']
     assert 'generation-indicator' in client.get('/').text
-    script = client.get('/assets/app.js').text
+    script = client.get('/assets/js/componentes/consentimiento.js').text
     assert 'Nunca se envían documentos completos, registros del diario ni feedback de sesiones' in script
     assert 'ensureRemoteConsent' in script
 

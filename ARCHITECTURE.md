@@ -676,3 +676,9 @@ actualmente estilos compartidos; sus archivos solo documentan esa situación y n
 añaden reglas. Se conservan todas las declaraciones originales, sin eliminar
 supuestas reglas muertas. Las capturas de referencia verifican la cascada y la
 impresión en escritorio y móvil. El servidor mantiene `Cache-Control: no-store`.
+
+### Grafo de módulos locales
+
+`static/js/main.js` es el único coordinador de las cinco vistas. La navegación y las solicitudes de renderizado compartidas utilizan `CustomEvent` (`enjambre:navigate` y `enjambre:render`). `state.js` exporta un único objeto de estado; `api.js` centraliza fetch y el token; `ui.js` contiene utilidades y las referencias DOM compartidas. Las vistas únicamente importan esos tres módulos o componentes. Los componentes no dependen de las vistas ni de main. Un test Python valida las rutas, las restricciones de imports y la ausencia de ciclos. No hay compilador, npm ni recursos externos, y no se versionan las URLs entre módulos o dentro de CSS. Mermaid se carga como script clásico local, fuera del grafo.
+
+**Deuda técnica de infografías:** `static/js/infografias/egipto.js` conserva el contenido y funcionamiento existentes en este refactor. Las infografías deberán convertirse en datos JSON/Markdown renderizados por un componente genérico, sin contenido temático en el código.

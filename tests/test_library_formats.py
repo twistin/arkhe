@@ -260,5 +260,5 @@ def test_web_docx_y_descargas_original_derivada(web, fake_ocr):
     assert derived.content == fake_ocr[1]
     assert 'texto-ocr.pdf' in derived.headers['Content-Disposition']
     assert client.get(endpoint).json()['versions'][-1]['text_origin'] == 'texto OCR'
-    script = client.get('/assets/app.js').text
+    script = client.get('/assets/js/componentes/documentos.js').text
     assert 'posible error de reconocimiento' in script and 'docx_paragraph' in script

@@ -95,7 +95,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
 
     async def index(request):
         try:
-            mtime = int(max((STATIC / 'style.css').stat().st_mtime, (STATIC / 'app.js').stat().st_mtime))
+            mtime = int(max((STATIC / 'style.css').stat().st_mtime, (STATIC / 'js' / 'main.js').stat().st_mtime))
         except Exception:
             mtime = 1
         html = (STATIC / 'index.html').read_text().replace('__TOKEN__', token).replace('__VERSION__', str(mtime))

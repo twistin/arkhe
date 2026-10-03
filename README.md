@@ -821,3 +821,7 @@ Los estilos se organizan en `src/docente_ai/web/static/css/`; `style.css` mantie
 el orden de sus importaciones locales. No hay compilador CSS, dependencias npm
 ni URL externas. Diario y Ajustes conservan su presentación mediante los estilos
 compartidos existentes.
+
+El frontend utiliza módulos ES nativos en `static/js`: `main.js` coordina la navegación y los eventos, `api.js` concentra las peticiones, `state.js` conserva un único estado y `ui.js` reúne utilidades. Las cinco secciones viven en `vistas/` y los documentos, trabajos, audiciones y materiales compartidos en `componentes/`. Los imports internos no llevan parámetros de versión y los assets se sirven con `Cache-Control: no-store`. Mermaid permanece como script clásico local, fuera del grafo ES.
+
+`tests/test_frontend_modules.py` comprueba que no hay ciclos ni imports de otra vista: cada vista solo puede depender de `api.js`, `state.js`, `ui.js` y `componentes/`.

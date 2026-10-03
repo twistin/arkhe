@@ -73,7 +73,7 @@ def test_stats_api_y_bloque_ajustes(web):
     assert response.json()['limit'] == 20
     assert client.get('/api/runs/stats?limit=0').status_code == 400
     assert client.get('/api/state').json()['run_stats']['limit'] == 100
-    assert 'Calidad de generación' in client.get('/assets/app.js').text
+    assert 'Calidad de generación' in client.get('/assets/js/vistas/ajustes.js').text
 
 
 def wait(ws):
@@ -98,7 +98,7 @@ def test_shell_local_assets_and_empty_state(web):
     response=client.get('/')
     assert response.status_code==200
     assert "frame-ancestors 'none'" in response.headers['content-security-policy']
-    assert client.get('/assets/app.js').status_code==200
+    assert client.get('/assets/js/main.js').status_code==200
     assert client.get('/assets/style.css').status_code==200
     state=client.get('/api/state').json()
     assert state['documents']==[] and state['runs']==[]
@@ -107,8 +107,8 @@ def test_shell_local_assets_and_empty_state(web):
     assert (ws.knowledge/'02 Material docente/historia-i').is_dir()
     assert (ws.knowledge/'_LEEME.md').is_file()
     assert 'agenda' in state
-    assert 'dailyAgenda' in client.get('/assets/app.js').text
-    assert 'Material para el alumnado' in client.get('/assets/app.js').text
+    assert 'dailyAgenda' in client.get('/assets/js/componentes/agenda.js').text
+    assert 'Material para el alumnado' in client.get('/assets/js/componentes/material-alumnado.js').text
 
 
 def test_daily_agenda_and_proposal_keep_scheduled_session(web):
