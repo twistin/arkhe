@@ -1,0 +1,67 @@
+name: ${ARKHE_INSTANCE:-arkhe-piloto}
+services:
+  arkhe:
+    build: .
+    image: ${ARKHE_IMAGE:-arkhe:piloto}
+    restart: unless-stopped
+    init: true
+    command: [serve, --server, --public-host, "${ARKHE_PUBLIC_HOST:?Define ARKHE_PUBLIC_HOST}", --workspace, /datos/docente, --proxy-ip, "${CADDY_IP:-172.30.0.2}", --bind, "${ARKHE_IP:-172.30.0.3}"]
+    environment:
+      ARKHE_SERVER_MODE: "1"
+    volumes:
+      - arkhe_data:/datos/docente
+      - /etc/arkhe/auth:/run/arkhe-auth:ro
+    networks:
+      privada:
+        ipv4_address: ${ARKHE_IP:-172.30.0.3}
+      salida_arkhe: {}
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp:rw,noexec,nosuid,size=128m]
+    depends_on: [ollama]
+  ollama:
+    image: ollama/ollama:0.35.1
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: "${OLLAMA_IP:-172.30.0.4}:11434"
+      OLLAMA_MODELS: /root/.ollama/models
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+    volumes: [ollama_models:/root/.ollama]
+    networks:
+      privada:
+        ipv4_address: ${OLLAMA_IP:-172.30.0.4}
+      salida_ollama: {}
+    security_opt: [no-new-privileges:true]
+  caddy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      ARKHE_PUBLIC_HOST: ${ARKHE_PUBLIC_HOST:?Define ARKHE_PUBLIC_HOST}
+      ARKHE_PRIVACY_EMAIL: ${ARKHE_PRIVACY_EMAIL:?Define un contacto de privacidad}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      privada:
+        ipv4_address: ${CADDY_IP:-172.30.0.2}
+      salida_caddy: {}
+    depends_on: [arkhe]
+    security_opt: [no-new-privileges:true]
+volumes:
+  arkhe_data:
+  ollama_models:
+  caddy_data:
+  caddy_config:
+networks:
+  privada:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${PILOT_SUBNET:-172.30.0.0/24}
+  salida_arkhe: {}
+  salida_ollama: {}
+  salida_caddy: {}

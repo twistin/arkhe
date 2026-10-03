@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 import ipaddress
 import math
 import platform
+import os
 import sqlite3
 import sys
 from typing import Literal
@@ -28,6 +29,9 @@ class Check:
 
 def local_url(value: str) -> str:
     """Aceptar solo loopback literal; localhost se normaliza sin consultar DNS."""
+    # Excepción exacta y solo explícita para el servicio privado del despliegue Docker.
+    if os.environ.get('ARKHE_SERVER_MODE') == '1' and value == 'http://ollama:11434':
+        return value
     try:
         url = urlsplit(value)
         host = url.hostname

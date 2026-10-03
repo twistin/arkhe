@@ -807,3 +807,11 @@ protegido no reside en el workspace. Las sesiones y límites son RAM acotada de 
 único proceso: reiniciar los borra. El token por proceso solo se entrega después
 de iniciar sesión; la API exige ambos. Login valida Origin y nonce/cookie previa.
 No hay registro público, recuperación por correo ni alta masiva.
+
+
+Docker separa volumen de usuario, modelos y estado TLS. La imagen excluye el
+proyecto personal mediante una lista de inclusión .dockerignore. La única URL
+Ollama no loopback admitida es http://ollama:11434 bajo ARKHE_SERVER_MODE=1; no se
+admiten destinos arbitrarios introducidos desde el navegador. La interfaz local
+no establece esa variable. Redes de salida permiten descargar modelos y llamar
+al proveedor; los sockets servidores se fijan a las IP de la red privada.

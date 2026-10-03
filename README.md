@@ -909,3 +909,10 @@ server-user --auth-file /ruta/protegida/user.json --username docente` (contrase�
 interactiva). El hash scrypt vive fuera del volumen de la biblioteca. Sesiones
 opacas de ocho horas, cookie Secure/HttpOnly/SameSite=Strict, cinco intentos por
 IP cada quince minutos y cierre de sesión. Reiniciar revoca todas las sesiones.
+
+
+El piloto Docker usa Python 3.12 y `uv sync --locked --no-dev`, UID 10001,
+workspace persistente nuevo y dos redes: privada interna y salida. Solo Caddy
+publica 80/443; Arkhé y Ollama escuchan en sus IP privadas. Caddy entrega HTTPS y
+sustituye forwarded headers. El contenedor no incluye datos ni configuraciones
+personales. El servicio Ollama del piloto se prepara únicamente con bge-m3.

@@ -1,0 +1,17 @@
+{
+    email {$ARKHE_PRIVACY_EMAIL}
+    admin off
+}
+{$ARKHE_PUBLIC_HOST} {
+    header Strict-Transport-Security "max-age=31536000"
+    request_body {
+        max_size 105MB
+    }
+    reverse_proxy arkhe:8765 {
+        # Caddy es el primer proxy: sustituir cualquier forwarded enviado por el visitante.
+        header_up X-Forwarded-Proto https
+        header_up X-Forwarded-For {remote_host}
+        header_up -Forwarded
+        flush_interval -1
+    }
+}
