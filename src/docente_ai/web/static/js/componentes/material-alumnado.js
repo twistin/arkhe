@@ -1,7 +1,7 @@
-// Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  api
-} from '../api.js';
+import { request, token, api } from '../api.js';
+import { switchEgyptTab, renderEgyptInfographic } from '../infografias/egipto.js';
+import { store } from '../state.js';
+import { render, toast, dialog, e, formatMarkdown, icon, modal } from '../ui.js';
 import {
   POLYPHONY_LISTENINGS,
   getRunListenings,
@@ -9,21 +9,10 @@ import {
   isAncientEgypt,
   renderEgyptListeningsHTML,
   renderListeningCardItem,
-  renderStudentDiscographySection
+  renderStudentDiscographySection,
 } from './audiciones.js';
-import {
-  renderEgyptInfographic
-} from '../infografias/egipto.js';
-import {
-  renderStudentInfographic
-} from '../infografias/musica.js';
-import {
-  dialog,
-  e,
-  formatMarkdown,
-  icon,
-  modal
-} from '../ui.js';
+import { renderStudentInfographic } from '../infografias/musica.js';
+// Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function studentDocumentHTML(run) {
   const context = run.request?.pedagogy || {},
@@ -648,3 +637,78 @@ export async function studentMaterialModal(id) {
   ].join(''));
   dialog.classList.add('student-dialog');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenStudentRun({target}) {
+  await studentMaterialModal(target.dataset.studentRun);
+}
+
+async function accionOpenCopyStudent({target}) {
+  const response = await request('/api/runs/' + encodeURIComponent(target.dataset.copyStudent) +
+    '?student=1', {
+      headers: {
+        'X-Docente-Token': token
+      }
+    });
+  if (!response.ok) throw new Error('No se pudo preparar el material para el alumnado.');
+  await navigator.clipboard.writeText(await response.text());
+  toast('Material copiado. Ya puedes pegarlo en Google Classroom.');
+}
+
+async function accionOpenDownloadStudent({target}) {
+  const identifier = target.dataset.downloadStudent;
+  const response = await request('/api/runs/' + encodeURIComponent(identifier) + '?student=1', {
+    headers: {
+      'X-Docente-Token': token
+    }
+  });
+  if (!response.ok) throw new Error('No se pudo descargar el material para el alumnado.');
+  const url = URL.createObjectURL(await response.blob()),
+    link = document.createElement('a');
+  link.href = url;
+  link.download = 'material-alumnado-' + identifier + '.md';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('Material para el alumnado descargado.');
+}
+
+async function accionEgyptTab({target}) {
+  switchEgyptTab(target, target.dataset.tab);
+  store.tab = target.dataset.tab;
+  render();
+}
+
+async function accionPrintStudent() {
+  printStudentDocument();
+}
+
+export const actions = {
+  'open-student-run': accionOpenStudentRun,
+  'copy-student': accionOpenCopyStudent,
+  'download-student': accionOpenDownloadStudent,
+  'egypt-tab': accionEgyptTab,
+  'print-student': accionPrintStudent,
+};
+
+export const clickBindings = [
+  {priority: 3, matches: target => target.dataset.studentRun, action: 'open-student-run'},
+  {priority: 5, matches: target => target.dataset.copyStudent, action: 'copy-student'},
+  {priority: 7, matches: target => target.dataset.downloadStudent, action: 'download-student'},
+  {priority: -1, matches: target => target.matches('.egypt-tab-btn'), action: 'egypt-tab'},
+];
+
+export const windowEvents = {
+  'beforeprint': () => {
+    if (dialog?.open && dialog?.classList.contains('student-dialog')) {
+      document.body.classList.add('student-printing');
+      dialog.querySelectorAll('.egypt-sheet').forEach(el => {
+        el.style.display = 'block';
+      });
+    }
+  },
+  'afterprint': () => {
+    document.body.classList.remove('student-printing');
+  },
+};

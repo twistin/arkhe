@@ -1,22 +1,10 @@
+import { api } from '../api.js';
+import { ensureRemoteConsent } from '../componentes/consentimiento.js';
+import { queue, refresh } from '../componentes/trabajos.js';
+import { dialog, render, toast, dateLabel, e, subjectStyle, header, icon, modal, option, primary } from '../ui.js';
+import { resultHTML } from '../componentes/documentos.js';
+import { draft, store, subjectName } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  resultHTML
-} from '../componentes/documentos.js';
-import {
-  draft,
-  store,
-  subjectName
-} from '../state.js';
-import {
-  dateLabel,
-  e,
-  subjectStyle,
-  header,
-  icon,
-  modal,
-  option,
-  primary
-} from '../ui.js';
 
 export function proposals() {
   const runs = store.state.runs.filter(r => r.kind === 'proposal');
@@ -187,3 +175,117 @@ function tarjetaPropuesta(r) {
   ].join('');
 
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenDeleteRun({target}) {
+  const runId = target.dataset.deleteRun;
+  if (!confirm('¿Estás seguro de que deseas eliminar esta propuesta del historial?')) return;
+  target.disabled = true;
+  await api('/runs/' + encodeURIComponent(runId) + '/delete', {});
+  if (store.currentRun && store.currentRun.id === runId) store.currentRun = null;
+  if (dialog.open) dialog.close();
+  await refresh();
+  toast('Propuesta eliminada.');
+}
+
+async function accionOpenReviewApprove({target}) {
+  target.disabled = true;
+  const result = await api('/runs/' + encodeURIComponent(target.dataset.reviewApprove) +
+    '/review', {
+      action: 'approved'
+    });
+  store.currentRun = {
+    ...store.currentRun,
+    ...result
+  };
+  render();
+  toast('Propuesta aprobada. Puedes exportarla o guardar una copia.');
+}
+
+async function accionOpenReviewReject({target}) {
+  const runId = target.dataset.reviewReject;
+  modal('Rechazar propuesta', [
+    [
+      `<p>Puedes añadir una nota para recordar el motivo.</p><form data-form="reject" data-id="${e(runId)}`
+    ].join(''),
+    `"><div class="field"><label class="label" for="reject-notes">Notas `,
+    `(opcional)</label><textarea id="reject-notes" name="notes" maxlength="2000" `,
+    `placeholder="Motivo del rechazo o qué mejorar…"></textarea></div><div `,
+    `class="form-error" role="alert"></div><div class="dialog-actions"><button `,
+    `class="button ghost" type="button" data-action="close-dialog">Cancelar</button>`,
+    [
+      `<button class="button danger" type="submit">${icon('close')}Rechazar propuesta</button></div></form>`
+    ].join('')
+  ].join(''));
+}
+
+async function accionOpenExpandProposal() {
+  expandProposalModal(store.currentRun);
+}
+
+async function accionOpenPrepareSession({target}) {
+  const session = store.state.agenda.sessions.find(item => item.id === target.dataset
+    .prepareSession);
+  if (session) proposalModal(session);
+}
+
+async function accionNewProposal() {
+  proposalModal();
+}
+
+async function formularioProposal({data}) {
+  if (!await ensureRemoteConsent('pedagogy')) return;
+  await queue('/generate', {
+    ...data,
+    mode: 'pedagogy',
+    duration: Number(data.duration)
+  });
+  dialog.close();
+  toast('Preparando el borrador con tus fuentes.');
+}
+
+async function formularioReject({form, data}) {
+  const result = await api('/runs/' + encodeURIComponent(form.dataset.id) + '/review', {
+    action: 'rejected',
+    notes: data.notes || ''
+  });
+  if (store.currentRun && store.currentRun.id === form.dataset.id) store.currentRun = {
+    ...store.currentRun,
+    ...result
+  };
+  dialog.close();
+  render();
+  toast('Propuesta rechazada y anotada.');
+}
+
+export const actions = {
+  'delete-run': accionOpenDeleteRun,
+  'review-approve': accionOpenReviewApprove,
+  'review-reject': accionOpenReviewReject,
+  'expand-proposal': accionOpenExpandProposal,
+  'prepare-session': accionOpenPrepareSession,
+  'new-proposal': accionNewProposal,
+};
+
+export const forms = {
+  'proposal': formularioProposal,
+  'reject': formularioReject,
+};
+
+export const clickBindings = [
+  {priority: 11, matches: target => target.dataset.deleteRun, action: 'delete-run'},
+  {priority: 16, matches: target => target.dataset.reviewApprove, action: 'review-approve'},
+  {priority: 17, matches: target => target.dataset.reviewReject, action: 'review-reject'},
+  {priority: 22, matches: target => target.dataset.expandProposal, action: 'expand-proposal'},
+  {priority: 23, matches: target => target.dataset.prepareSession, action: 'prepare-session'},
+];
+
+export const events = {
+  'change': {
+    '#proposal-group': event => {
+      $('#proposal-unit').innerHTML = unitOptions(event.target.value);
+      if (store.drafts['proposal-form']) store.drafts['proposal-form'].unit = '';
+
+    },
+  },
+};

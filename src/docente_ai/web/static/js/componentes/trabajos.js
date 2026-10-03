@@ -1,19 +1,7 @@
+import { $, dialog, e, navigate, render, toast } from '../ui.js';
+import { api } from '../api.js';
+import { store, view } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  api
-} from '../api.js';
-import {
-  store,
-  view
-} from '../state.js';
-import {
-  $,
-  dialog,
-  e,
-  navigate,
-  render,
-  toast
-} from '../ui.js';
 
 export async function refresh(renderPage = true) {
   store.state = await api('/state');
@@ -109,3 +97,28 @@ export async function queue(path, data) {
   await monitor();
   return response;
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenRun({target}) {
+  if (dialog.open) dialog.close();
+  await openRun(target.dataset.run);
+}
+
+async function accionCloseRun() {
+  store.currentRun = null;
+  render();
+}
+
+async function accionReload() {
+  await refresh();
+}
+
+export const actions = {
+  'open-run': accionOpenRun,
+  'close-run': accionCloseRun,
+  'reload': accionReload,
+};
+
+export const clickBindings = [
+  {priority: 2, matches: target => target.dataset.run, action: 'open-run'},
+];

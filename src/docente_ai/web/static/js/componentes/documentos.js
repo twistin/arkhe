@@ -1,28 +1,17 @@
-// Módulo local: responsabilidad separada sin alterar el contenido.
+import { api, request, token } from '../api.js';
+import { store, subjectName } from '../state.js';
+import { toast, e, subjectStyle, formatMarkdown, icon, modal } from '../ui.js';
 import {
   POLYPHONY_LISTENINGS,
   getRunListenings,
   is15thCenturyPolyphony,
   isAncientEgypt,
   renderEgyptListeningsHTML,
-  renderListeningCardItem
+  renderListeningCardItem,
 } from './audiciones.js';
-import {
-  renderEgyptInfographic
-} from '../infografias/egipto.js';
-import {
-  renderStudentInfographic
-} from '../infografias/musica.js';
-import {
-  subjectName
-} from '../state.js';
-import {
-  e,
-  subjectStyle,
-  formatMarkdown,
-  icon,
-  modal
-} from '../ui.js';
+import { renderEgyptInfographic } from '../infografias/egipto.js';
+import { renderStudentInfographic } from '../infografias/musica.js';
+// Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function resultHTML(run) {
   const isPedagogy = !!run.request.pedagogy;
@@ -535,3 +524,112 @@ export function visualHTML(run, visual) {
     `</p></section>`
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenSourcesRun({target}) {
+  const run = store.currentRun && store.currentRun.id === target.dataset.sourcesRun ? store
+    .currentRun : await api('/runs/' + encodeURIComponent(target.dataset.sourcesRun));
+  sourcesModal(run);
+}
+
+async function accionOpenCopyCode({target}) {
+  const example = store.currentRun && store.currentRun.id === target.dataset.copyCode ?
+    teacherWorkedExample(store.currentRun) : null;
+  if (!example) throw new Error('No se encontró el ejemplo resuelto.');
+  await navigator.clipboard.writeText(example.code);
+  toast('Código copiado. Ya puedes pegarlo en tu editor.');
+}
+
+async function accionOpenDownloadSources({target}) {
+  const identifier = target.dataset.downloadSources;
+  const response = await request('/api/runs/' + encodeURIComponent(identifier) + '?sources=1', {
+    headers: {
+      'X-Docente-Token': token
+    }
+  });
+  if (!response.ok) throw new Error('No se pudo descargar el anexo documental.');
+  const url = URL.createObjectURL(await response.blob()),
+    link = document.createElement('a');
+  link.href = url;
+  link.download = 'anexo-fuentes-' + identifier + '.md';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  toast('Anexo de fuentes y citas descargado.');
+}
+
+async function accionOpenCopyMarkdown({target}) {
+  const identifier = target.dataset.copyMarkdown;
+  target.disabled = true;
+  try {
+    const response = await request('/api/runs/' + encodeURIComponent(identifier) + '?download=1', {
+      headers: {
+        'X-Docente-Token': token
+      }
+    });
+    if (!response.ok) throw new Error('No se pudo obtener el texto Markdown.');
+    const mdText = await response.text();
+    await navigator.clipboard.writeText(mdText);
+    toast('¡Markdown copiado al portapapeles!');
+  } catch (err) {
+    toast('Error al copiar: ' + (err.message || err), true);
+  } finally {
+    target.disabled = false;
+  }
+}
+
+async function accionOpenDownload({target}) {
+  const identifier = target.dataset.download || target.dataset.original || target.dataset
+    .ocrDocument;
+  const isOrig = !!(target.dataset.original || target.dataset.ocrDocument);
+  target.disabled = true;
+  try {
+    const response = await request('/api/' + (isOrig ? 'documents/' : 'runs/') + encodeURIComponent(
+      identifier) + '?download=1' + (target.dataset.ocrDocument ? '&derived=1' : ''), {
+      headers: {
+        'X-Docente-Token': token
+      }
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'No se pudo exportar el archivo.');
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const filename = isOrig ?
+      (decodeURIComponent(response.headers.get('Content-Disposition')?.match(
+          /filename\*=utf-8''([^;]+)/i)?.[1] || '') || response.headers.get('Content-Disposition')
+        ?.match(/filename="([^"]+)"/)?.[1] || 'original') :
+      'enjambre-' + identifier + '.md';
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(isOrig ? 'Descargando documento…' : 'Descargando archivo Markdown (.md)…');
+  } catch (err) {
+    toast(err.message || 'Error al exportar.', true);
+  } finally {
+    target.disabled = false;
+  }
+}
+
+export const actions = {
+  'open-sources-run': accionOpenSourcesRun,
+  'copy-code': accionOpenCopyCode,
+  'download-sources': accionOpenDownloadSources,
+  'copy-markdown': accionOpenCopyMarkdown,
+  'download': accionOpenDownload,
+};
+
+export const clickBindings = [
+  {priority: 4, matches: target => target.dataset.sourcesRun, action: 'open-sources-run'},
+  {priority: 6, matches: target => target.dataset.copyCode, action: 'copy-code'},
+  {priority: 8, matches: target => target.dataset.downloadSources, action: 'download-sources'},
+  {priority: 9, matches: target => target.dataset.copyMarkdown, action: 'copy-markdown'},
+  {priority: 10, matches: target => target.dataset.download || target.dataset.original ||
+    target.dataset.ocrDocument, action: 'download'},
+];

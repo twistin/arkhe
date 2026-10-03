@@ -1,18 +1,8 @@
-// Módulo local: responsabilidad separada sin alterar el contenido.
+import { request, token, api } from '../api.js';
+import { queue, refresh } from '../componentes/trabajos.js';
 import {
-  api
-} from '../api.js';
-import {
-  subjectModal
-} from '../componentes/configuracion.js';
-import {
-  locatorLabel
-} from '../componentes/documentos.js';
-import {
-  store,
-  subjectName
-} from '../state.js';
-import {
+  dialog,
+  render,
   $,
   e,
   subjectStyle,
@@ -24,8 +14,12 @@ import {
   primary,
   statusBadge,
   subjectOptions,
-  toast
+  toast,
 } from '../ui.js';
+import { subjectModal } from '../componentes/configuracion.js';
+import { locatorLabel } from '../componentes/documentos.js';
+import { store, subjectName } from '../state.js';
+// Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function library() {
   const subjectPeriods = (store.selected ? store.state.subject_periods?.[store.selected] : []) || [];
@@ -354,3 +348,202 @@ function botonPeriodo(p) {
   ].join('');
 
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenDocument({target}) {
+  await showDocument(target.dataset.document);
+}
+
+async function accionOpenDeleteDocument({target}) {
+  const docId = target.dataset.deleteDocument;
+  if (!confirm(
+      '¿Estás seguro de que deseas eliminar este documento de tu biblioteca? Se ' +
+        'eliminarán todas sus versiones y fragmentos procesados.'
+    )) return;
+  target.disabled = true;
+  await api('/documents/' + encodeURIComponent(docId) + '/delete', {});
+  if (dialog.open) dialog.close();
+  await refresh();
+  toast('Documento eliminado de la biblioteca.');
+}
+
+async function accionOpenExclude({target}) {
+  target.disabled = true;
+  await api('/documents/' + target.dataset.exclude + '/exclude', {});
+  dialog.close();
+  await refresh();
+  toast('Fuente excluida. El asistente ya no puede utilizarla.');
+}
+
+async function accionSelectPeriod({target}) {
+  store.selectedPeriod = target.dataset.period;
+  render();
+}
+
+async function accionSelectSubject({target}) {
+  store.selected = target.dataset.subject;
+  store.selectedPeriod = '';
+  localStorage.setItem('enjambre-subject', store.selected);
+  render();
+}
+
+async function accionSelectTab({target}) {
+  store.tab = target.dataset.tab;
+  render();
+}
+
+async function accionAddSource() {
+  sourceModal();
+}
+
+async function accionReveal() {
+  await api('/reveal', {});
+}
+
+async function accionScan() {
+  await scanFolder();
+}
+
+async function accionClearFilter() {
+  store.selected = '';
+  store.selectedPeriod = '';
+  store.tab = 'all';
+  store.query = '';
+  render();
+}
+
+async function formularioUpload({data, button}) {
+  if (!store.chosenFiles.length) throw new Error('Elige al menos un archivo.');
+  if (store.chosenFiles.length > 8) throw new Error('Añade hasta ocho archivos cada vez.');
+  for (const file of store.chosenFiles) {
+    if (!/\.(pdf|docx|md|txt)$/i.test(file.name)) throw new Error(
+      'Solo se admiten PDF, DOCX, Markdown y TXT.');
+    if (file.size > 300 * 1024 * 1024) throw new Error(file.name + ' supera los 300 MB.');
+  }
+  let uploaded = 0;
+  for (const file of store.chosenFiles) {
+    button.textContent = `Añadiendo ${++uploaded} de ${store.chosenFiles.length}…`;
+    const response = await request('/api/upload?name=' + encodeURIComponent(file.name), {
+      method: 'POST',
+      headers: {
+        'X-Docente-Token': token
+      },
+      body: file
+    });
+    const stored = await response.json();
+    if (!response.ok) throw new Error(stored.error);
+    await queue('/import', {
+      ...data,
+      path: stored.path
+    });
+  }
+  dialog.close();
+  toast('Archivos añadidos. Revisa cada fuente para permitir su uso.');
+}
+
+async function formularioInbox({form, data}) {
+  await queue('/import', {
+    ...data,
+    path: form.dataset.path,
+    document_id: form.dataset.documentId || undefined
+  });
+  form.innerHTML = '<p class="inbox-status">' + icon('check') +
+    ' En proceso. Aparecerá en la biblioteca para su revisión.</p>';
+}
+
+async function formularioAuthorize({form, data}) {
+  await queue('/documents/' + form.dataset.id + '/authorize', {
+    accept_warnings: !!data.accept_warnings
+  });
+  dialog.close();
+}
+
+async function formularioMetadata({form, data}) {
+  await api('/documents/' + form.dataset.id + '/metadata', {
+    ...data,
+    authors: data.authors.split(';').map(a => a.trim()).filter(Boolean),
+    year: data.year ? Number(data.year) : null
+  });
+  await refresh();
+  await showDocument(form.dataset.id);
+  toast('Metadatos actualizados.');
+}
+
+export const actions = {
+  'open-document': accionOpenDocument,
+  'delete-document': accionOpenDeleteDocument,
+  'exclude': accionOpenExclude,
+  'select-period': accionSelectPeriod,
+  'select-subject': accionSelectSubject,
+  'select-tab': accionSelectTab,
+  'add-source': accionAddSource,
+  'reveal': accionReveal,
+  'scan': accionScan,
+  'clear-filter': accionClearFilter,
+};
+
+export const forms = {
+  'upload': formularioUpload,
+  'inbox': formularioInbox,
+  'authorize': formularioAuthorize,
+  'metadata': formularioMetadata,
+};
+
+export const clickBindings = [
+  {priority: 1, matches: target => target.dataset.document, action: 'open-document'},
+  {priority: 12, matches: target => target.dataset.deleteDocument, action: 'delete-document'},
+  {priority: 13, matches: target => target.dataset.exclude, action: 'exclude'},
+  {priority: 24, matches: target => 'period' in target.dataset, action: 'select-period'},
+  {priority: 25, matches: target => 'subject' in target.dataset, action: 'select-subject'},
+  {priority: 26, matches: target => target.dataset.tab, action: 'select-tab'},
+];
+
+export const events = {
+  'input': {
+    '#library-search': event => {
+      store.query = event.target.value;
+      $('#library-results').innerHTML = libraryResults();
+    },
+  },
+  'change': {
+    '#files': event => {
+      setFiles(event.target.files);
+    },
+  },
+  'keydown': {
+    '#dropzone': event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      $('#files').click();
+    },
+    '[role="tab"]': event => {
+      if (event.target.getAttribute('role') !== 'tab' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(
+          event.key)) return;
+      event.preventDefault();
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]')),
+        index = tabs.indexOf(event.target);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key ===
+        'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      tabs[next].click();
+      document.querySelectorAll('[role="tab"]')[next].focus();
+    },
+  },
+  'dragover': {
+    '#dropzone': event => {
+      event.preventDefault();
+      $('#dropzone').classList.add('dragging');
+    },
+  },
+  'dragleave': {
+    '#dropzone': event => {
+      event.target.closest('#dropzone')?.classList.remove('dragging');
+    },
+  },
+  'drop': {
+    '#dropzone': event => {
+      event.preventDefault();
+      setFiles(event.dataTransfer.files);
+      $('#dropzone').classList.remove('dragging');
+    },
+  },
+};

@@ -851,3 +851,8 @@ La migración SQLite 8 y la lectura de YAML antiguo añaden únicamente los per�
 históricos de Historia I y II cuando falta `periods`, conservando exactamente sus
 carpetas; una lista explícita vacía no se modifica. Las materias nuevas no
 reciben carpetas temáticas predeterminadas.
+
+La interfaz sigue utilizando módulos ES nativos, sin compilador ni dependencias
+npm. Las acciones y formularios se mantienen en sus vistas o componentes;
+`main.js` coordina el registro, los eventos y la navegación. La suite comprueba
+que todos los controles tienen manejador y que no hay nombres duplicados.

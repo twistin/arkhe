@@ -22,6 +22,7 @@ from docente_ai.web.app import create_app
 from docente_ai.web.workspace import Workspace, daily_agenda
 from test_generation import FakeEmbedder, FakeGenerator, TEXT, EXAMPLE
 from test_pedagogy import proposal
+from test_ui_actions import registro, ROOT as JS_ROOT
 
 BASELINE = Path(__file__).parent / 'ui_baseline'
 VIEWS = ('biblioteca', 'asistente', 'propuestas', 'diario', 'ajustes')
@@ -140,7 +141,15 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
             page.on('pageerror', lambda error: report['page_errors'].append(str(error)))
         observe(page)
         page.clock.set_fixed_time(FIXED_TIME)
+        registered = registro(JS_ROOT)
+        def check_handlers(target):
+            for attribute, key in [('data-action', 'actions'), ('data-form', 'forms')]:
+                references = target.locator('[' + attribute + ']').evaluate_all(
+                    '(nodes, attr) => nodes.map(node => node.getAttribute(attr))', attribute)
+                assert set(references) <= registered[key].keys(), references
+
         def capture(target, name):
+            check_handlers(target)
             target.evaluate('() => document.fonts.ready')
             path = capture_dir / f'{profile}-{name}.png'
             target.screenshot(path=str(path), full_page=True, animations='disabled', caret='hide')
@@ -156,7 +165,10 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
                 report['captures'][name] = {'comparison_skipped': 'Entorno distinto al de referencia.'}
         for view in VIEWS:
             page.goto(ORIGIN + '/#' + view)
-            page.wait_for_function("() => document.querySelector('#main h1') && document.querySelector('#connection').textContent.includes('conectado')")
+            try:
+                page.wait_for_function("() => document.querySelector('#main h1') && document.querySelector('#connection').textContent.includes('conectado')", timeout=10000)
+            except playwright.TimeoutError:
+                pytest.fail('Arranque fallido: ' + repr(report) + ' · ' + page.locator('#main').inner_text())
             assert page.locator(f'[data-nav="{view}"]').get_attribute('aria-current') == 'page'
             capture(page, view)
         page.goto(ORIGIN + '/#ajustes')
@@ -212,11 +224,13 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
         page.goto(ORIGIN + '/#biblioteca')
         page.locator(f'[data-document="{document_id}"]').click()
         page.locator('dialog .text-preview').wait_for()
+        check_handlers(page)
         page.locator('[data-action="close-dialog"]').click()
         page.goto(ORIGIN + '/#propuestas')
         page.locator(f'[data-run="{proposal_id}"]').click()
         page.locator('[data-student-run]').click()
         page.locator('.student-handout').wait_for()
+        check_handlers(page)
         # Cubrir ambos controles delegados de las láminas.
         tabs = page.locator('.student-dialog .egypt-tab-btn')
         tabs.nth(1).click()
@@ -232,6 +246,35 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
         printed.goto(ORIGIN + '/__impresion__')
         printed.locator('.student-handout').wait_for()
         capture(printed, 'impresion')
+        # Formularios y eventos delegados: configuración de materias sin tocar referencias.
+        page.locator('[data-action="close-dialog"]').click()
+        page.goto(ORIGIN + '/#biblioteca')
+        page.locator('#connection').click()
+        page.wait_for_url(ORIGIN + '/#ajustes')
+        page.locator('[data-action="new-subject"]').click()
+        check_handlers(page)
+        page.locator('#subject-name').fill('Materia sintética extra')
+        page.locator('#subject-color').fill('#123ABC')
+        page.locator('#subject-periods').fill('primero | Primer período\nsegundo | Segundo período')
+        page.locator('[data-form="subject"] button[type="submit"]').click()
+        page.locator('#dialog').wait_for(state='hidden')
+        subject = page.evaluate("""async () => {
+            const {api} = await import('/assets/js/api.js');
+            return (await api('/state')).config.subjects.find(s => s.name === 'Materia sintética extra');
+        }""")
+        assert subject['color'] == '#123ABC'
+        assert subject['periods'] == [{'id': 'primero', 'nombre': 'Primer período'},
+                                      {'id': 'segundo', 'nombre': 'Segundo período'}]
+        style = page.evaluate("""async id => {
+            const {subjectStyle} = await import('/assets/js/ui.js');
+            return [subjectStyle(id), subjectStyle('identificador-nuevo'), subjectStyle('identificador-nuevo')];
+        }""", subject['id'])
+        assert '--subject-color:#123abc' in style[0] and style[1] == style[2]
+        page.goto(ORIGIN + '/#biblioteca')
+        page.locator('button[data-subject="' + subject['id'] + '"]').click()
+        assert page.get_by_text('Primer período', exact=True).is_visible()
+        page.get_by_text('Primer período', exact=True).click()
+        assert 'active' in page.locator('[data-period="primero"]').get_attribute('class')
         if update:
             metadata.write_text(json.dumps(environment, ensure_ascii=False, indent=2) + '\n')
         browser.close()

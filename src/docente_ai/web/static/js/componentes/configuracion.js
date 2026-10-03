@@ -1,14 +1,8 @@
+import { api } from '../api.js';
+import { refresh } from './trabajos.js';
+import { dialog, toast, $, e, modal, option, subjectOptions } from '../ui.js';
+import { store } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  store
-} from '../state.js';
-import {
-  $,
-  e,
-  modal,
-  option,
-  subjectOptions
-} from '../ui.js';
 
 export function subjectModal(id) {
   const subject = store.state.config.subjects.find(s => s.id === id);
@@ -98,3 +92,60 @@ export function groupModal(id) {
     `primary">Guardar grupo</button></div></form>`
   ].join(''));
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenEditGroup({target}) {
+  groupModal(target.dataset.editGroup);
+}
+
+async function accionOpenEditSubject({target}) {
+  subjectModal(target.dataset.editSubject);
+}
+
+async function accionNewSubject() {
+  subjectModal();
+}
+
+async function accionNewGroup() {
+  groupModal();
+}
+
+async function formularioSubject({data}) {
+  await api('/subjects', {
+    ...data,
+    periods: data.periods.split('\n').filter(line => line.trim()).map(line => {
+      const [id, ...name] = line.split('|');
+      return {id: id.trim(), nombre: name.join('|').trim()};
+    })
+  });
+  dialog.close();
+  await refresh();
+  toast('Materia guardada. Sus carpetas ya están disponibles.');
+}
+
+async function formularioGroup({data}) {
+  await api('/groups', {
+    ...data,
+    year: Number(data.year)
+  });
+  dialog.close();
+  await refresh();
+  toast('Grupo guardado. Ya puedes preparar una propuesta.');
+}
+
+export const actions = {
+  'edit-group': accionOpenEditGroup,
+  'edit-subject': accionOpenEditSubject,
+  'new-subject': accionNewSubject,
+  'new-group': accionNewGroup,
+};
+
+export const forms = {
+  'subject': formularioSubject,
+  'group': formularioGroup,
+};
+
+export const clickBindings = [
+  {priority: 14, matches: target => target.dataset.editGroup, action: 'edit-group'},
+  {priority: 15, matches: target => target.dataset.editSubject, action: 'edit-subject'},
+];

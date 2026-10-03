@@ -710,3 +710,21 @@ La migración SQLite 8 y la lectura de YAML antiguo añaden únicamente los per�
 históricos de Historia I y II cuando falta `periods`, conservando exactamente sus
 carpetas; una lista explícita vacía no se modifica. Las materias nuevas no
 reciben carpetas temáticas predeterminadas.
+
+### Registro de acciones por módulo
+
+Cada archivo de `static/js/vistas/` y `static/js/componentes/` exporta `actions`
+(con un objeto vacío si no tiene interacciones). Los formularios usan `forms`.
+Los mapas contienen nombres únicos y funciones; `main.js` registra todos los
+módulos y rechaza duplicados antes del arranque. Las delegaciones de atributos
+existentes se exportan como `clickBindings`, con su prioridad anterior, y los
+selectores de eventos específicos como `events`. Los eventos de impresión
+pertenecen a `material-alumnado.js` mediante `windowEvents`.
+
+El coordinador conserva renderizado, navegación, arranque y gestión común de
+errores/formularios. Las vistas importan únicamente API, estado, UI y componentes;
+la navegación se comunica mediante `CustomEvent`, sin imports entre vistas ni
+ciclos. Los tests revisan registros duplicados, referencias HTML, formularios y
+bindings sin manejador, el grafo ES y el límite de 250 líneas del coordinador.
+El smoke también comprueba los mapas contra el DOM de vistas y diálogos, y
+recorre el formulario de materia, sus períodos y el indicador de color.

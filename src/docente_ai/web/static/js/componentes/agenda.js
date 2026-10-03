@@ -1,13 +1,7 @@
+import { request, token } from '../api.js';
+import { toast, e, subjectStyle, icon } from '../ui.js';
+import { store, view } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  store,
-  view
-} from '../state.js';
-import {
-  e,
-  subjectStyle,
-  icon
-} from '../ui.js';
 
 export function dailyAgenda() {
   const agenda = store.state.agenda,
@@ -74,3 +68,26 @@ export function dailyAgenda() {
     `</span></div>${sessions.length?`<div class="agenda-track">${cards}</div>`:''}</section>`
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionDownloadCalendar() {
+  const res = await request('/api/calendar.ics', {
+    headers: {
+      'X-Docente-Token': token
+    }
+  });
+  if (!res.ok) throw new Error('No se pudo descargar el calendario.');
+  const blobUrl = URL.createObjectURL(await res.blob());
+  const dlLink = document.createElement('a');
+  dlLink.href = blobUrl;
+  dlLink.setAttribute('download', 'horario-docente.ics');
+  document.body.appendChild(dlLink);
+  dlLink.click();
+  document.body.removeChild(dlLink);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  toast('Descargando calendario con avisos (.ics)...');
+}
+
+export const actions = {
+  'download-calendar': accionDownloadCalendar,
+};

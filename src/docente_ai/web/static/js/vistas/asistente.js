@@ -1,22 +1,9 @@
+import { ensureRemoteConsent } from '../componentes/consentimiento.js';
+import { queue } from '../componentes/trabajos.js';
+import { modal, render, toast, dateLabel, e, header, icon, option, runStatus, subjectOptions } from '../ui.js';
+import { resultHTML } from '../componentes/documentos.js';
+import { draft, readyDocs, store, subjectName } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  resultHTML
-} from '../componentes/documentos.js';
-import {
-  draft,
-  readyDocs,
-  store,
-  subjectName
-} from '../state.js';
-import {
-  dateLabel,
-  e,
-  header,
-  icon,
-  option,
-  runStatus,
-  subjectOptions
-} from '../ui.js';
 
 export function assistant() {
   const subject = draft('ask-form', 'subject', store.selected || store.state.config.subjects[0]?.id || '');
@@ -86,3 +73,40 @@ export function assistant() {
     `</aside></div>`
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionAllAnswers() {
+  modal('Tus consultas', store.state.runs.filter(r => r.kind === 'answer').map(r => [
+    [
+      `<button class="recent-item" data-run="${e(r.id)}">${e(r.title)}<span>${e(dateLabel(r.created_at))} · `
+    ].join(''),
+    `${e(runStatus(r.status))}</span></button>`
+  ].join('')).join(''));
+}
+
+async function formularioAsk({data}) {
+  if (!await ensureRemoteConsent('ask')) return;
+  await queue('/generate', {
+    ...data,
+    mode: 'ask'
+  });
+  toast('Consulta en marcha. Puedes seguir navegando.');
+}
+
+export const actions = {
+  'all-answers': accionAllAnswers,
+};
+
+export const forms = {
+  'ask': formularioAsk,
+};
+
+export const events = {
+  'change': {
+    '#ask-subject': event => {
+      store.drafts['ask-form'] ??= {};
+      store.drafts['ask-form'].subject = event.target.value;
+      render();
+    },
+  },
+};

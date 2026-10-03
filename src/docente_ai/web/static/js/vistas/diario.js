@@ -1,18 +1,8 @@
+import { refresh } from '../componentes/trabajos.js';
+import { dialog, toast, e, header, icon, modal, option, primary } from '../ui.js';
+import { api } from '../api.js';
+import { store } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  api
-} from '../api.js';
-import {
-  store
-} from '../state.js';
-import {
-  e,
-  header,
-  icon,
-  modal,
-  option,
-  primary
-} from '../ui.js';
 
 export function diary() {
   const records = store.state.records || [];
@@ -196,3 +186,76 @@ function entradaDiario(record) {
     ].join('')
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionOpenRecordRun({target}) {
+  recordModal(target.dataset.recordRun, store.currentRun);
+}
+
+async function accionOpenFeedbackSession({target}) {
+  const session = store.state.agenda.sessions.find(item => item.id === target.dataset
+    .feedbackSession);
+  feedbackModal(session);
+}
+
+async function accionOpenSessionRecord({target}) {
+  await existingFeedbackModal(target.dataset.sessionRecord);
+}
+
+async function accionOpenRevealRecord({target}) {
+  await api('/records/' + encodeURIComponent(target.dataset.revealRecord) + '/reveal', {});
+}
+
+async function accionNewFeedback() {
+  feedbackModal();
+}
+
+async function accionRevealDiary() {
+  await api('/reveal-diary', {});
+}
+
+async function formularioRecord({form, data}) {
+  const payload = {
+    ...data,
+    duration_minutes: Number(data.duration_minutes),
+    run_id: form.dataset.run || undefined
+  };
+  const result = await api('/records', payload);
+  dialog.close();
+  toast([
+    `Clase registrada: ${result.id}`,
+    `. El asistente tendrá en cuenta esta sesión en las próximas propuestas.`
+  ].join(''));
+}
+
+async function formularioFeedback({form, data}) {
+  const result = form.dataset.record ? await api('/records/' + encodeURIComponent(form.dataset
+    .record) + '/feedback', data) : await api('/records', {
+    ...data,
+    duration_minutes: Number(data.duration_minutes)
+  });
+  dialog.close();
+  await refresh();
+  toast(`Feedback guardado en el diario de ${result.session_date}.`);
+}
+
+export const actions = {
+  'record-run': accionOpenRecordRun,
+  'feedback-session': accionOpenFeedbackSession,
+  'session-record': accionOpenSessionRecord,
+  'reveal-record': accionOpenRevealRecord,
+  'new-feedback': accionNewFeedback,
+  'reveal-diary': accionRevealDiary,
+};
+
+export const forms = {
+  'record': formularioRecord,
+  'feedback': formularioFeedback,
+};
+
+export const clickBindings = [
+  {priority: 18, matches: target => target.dataset.recordRun, action: 'record-run'},
+  {priority: 19, matches: target => target.dataset.feedbackSession, action: 'feedback-session'},
+  {priority: 20, matches: target => target.dataset.sessionRecord, action: 'session-record'},
+  {priority: 21, matches: target => target.dataset.revealRecord, action: 'reveal-record'},
+];

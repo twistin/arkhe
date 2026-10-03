@@ -1,14 +1,8 @@
+import { api } from '../api.js';
+import { checkStatus, refresh } from '../componentes/trabajos.js';
+import { view, store, subjectName } from '../state.js';
+import { $, navigate, dialog, modal, render, toast, e, header, icon, option } from '../ui.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  store,
-  subjectName
-} from '../state.js';
-import {
-  e,
-  header,
-  icon,
-  option
-} from '../ui.js';
 
 export function runStatsPanel() {
   const stats = store.selectedRunStats || store.state.run_stats;
@@ -255,3 +249,87 @@ export function settings() {
     `data-action="shutdown-dialog">Cerrar Enjambre</button></div>`
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionShutdownDialog() {
+  modal('Cerrar tu espacio', [
+    `<p>Se cerrará el servidor local. Tus documentos y propuestas quedan `,
+    `guardados.</p><div class="dialog-actions"><button class="button ghost" `,
+    `data-action="close-dialog">Volver</button><button class="button primary" `,
+    `data-action="shutdown">Cerrar Enjambre</button></div>`
+  ].join(''));
+}
+
+async function accionShutdown() {
+  await api('/shutdown', {});
+  store.isClosed = true;
+  clearInterval(store.monitorTimer);
+  dialog.close();
+  $('#connection').disabled = true;
+  $('#connection').innerHTML = 'Enjambre cerrado';
+  render();
+}
+
+async function accionDeleteApiKey() {
+  await api('/secrets/provider', undefined, {
+    method: 'DELETE'
+  });
+  await refresh();
+  await checkStatus();
+  toast(store.state.api_key_configured ? 'Entrada borrada; sigue configurada desde el entorno.' :
+    'Clave borrada del Llavero.');
+}
+
+async function accionStatus() {
+  await checkStatus();
+  if (view() !== 'ajustes') {
+    navigate('ajustes');
+  }
+}
+
+async function formularioRunStats({data}) {
+  store.selectedRunStats = await api('/runs/stats?limit=' + encodeURIComponent(data.limit));
+  render();
+}
+
+async function formularioModels({form, data}) {
+  const provider = data.provider || 'ollama';
+  const generation = data.generation;
+  await api('/models', {
+    ...data,
+    provider,
+    generation
+  });
+  if (form.elements.api_key) form.elements.api_key.value = '';
+  await refresh();
+  await checkStatus();
+  toast('Configuración de motor actualizada.');
+}
+
+export const actions = {
+  'shutdown-dialog': accionShutdownDialog,
+  'shutdown': accionShutdown,
+  'delete-api-key': accionDeleteApiKey,
+  'status': accionStatus,
+};
+
+export const forms = {
+  'run-stats': formularioRunStats,
+  'models': formularioModels,
+};
+
+export const events = {
+  'change': {
+    '#model-provider': event => {
+      const form = event.target.closest('form');
+      const preset = store.state.provider_presets[event.target.value];
+      const isDS = preset.transport !== 'ollama';
+      form.elements.generation.value = Object.keys(preset.models)[0] || '';
+      form.elements.base_url.value = preset.base_url;
+      form.querySelectorAll('.custom-only').forEach(el => el.hidden = event.target.value !== 'custom');
+      form.querySelectorAll('.remote-only').forEach(el => el.hidden = !isDS);
+      form.querySelectorAll('.ollama-only').forEach(el => el.hidden = isDS);
+
+    },
+  },
+};

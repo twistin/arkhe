@@ -1,7 +1,5 @@
+import { e } from '../ui.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  e
-} from '../ui.js';
 
 export function is15thCenturyPolyphony(run) {
   const text = ((run.request?.question || '') + ' ' + (run.request?.pedagogy?.teacher_criteria || '') + ' ' +
@@ -357,3 +355,8 @@ export function renderStudentDiscographySection(run) {
     `\n          </tbody>\n        </table>\n      </div>\n    </section>\n  `
   ].join('');
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+
+
+export const actions = {};

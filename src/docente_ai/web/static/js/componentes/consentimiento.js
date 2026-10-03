@@ -1,13 +1,7 @@
+import { api } from '../api.js';
+import { refresh } from './trabajos.js';
+import { store } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import {
-  api
-} from '../api.js';
-import {
-  refresh
-} from './trabajos.js';
-import {
-  store
-} from '../state.js';
 
 export async function ensureRemoteConsent(mode = 'ask') {
   const info = (mode === 'pedagogy' ? store.state.pedagogy_provider_info : null) || store.state
@@ -30,3 +24,13 @@ export async function ensureRemoteConsent(mode = 'ask') {
   await refresh(false);
   return true;
 }
+
+// Acciones y formularios de este módulo; delegación central en main.js.
+async function accionConfirmProvider() {
+  await ensureRemoteConsent();
+  await refresh();
+}
+
+export const actions = {
+  'confirm-provider': accionConfirmProvider,
+};
