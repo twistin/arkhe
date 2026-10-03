@@ -916,3 +916,9 @@ workspace persistente nuevo y dos redes: privada interna y salida. Solo Caddy
 publica 80/443; Arkhé y Ollama escuchan en sus IP privadas. Caddy entrega HTTPS y
 sustituye forwarded headers. El contenedor no incluye datos ni configuraciones
 personales. El servicio Ollama del piloto se prepara únicamente con bge-m3.
+
+
+En Docker las claves solo se inyectan por `env_file: /etc/arkhe/.env`, protegido
+con 0600 en el host. El piloto fija Mistral UE y bge-m3; bloquea claves desde Ajustes
+incluido su borrado. El arranque crea únicamente configuración sin secretos y
+exige el consentimiento remoto habitual antes de generar. Ver deploy/env.example.

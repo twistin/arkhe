@@ -96,6 +96,13 @@ export function renderPage() {
       node.textContent = 'Descargar sesión';
     });
     document.querySelector('.local-note').textContent = 'Biblioteca privada · Servidor UE';
+    document.querySelectorAll('input[name="api_key"]').forEach(node => {
+      node.disabled = true;
+      node.placeholder = 'Clave administrada en el servidor';
+    });
+    document.querySelectorAll('select[name="provider"] option').forEach(node => {
+      if (node.value !== 'mistral') node.remove();
+    });
     document.querySelectorAll('.path').forEach(node => { node.textContent = 'Biblioteca privada del servidor'; });
   }
   if (focusId) {

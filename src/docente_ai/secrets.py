@@ -64,7 +64,12 @@ def secret_configured(name):
 
 
 def redact(value):
-    return re.sub(r'sk-[A-Za-z0-9]{16,}', '[CLAVE OCULTA]', value)
+    value = re.sub(r'sk-[A-Za-z0-9]{16,}', '[CLAVE OCULTA]', value)
+    # Los proveedores europeos no necesariamente utilizan el prefijo sk-.
+    for name, secret in os.environ.items():
+        if name.startswith('DOCENTE_AI_') and name.endswith('_API_KEY') and secret.strip():
+            value = value.replace(secret.strip(), '[CLAVE OCULTA]')
+    return value
 
 
 class SecretFilter(logging.Filter):

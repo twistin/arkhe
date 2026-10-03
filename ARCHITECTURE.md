@@ -815,3 +815,10 @@ Ollama no loopback admitida es http://ollama:11434 bajo ARKHE_SERVER_MODE=1; no 
 admiten destinos arbitrarios introducidos desde el navegador. La interfaz local
 no establece esa variable. Redes de salida permiten descargar modelos y llamar
 al proveedor; los sockets servidores se fijan a las IP de la red privada.
+
+
+Las cuentas y hashes se montan aparte y las claves IA entran exclusivamente por
+entorno, nunca por build args, imagen ni volumen de usuario. Bootstrap crea
+configuraciones no secretas Mistral UE/bge-m3 únicamente si faltan. El endpoint
+de modelos rechaza proveedores fuera de UE y credenciales del frontend en modo
+servidor. Cambiar clave requiere editar el archivo externo y recrear el servicio.

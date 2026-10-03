@@ -72,6 +72,8 @@ class ServerOnly(BaseHTTPMiddleware):
                     return JSONResponse({'error': 'Inicia sesión para acceder.'}, status_code=401)
                 from starlette.responses import RedirectResponse
                 return RedirectResponse('/login', status_code=303)
+        if path.startswith('/api/secrets/'):
+            return JSONResponse({'error': 'Las claves del piloto se administran por entorno.'}, status_code=403)
         if path in ('/api/shutdown', '/api/reveal', '/api/reveal-diary') or path.endswith('/reveal'):
             return JSONResponse({'error': 'Acción local desactivada; utiliza subida o descarga.'}, status_code=403)
         if path.startswith('/api/') and not secrets.compare_digest(request.headers.get('x-docente-token', ''), self.token):

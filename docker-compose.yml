@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     init: true
     command: [serve, --server, --public-host, "${ARKHE_PUBLIC_HOST:?Define ARKHE_PUBLIC_HOST}", --workspace, /datos/docente, --proxy-ip, "${CADDY_IP:-172.30.0.2}", --bind, "${ARKHE_IP:-172.30.0.3}"]
+    env_file: [/etc/arkhe/.env]
     environment:
       ARKHE_SERVER_MODE: "1"
     volumes:

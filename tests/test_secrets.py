@@ -107,3 +107,9 @@ def test_yaml_invalido_no_filtra_clave(tmp_path):
     with pytest.raises(ValueError) as error:
         load_settings(path)
     assert KEY not in str(error.value)
+
+
+def test_redaccion_clave_entorno_sin_prefijo(monkeypatch):
+    from docente_ai.secrets import redact
+    monkeypatch.setenv('DOCENTE_AI_MISTRAL_API_KEY', 'credencial-sintetica-sin-prefijo')
+    assert redact('Bearer credencial-sintetica-sin-prefijo') == 'Bearer [CLAVE OCULTA]'

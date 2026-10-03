@@ -320,7 +320,13 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         return JSONResponse(await run_in_threadpool(ws.save_group, await body(request)))
 
     async def models(request):
-        return JSONResponse(await run_in_threadpool(ws.save_models, await body(request)))
+        data = await body(request)
+        if server:
+            if data.get('api_key') or data.get('delete_api_key') or data.get('provider', 'mistral') != 'mistral':
+                raise ValueError('Piloto: solo Mistral UE; la clave se administra por entorno en el servidor.')
+            if data.get('embeddings', 'bge-m3') not in ('', 'bge-m3'):
+                raise ValueError('El piloto utiliza únicamente embeddings bge-m3.')
+        return JSONResponse(await run_in_threadpool(ws.save_models, data))
 
     async def stats(request):
         from docente_ai.generation.service import run_stats

@@ -93,3 +93,11 @@ def test_login_no_admite_csrf_y_token_sin_sesion(server):
     assert client.get('/api/state').status_code == 401
     assert client.post('/login', data={'username': 'docente', 'password': 'contraseña-de-prueba-segura',
                                      'csrf': 'inventado'}).status_code == 403
+
+
+def test_servidor_rechaza_claves_y_proveedores_fuera_ue(server):
+    client, _ = server
+    token(client)
+    for data in ({'api_key': 'sk-prueba-nunca-guardar'}, {'provider': 'deepseek'}, {'embeddings': 'otro'}):
+        assert client.post('/api/models', json=data).status_code == 400
+    assert client.delete('/api/secrets/provider').status_code == 403

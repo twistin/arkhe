@@ -17,6 +17,12 @@ def main():
         if not rag.exists():
             rag.write_text(yaml.safe_dump({'schema_version': 1, 'embeddings': {
                 'model': 'bge-m3', 'host': 'http://ollama:11434'}}))
+        for name in ('generation', 'pedagogy'):
+            path = folder / (name + '.yaml')
+            if not path.exists():
+                path.write_text(yaml.safe_dump({'schema_version': 1, 'generation': {
+                    'provider': 'mistral', 'model': 'mistral-small-latest', 'num_ctx': 65536,
+                    'max_output_tokens': 4096, 'base_url': 'https://api.eu.mistral.ai/v1'}}))
     return cli_main(args)
 
 
