@@ -1,0 +1,7 @@
+[Unit]
+Description=Copia consistente de Arkhé
+Requires=docker.service
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/opt/arkhe/scripts/pilot-backup.sh

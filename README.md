@@ -922,3 +922,9 @@ En Docker las claves solo se inyectan por `env_file: /etc/arkhe/.env`, protegido
 con 0600 en el host. El piloto fija Mistral UE y bge-m3; bloquea claves desde Ajustes
 incluido su borrado. El arranque crea únicamente configuración sin secretos y
 exige el consentimiento remoto habitual antes de generar. Ver deploy/env.example.
+
+Las copias del piloto detienen Arkhé brevemente, ejecutan SQLite `.backup` y
+archivan Conocimiento, originales internos y configuraciones sin credenciales.
+Timer diario UTC y rotación de catorce días. La restauración valida checksums,
+rutas y SQLite y solo admite un destino nuevo vacío; no pisa el volumen activo.
+Se añade sqlite3 como herramienta del sistema en la imagen, sin dependencia Python.

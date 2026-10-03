@@ -1,0 +1,8 @@
+[Unit]
+Description=Copia diaria de Arkhé (14 días)
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+[Install]
+WantedBy=timers.target

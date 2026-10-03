@@ -822,3 +822,9 @@ entorno, nunca por build args, imagen ni volumen de usuario. Bootstrap crea
 configuraciones no secretas Mistral UE/bge-m3 únicamente si faltan. El endpoint
 de modelos rechaza proveedores fuera de UE y credenciales del frontend en modo
 servidor. Cambiar clave requiere editar el archivo externo y recrear el servicio.
+
+Las copias sincronizan base y archivos con el servicio detenido. No basta tar de
+Conocimiento: data/library contiene los originales verificados. El archivo incluye
+ambos y configuración no secreta, manifest SHA256 y permisos 0600. Restaurar rechaza
+symlinks, rutas fuera de raíz, duplicados y corrupción; integrity_check carga
+sqlite-vec del programa. Auth y claves quedan fuera; se administran por separado.
