@@ -792,3 +792,11 @@ Las pruebas usan corpus temporales y generadores/transportes simulados: envío S
 antes del resultado final, reconexión, reparación, citas alteradas rechazadas,
 cancelación y cierre de petición, NDJSON de Ollama, SSE remoto, y panel provisional
 sin ejecución de HTML. No abren red ni acceden a fuentes reales.
+
+## Modo servidor del piloto
+
+ServerSettings separa el servidor de LocalOnly. La conexión debe proceder de la
+IP privada configurada del proxy; Host se compara exactamente, Proto debe ser
+HTTPS y For una sola dirección IP. Uvicorn no interpreta forwarded headers por
+su cuenta. La UI oculta acciones de escritorio y la API las rechaza. El workspace
+nuevo comienza sin materias, grupos ni fuentes. El modo ui mantiene su contrato.

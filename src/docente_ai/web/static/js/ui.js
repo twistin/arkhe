@@ -187,6 +187,11 @@ function dialogHTML(title, content) {
 export function modal(title, content) {
   dialog.classList.remove('student-dialog');
   $('#dialog-content').innerHTML = dialogHTML(title, content);
+  if (store.state?.server_mode) {
+    dialog.querySelectorAll('[data-action="reveal"], [data-action="reveal-diary"], ' +
+      '[data-action="shutdown"], [data-action="shutdown-dialog"], ' +
+      '[data-action="delete-api-key"]').forEach(node => node.remove());
+  }
   if (!dialog.open) dialog.showModal();
 }
 

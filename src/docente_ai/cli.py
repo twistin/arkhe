@@ -38,12 +38,22 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument('--port', type=int, default=8765)
     web.add_argument('--no-browser', action='store_true')
     web.add_argument('--workspace', type=Path, default=Path.cwd())
+    server = commands.add_parser('serve', help='Servidor privado detrás de un proxy HTTPS.')
+    server.add_argument('--server', action='store_true')
+    server.add_argument('--public-host', required=True)
+    server.add_argument('--workspace', type=Path, required=True)
+    server.add_argument('--proxy-ip', default='172.30.0.2')
+    server.add_argument('--bind', default='172.30.0.3')
+    server.add_argument('--port', type=int, default=8765)
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
         return 0
     if args.command != "doctor":
         try:
+            if args.command == 'serve':
+                from docente_ai.web.server import serve
+                return serve(args)
             if args.command == 'ui':
                 from docente_ai.web.launch import launch
                 return launch(args)

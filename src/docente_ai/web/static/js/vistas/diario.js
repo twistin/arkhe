@@ -1,6 +1,6 @@
 import { refresh } from '../componentes/trabajos.js';
 import { dialog, toast, e, header, icon, modal, option, primary } from '../ui.js';
-import { api } from '../api.js';
+import { api, request } from '../api.js';
 import { store } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
@@ -203,7 +203,17 @@ async function accionOpenSessionRecord({target}) {
 }
 
 async function accionOpenRevealRecord({target}) {
-  await api('/records/' + encodeURIComponent(target.dataset.revealRecord) + '/reveal', {});
+  const path = '/api/records/' + encodeURIComponent(target.dataset.revealRecord);
+  if (store.state.server_mode) {
+    const response = await request(path + '/download');
+    if (!response.ok) throw new Error('No se pudo descargar la sesión.');
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sesion.zip';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } else await api(path.replace('/api', '') + '/reveal', {});
 }
 
 async function accionNewFeedback() {

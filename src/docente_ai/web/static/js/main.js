@@ -88,6 +88,16 @@ export function renderPage() {
     diario: diary,
     ajustes: settings
   })[active]();
+  if (store.state.server_mode) {
+    document.querySelectorAll('[data-action="reveal"], [data-action="reveal-diary"], ' +
+      '[data-action="shutdown"], [data-action="shutdown-dialog"], ' +
+      '[data-action="delete-api-key"]').forEach(node => node.remove());
+    document.querySelectorAll('[data-reveal-record]').forEach(node => {
+      node.textContent = 'Descargar sesión';
+    });
+    document.querySelector('.local-note').textContent = 'Biblioteca privada · Servidor UE';
+    document.querySelectorAll('.path').forEach(node => { node.textContent = 'Biblioteca privada del servidor'; });
+  }
   if (focusId) {
     const field = document.getElementById(focusId);
     field?.focus({

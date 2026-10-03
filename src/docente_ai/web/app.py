@@ -85,7 +85,7 @@ async def body(request):
     return data
 
 
-def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
+def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=None):
     token = secrets.token_urlsafe(32)
     ws = workspace or Workspace(root)
 
@@ -106,8 +106,16 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
             'X-Enjambre-Workspace': workspace_id,  # Compatibilidad con lanzadores anteriores.
         })
 
+    def visible(data):
+        if server:
+            from docente_ai.web.server import public_data
+            return public_data(data)
+        return data
+
     async def state(request):
-        return JSONResponse(await run_in_threadpool(ws.state))
+        data = await run_in_threadpool(ws.state)
+        if server: data['server_mode'] = True
+        return JSONResponse(visible(data))
 
     async def status(request):
         return JSONResponse(await run_in_threadpool(ws.model_status))
@@ -209,7 +217,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
             if len(segment['text']) > 16000:
                 segment['text'] = segment['text'][:16000] + '\n[Vista previa abreviada]'
                 data['preview_truncated'] = True
-        return JSONResponse(data)
+        return JSONResponse(visible(data))
 
     async def authorize(request):
         data = await body(request)
@@ -280,6 +288,21 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
         data = await body(request)
         return JSONResponse(await run_in_threadpool(ws.add_feedback, request.path_params['id'], data))
 
+    async def record_download(request):
+        import io
+        import zipfile
+        record = await run_in_threadpool(ws.get_record, request.path_params['id'])
+        folder = ws._record_folder(record)
+        if not folder.resolve().is_relative_to(ws.knowledge.resolve()):
+            raise ValueError('Carpeta de sesión inválida.')
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(folder.rglob('*')):
+                if path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(folder.resolve()):
+                    archive.write(path, str(path.relative_to(folder)))
+        return Response(output.getvalue(), media_type='application/zip', headers={
+            'Content-Disposition': 'attachment; filename="sesion.zip"'})
+
     async def record_reveal(request):
         return JSONResponse(await run_in_threadpool(ws.reveal_record, request.path_params['id']))
 
@@ -348,7 +371,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
               Route('/api/records/{id}', record_get),
               Route('/api/records/{id}/progress', record_progress, methods=['POST']),
               Route('/api/records/{id}/feedback', record_feedback, methods=['POST']),
-              Route('/api/records/{id}/reveal', record_reveal, methods=['POST']),
+              Route('/api/records/{id}/download', record_download), Route('/api/records/{id}/reveal', record_reveal, methods=['POST']),
               Route('/api/groups/{id}/records', group_records),
               Route('/api/calendar.ics', export_calendar),
               Route('/api/subjects', subject, methods=['POST']), Route('/api/groups', group, methods=['POST']),
@@ -359,6 +382,10 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
     routes.insert(0, Route('/api/provider/confirm', confirm_provider, methods=['POST']))
     routes.insert(0, Route('/api/runs/stats', stats))
     app = Starlette(routes=routes, lifespan=lifespan, exception_handlers={ValueError: error, OSError: error, sqlite3.Error: error})
-    app.add_middleware(LocalOnly, token=token, port=port, allowed_hosts=allowed_hosts)
+    if server:
+        from docente_ai.web.server import ServerOnly
+        app.add_middleware(ServerOnly, settings=server, token=token)
+    else:
+        app.add_middleware(LocalOnly, token=token, port=port, allowed_hosts=allowed_hosts)
     app.state.workspace = ws
     return app

@@ -895,3 +895,11 @@ HTTP activa y registra `cancelled`, sin publicar el texto provisional. Una tarea
 cancelada mientras espera en cola no llama al modelo ni crea un registro generativo.
 Recargar o cerrar el canal de progreso no cancela una consulta: se recupera su
 estado al volver a abrir la aplicación.
+
+## Piloto servidor (en preparación)
+
+`docente-ai serve --server --public-host arkhe.ejemplo.es --workspace /datos/usuario`
+activa una frontera distinta del modo `ui`: IP privada de escucha, Host público
+único y proxy HTTPS explícito. No publica acciones de Finder ni cierre del proceso;
+la biblioteca se utiliza con subida y descarga. El modo local permanece igual.
+No publicar este modo sin la autenticación y el despliegue completo del piloto.
