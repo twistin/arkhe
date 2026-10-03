@@ -589,7 +589,13 @@ document.addEventListener('submit', async event => {
         break;
       }
       case 'subject':
-        await api('/subjects', data);
+        await api('/subjects', {
+          ...data,
+          periods: data.periods.split('\n').filter(line => line.trim()).map(line => {
+            const [id, ...name] = line.split('|');
+            return {id: id.trim(), nombre: name.join('|').trim()};
+          })
+        });
         dialog.close();
         await refresh();
         toast('Materia guardada. Sus carpetas ya están disponibles.');

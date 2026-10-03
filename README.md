@@ -835,3 +835,19 @@ Para mantener el JavaScript legible se usan funciones de panel/fila y fragmentos
 El smoke visual admite por defecto como máximo un 0,01 % de píxeles distintos y una diferencia máxima de 2 niveles en cada canal RGB; deben cumplirse ambos límites y las dimensiones deben coincidir. El informe siempre conserva el número exacto de diferencias. Ejecuta `uv run --locked --group ui python scripts/check_ui_local.py --strict` para exigir cero diferencias, o `DOCENTE_UI_STRICT=1 uv run --locked pytest` para la suite estricta. No se toma una captura adicional de calentamiento. Para una modificación visual intencionada puede actualizarse únicamente Ajustes mediante `--update-baseline --update-views ajustes`; nunca se actualizan referencias automáticamente.
 
 El test de interpolaciones analiza todos los módulos, plantillas anidadas y fragmentos HTML unidos. Exige `e()` para datos o constructores incluidos en la lista explícita `HTML_SEGURO` de `tests/ui_templates.py`. Las excepciones internas de los constructores base están enumeradas y revisadas: texto previamente escapado de Markdown, SVG literal y parámetros de HTML compuesto de cabecera/diálogo. No pasar texto de la API como HTML compuesto. Este análisis léxico es una guarda para la sintaxis utilizada por el proyecto, no un analizador general de JavaScript; la sintaxis nueva requiere ampliar sus casos de prueba.
+
+### Materias, colores y períodos configurables
+
+En Ajustes se pueden editar el color opcional `#RRGGBB` y los períodos ordenados
+de cada materia. `teaching.yaml` admite `color` y `periods: [{id, nombre}]`;
+importación y exportación conservan ambos campos. El identificador del período
+es el nombre de su carpeta, sin separadores ni rutas relativas; `nombre` es su
+etiqueta visible. Una lista vacía permite trabajar sin períodos. Cambiar un
+identificador crea otra carpeta y conserva los archivos anteriores.
+
+Sin color se utiliza una paleta fija mediante un hash estable del identificador.
+La interfaz aplica variables CSS, sin selectores específicos por asignatura.
+La migración SQLite 8 y la lectura de YAML antiguo añaden únicamente los períodos
+históricos de Historia I y II cuando falta `periods`, conservando exactamente sus
+carpetas; una lista explícita vacía no se modifica. Las materias nuevas no
+reciben carpetas temáticas predeterminadas.

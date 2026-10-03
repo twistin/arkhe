@@ -39,17 +39,29 @@ const paths = {
 export const icon = name => [
   `<svg class="icon" viewBox="0 0 25 25" aria-hidden="true">${paths[name] || paths.document}</svg>`
 ].join('');
-const periodLabels = {
-  '00 Xeral e Tratados': 'Xeral e Tratados',
-  '01 Antiguedade': 'Antigüidade',
-  '02 Idade Media': 'Idade Media',
-  '03 Renacemento': 'Renacemento',
-  '01 Barroco e Preclasicismo': 'Barroco e Preclasicismo',
-  '02 Clasicismo': 'Clasicismo',
-  '03 Romanticismo': 'Romanticismo',
-  '04 Seculo XX e Contemporanea': 'Século XX e Contemporánea',
-};
-export const formatPeriod = p => periodLabels[p] || (p ? p.replace(/^\d+\s*/, '') : '');
+export const formatPeriod = p => store.state?.config.subjects
+  .flatMap(s => s.periods || []).find(period => period.id === p)?.nombre || p || '';
+
+// Paleta fija sin identificadores de materias; hash estable entre navegadores.
+const subjectPalette = [
+  ['#0284c7', '#e0f2fe', '#0369a1', '#7dd3fc'],
+  ['#16a34a', '#dcfce7', '#15803d', '#86efac'],
+  ['#9333ea', '#f3e8ff', '#7e22ce', '#d8b4fe'],
+  ['#0d9488', '#ccfbf1', '#0f766e', '#5eead4'],
+  ['#d97706', '#fef3c7', '#92400e', '#fcd34d'],
+];
+export function subjectStyle(id) {
+  let hash = 0;
+  for (const char of id || '') hash = (Math.imul(hash, 31) + char.codePointAt(0)) >>> 0;
+  const color = store.state?.config.subjects.find(s => s.id === id)?.color?.toLowerCase();
+  let palette = id && id !== 'none' && id !== 'xeral' ? subjectPalette[hash % subjectPalette.length] :
+    ['#94a3b8', '#f1f5f9', '#475569', '#cbd5e1'];
+  if (/^#[0-9a-f]{6}$/.test(color || '')) {
+    palette = subjectPalette.find(p => p[0] === color) || [color, color + '18', color, color + '80'];
+  }
+  return ['--subject-color', '--subject-bg', '--subject-ink', '--subject-border']
+    .map((name, i) => `${name}:${palette[i]}`).join(';');
+}
 export const main = $('#main'),
   dialog = $('#dialog');
 export const option = (value, text, selectedValue) => [

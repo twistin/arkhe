@@ -139,7 +139,7 @@ def test_import_idempotent_and_round_trip(config, tmp_path):
     with sqlite3.connect(db) as connection:
         assert connection.execute('SELECT count(*) FROM config_imports').fetchone()[0] == 1
         assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
 
 
 def test_invalid_import_does_not_create_database(config, tmp_path):

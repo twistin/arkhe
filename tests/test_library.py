@@ -333,7 +333,7 @@ def test_v1_migration_preserves_configuration(tmp_path):
     import_document(db, source, category='documental', subjects=['historia-i'])
     assert read_config(db) == config
     with sqlite3.connect(db) as connection:
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
 
 
 def test_missing_original_prevents_duplicate_success(library):

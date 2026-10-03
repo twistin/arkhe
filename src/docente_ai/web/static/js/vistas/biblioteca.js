@@ -15,6 +15,7 @@ import {
 import {
   $,
   e,
+  subjectStyle,
   formatPeriod,
   header,
   icon,
@@ -314,13 +315,13 @@ export async function scanFolder() {
 function filaFuente(d) {
 
   const firstSubj = d.subjects && d.subjects.length ? d.subjects[0] : 'none';
-  const subjBadges = d.shared ? '<span class="subject-badge subject-tag-xeral">Compartido</span>' : (d
+  const subjBadges = d.shared ? '<span class="subject-badge subject-tag">Compartido</span>' : (d
     .subjects && d.subjects.length ? d.subjects.map(s => [
-      `<span class="subject-badge subject-tag-${e(s)}">${e(subjectName(s))}</span>`
+      `<span class="subject-badge subject-tag" style="${e(subjectStyle(s))}">${e(subjectName(s))}</span>`
     ].join('')).join(' ') :
-    '<span class="subject-badge subject-tag-none">Sin materia</span>');
+    '<span class="subject-badge subject-tag">Sin materia</span>');
   return [
-    `<button class="source-row subject-${e(firstSubj)}" data-document="${e(d.id)}`,
+    `<button class="source-row subject-colored" style="${e(subjectStyle(firstSubj))}" data-document="${e(d.id)}`,
     `"><span class="file-icon ${e(d.category)}">${e(d.format.toUpperCase())}`,
     [
       `</span><span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">`

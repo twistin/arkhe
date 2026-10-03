@@ -40,21 +40,6 @@ from docente_ai.storage import import_config, read_config, connect, migrate
 from docente_ai.teaching.calendar import sessions as calendar_sessions
 
 CATEGORIES = {'documental': '01 Fuentes', 'profesor': '02 Material docente'}
-SUBJECT_PERIOD_FOLDERS = {
-    'historia-i': [
-        '00 Xeral e Tratados',
-        '01 Antiguedade',
-        '02 Idade Media',
-        '03 Renacemento',
-    ],
-    'historia-ii': [
-        '00 Xeral e Tratados',
-        '01 Barroco e Preclasicismo',
-        '02 Clasicismo',
-        '03 Romanticismo',
-        '04 Seculo XX e Contemporanea',
-    ],
-}
 SUFFIXES = {'.pdf', '.docx', '.txt', '.md'}
 MAX_BYTES = 300 * 1024 * 1024
 
@@ -114,8 +99,8 @@ class Workspace:
             for subject in read_config(self.db)['subjects']:
                 sub_folder = folder / subject['id']
                 sub_folder.mkdir(exist_ok=True)
-                for period in SUBJECT_PERIOD_FOLDERS.get(subject['id'], []):
-                    (sub_folder / period).mkdir(exist_ok=True)
+                for period in subject.get('periods', []):
+                    (sub_folder / period['id']).mkdir(exist_ok=True)
         guide = self.knowledge / '_LEEME.md'
         if not guide.exists():
             guide.write_text('''# Tu biblioteca de conocimiento
@@ -279,7 +264,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                            for item in _list_records(self.db, group['id'], limit=20))
         records.sort(key=lambda item: (item['session_date'], item['created_at']), reverse=True)
         return {'config': config, 'documents': self.documents(), 'runs': runs,
-                'subject_periods': SUBJECT_PERIOD_FOLDERS,
+                'subject_periods': {s['id']: [p['id'] for p in s.get('periods', [])] for s in config['subjects']},
                 'agenda': daily_agenda(config),
                 'records': records,
                 'knowledge_path': str(self.knowledge), 'jobs': self.job_list(),
@@ -346,7 +331,14 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 subject_id = slug(name)
                 if any(s['id'] == subject_id for s in config['subjects']):
                     raise ValueError('Ya existe una materia con ese nombre.')
-                config['subjects'].append({'id': subject_id, 'name': name})
+                subject = {'id': subject_id, 'name': name}
+                config['subjects'].append(subject)
+            if 'color' in data:
+                subject.pop('color', None)
+                if data['color']:
+                    subject['color'] = data['color']
+            if 'periods' in data:
+                subject['periods'] = data['periods']
             import_config(self.db, config, replace=True)
             self.ensure_folders()
         return {'id': subject_id}

@@ -16,6 +16,12 @@ subjects:
   - id: historia-i
     name: Historia de la Música I
     description: Asignatura de ejemplo, editable.
+    color: '#16a34a'
+    periods:
+      - {id: '00 Xeral e Tratados', nombre: Xeral e Tratados}
+      - {id: '01 Antiguedade', nombre: Antigüidade}
+      - {id: '02 Idade Media', nombre: Idade Media}
+      - {id: '03 Renacemento', nombre: Renacemento}
 groups:
   - id: historia-3gp
     name: Grupo A

@@ -18,6 +18,7 @@ import {
 } from '../state.js';
 import {
   e,
+  subjectStyle,
   formatMarkdown,
   icon,
   modal
@@ -85,9 +86,9 @@ export function resultHTML(run) {
   let content = [
     `<section class="panel result result-document"><header class="result-cover"><div `,
     [
-      `class="result-cover-copy"><div class="result-kicker"><span class="subject-badge subject-tag-`
+      `class="result-cover-copy"><div class="result-kicker"><span class="subject-badge subject-tag" style="`
     ].join(''),
-    `${e(run.subject||'none')}">`,
+    `${e(subjectStyle(run.subject))}">`,
     [
       `${
         e(subjectName(run.subject) || (isPedagogy ? 'Propuesta docente' : 'Documentación'))

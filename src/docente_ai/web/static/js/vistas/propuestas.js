@@ -10,6 +10,7 @@ import {
 import {
   dateLabel,
   e,
+  subjectStyle,
   header,
   icon,
   modal,
@@ -160,10 +161,11 @@ function tarjetaPropuesta(r) {
   const duration = r.request?.pedagogy?.duration_minutes ? `${r.request.pedagogy.duration_minutes} min` : '';
   const metaParts = [dateLabel(r.created_at), nombreGrupo, duration].filter(Boolean);
   return [
-    `<article class="proposal-card subject-${e(subj)}" data-subject="${e(subj)}`,
+    `<article class="proposal-card subject-colored" style="${e(subjectStyle(subj))}" data-subject="${e(subj)}`,
     `">\n          <div class="proposal-card-header">\n            <div `,
     [
-      `class="proposal-card-tags">\n              <span class="subject-badge subject-tag-${e(subj)}">`
+      `class="proposal-card-tags">\n              <span class="subject-badge subject-tag" ` +
+      `style="${e(subjectStyle(subj))}">`
     ].join(''),
     `${e(subjectName(r.subject) || 'Sin materia')}</span>\n              <span class="badge `,
     `${reviewClass}">${reviewLabel}`,

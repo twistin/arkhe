@@ -206,115 +206,13 @@
   align-items: center;
 }
 
-/* Subject Colors Palette */
-/* 1. Historia da Música I (Verde Esmeralda) */
-.subject-historia-i {
-  border-left: 5px solid #16a34a !important;
+.subject-colored {
+  border-left: 5px solid var(--subject-color, #94a3b8) !important;
 }
-.subject-tag-historia-i {
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
-}
-
-/* 2. Historia da Música II (Azul Cielo / Sky) */
-.subject-historia-ii {
-  border-left: 5px solid #0284c7 !important;
-}
-.subject-tag-historia-ii {
-  background: #e0f2fe;
-  color: #0369a1;
-  border: 1px solid #7dd3fc;
-}
-
-/* 3. Guitarra (Ámbar Cálido) */
-.subject-guitarra {
-  border-left: 5px solid #d97706 !important;
-}
-.subject-tag-guitarra {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fcd34d;
-}
-
-/* 4. Conxunto de Guitarras (Púrpura / Violeta) */
-.subject-conxunto-guitarra {
-  border-left: 5px solid #9333ea !important;
-}
-.subject-tag-conxunto-guitarra {
-  background: #f3e8ff;
-  color: #7e22ce;
-  border: 1px solid #d8b4fe;
-}
-
-/* 5. NTAM (Teal / Turquesa) */
-.subject-ntam {
-  border-left: 5px solid #0d9488 !important;
-}
-.subject-tag-ntam {
-  background: #ccfbf1;
-  color: #0f766e;
-  border: 1px solid #5eead4;
-}
-
-/* 6A. Música 1º ESO (Naranja Vivo) */
-.subject-musica-1-eso, .subject-1-eso, .subject-eso-1 {
-  border-left: 5px solid #ea580c !important;
-}
-.subject-tag-musica-1-eso, .subject-tag-1-eso, .subject-tag-eso-1 {
-  background: #ffedd5;
-  color: #c2410c;
-  border: 1px solid #fdba74;
-}
-
-/* 6B. Música 2º ESO (Carmesí / Coral Red) */
-.subject-musica-2-eso, .subject-2-eso, .subject-eso-2 {
-  border-left: 5px solid #e11d48 !important;
-}
-.subject-tag-musica-2-eso, .subject-tag-2-eso, .subject-tag-eso-2 {
-  background: #ffe4e6;
-  color: #be123c;
-  border: 1px solid #fda4af;
-}
-
-/* 6C. Música 3º ESO (Índigo Profundo) */
-.subject-musica-3-eso, .subject-3-eso, .subject-eso-3 {
-  border-left: 5px solid #4f46e5 !important;
-}
-.subject-tag-musica-3-eso, .subject-tag-3-eso, .subject-tag-eso-3 {
-  background: #e0e7ff;
-  color: #3730a3;
-  border: 1px solid #a5b4fc;
-}
-
-/* 6D. Música 4º ESO (Fucsia / Magenta) */
-.subject-musica-4-eso, .subject-4-eso, .subject-eso-4 {
-  border-left: 5px solid #c026d3 !important;
-}
-.subject-tag-musica-4-eso, .subject-tag-4-eso, .subject-tag-eso-4 {
-  background: #fae8ff;
-  color: #86198f;
-  border: 1px solid #f0abfc;
-}
-
-/* 6E. Música ESO Genérica (Verde Menta) */
-.subject-musica-eso, .subject-eso {
-  border-left: 5px solid #059669 !important;
-}
-.subject-tag-musica-eso, .subject-tag-eso {
-  background: #d1fae5;
-  color: #047857;
-  border: 1px solid #6ee7b7;
-}
-
-/* 7. Default / Sin materia */
-.subject-none, .subject-xeral {
-  border-left: 5px solid #94a3b8 !important;
-}
-.subject-tag-none, .subject-tag-xeral {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+.subject-tag {
+  background: var(--subject-bg, #f1f5f9);
+  color: var(--subject-ink, #475569);
+  border: 1px solid var(--subject-border, #cbd5e1);
 }
 
 /* Notices and Alerts */

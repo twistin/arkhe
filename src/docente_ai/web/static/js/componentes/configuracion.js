@@ -20,7 +20,15 @@ export function subjectModal(id) {
     [
       `maxlength="200" placeholder="Por ejemplo, Historia de la Música I" value="${e(subject?.name||'')}`
     ].join(''),
-    `"></div><div class="dialog-actions"><button class="button ghost" type="button" `,
+    `"></div><div class="field"><label for="subject-color">Color (opcional)</label>`,
+    `<input class="input" id="subject-color" name="color" pattern="#[0-9A-Fa-f]{6}" `,
+    `placeholder="Automático" value="${e(subject?.color || '')}"></div>`,
+    `<div class="field"><label for="subject-periods">Períodos, en orden</label>`,
+    `<textarea id="subject-periods" name="periods" class="input" rows="5">`,
+    `${e((subject?.periods || []).map(p => p.id + ' | ' + p.nombre).join('\n'))}</textarea>`,
+    `<p class="field-note">Una línea por período: carpeta | nombre. Vacío: sin períodos. `,
+    `Cambiar un identificador crea otra carpeta; los archivos existentes se conservan.</p></div>`,
+    `<div class="dialog-actions"><button class="button ghost" type="button" `,
     `data-action="close-dialog">Cancelar</button><button class="button primary" `,
     `type="submit">Guardar materia</button></div></form>`
   ].join(''));

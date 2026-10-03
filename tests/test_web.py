@@ -496,3 +496,83 @@ def test_estado_expone_grupos_horarios_y_excepciones_importados(web):
         assert config[field]
     assert config['schedule_rules'][0]['room'] == 'Aula 1'
     assert any(item.get('cancelled') for item in config['calendar_exceptions'])
+
+
+def test_materia_configurable_color_periodos_y_carpetas(web):
+    client, ws = web
+    response = client.post('/api/subjects', json={'name': 'Materia nueva', 'color': '#123ABC',
+        'periods': [{'id': 'primero', 'nombre': 'Primer período'}, {'id': 'segundo', 'nombre': 'Segundo'}]})
+    assert response.status_code == 200, response.text
+    key = response.json()['id']
+    config = read_config(ws.db)
+    subject = next(s for s in config['subjects'] if s['id'] == key)
+    assert subject['color'] == '#123ABC'
+    assert [p['id'] for p in subject['periods']] == ['primero', 'segundo']
+    for category in ['01 Fuentes', '02 Material docente']:
+        assert (ws.knowledge / category / key / 'primero').is_dir()
+        assert (ws.knowledge / category / key / 'segundo').is_dir()
+    assert client.get('/api/state').json()['subject_periods'][key] == ['primero', 'segundo']
+    response = client.post('/api/subjects', json={'name': 'Sin períodos'})
+    assert response.status_code == 200
+    assert list((ws.knowledge / '01 Fuentes' / response.json()['id']).iterdir()) == []
+
+
+@pytest.mark.parametrize('changes', [
+    {'color': 'red'}, {'color': '#123'}, {'color': '#123456;display:none'},
+    {'periods': 'foo'}, {'periods': [{'id': '../escape', 'nombre': 'Escape'}]},
+    {'periods': [{'id': 'a', 'nombre': 'A'}, {'id': 'A', 'nombre': 'B'}]},
+    {'periods': [{'id': 'a', 'nombre': ''}]},
+])
+def test_materia_rechaza_color_y_periodos_invalidos(web, changes):
+    client, ws = web
+    before = read_config(ws.db)
+    assert client.post('/api/subjects', json={'name': 'Inválida', **changes}).status_code == 400
+    assert read_config(ws.db) == before
+
+
+def test_migracion_conserva_carpetas_de_historia(web):
+    from docente_ai.config import LEGACY_PERIODS, validate
+    from docente_ai.storage import connect, migrate
+    import json
+    client, ws = web
+    config = read_config(ws.db)
+    config['subjects'][0].pop('periods')
+    assert validate(config)['subjects'][0]['periods'] == [
+        {'id': key, 'nombre': name} for key, name in LEGACY_PERIODS['historia-i']]
+    with connect(ws.db) as connection:
+        connection.execute('UPDATE subjects SET payload=?', (json.dumps(config['subjects'][0]),))
+        connection.execute('PRAGMA user_version=7')
+        connection.commit()
+        migrate(connection)
+        payload = json.loads(connection.execute('SELECT payload FROM subjects').fetchone()[0])
+        assert payload['periods'] == validate(config)['subjects'][0]['periods']
+    ws.ensure_folders()
+    for key, _ in LEGACY_PERIODS['historia-i']:
+        assert (ws.knowledge / '01 Fuentes' / 'historia-i' / key).is_dir()
+    config['subjects'][0]['id'] = 'historia-ii'
+    config['subjects'][0].pop('periods', None)
+    config['groups'] = config['schedule_rules'] = config['calendar_exceptions'] = []
+    config['curricula'] = config['curriculum_units'] = config['group_curricula'] = []
+    assert [p['id'] for p in validate(config)['subjects'][0]['periods']] == [
+        key for key, _ in LEGACY_PERIODS['historia-ii']]
+    config['subjects'][0]['periods'] = []
+    assert validate(config)['subjects'][0]['periods'] == []
+
+
+def test_editar_materia_conserva_archivos_y_exporta_periodos(web, tmp_path):
+    import yaml
+    client, ws = web
+    period = ws.knowledge / '01 Fuentes' / 'historia-i' / '01 Antiguedade'
+    note = period / 'fixture.txt'
+    note.write_text('Documento sintético')
+    response = client.post('/api/subjects', json={'id': 'historia-i', 'name': 'Materia editada',
+        'color': '', 'periods': [{'id': 'nuevo', 'nombre': 'Nuevo período'}]})
+    assert response.status_code == 200, response.text
+    subject = read_config(ws.db)['subjects'][0]
+    assert 'color' not in subject
+    assert subject['periods'] == [{'id': 'nuevo', 'nombre': 'Nuevo período'}]
+    assert note.read_text() == 'Documento sintético'
+    assert (period.parent / 'nuevo').is_dir()
+    target = tmp_path / 'export.yaml'
+    target.write_text(yaml.safe_dump(read_config(ws.db), allow_unicode=True, sort_keys=False))
+    assert load(target) == read_config(ws.db)

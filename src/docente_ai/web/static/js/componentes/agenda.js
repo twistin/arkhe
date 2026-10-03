@@ -5,6 +5,7 @@ import {
 } from '../state.js';
 import {
   e,
+  subjectStyle,
   icon
 } from '../ui.js';
 
@@ -29,7 +30,7 @@ export function dailyAgenda() {
     }).format(start);
     const subjId = session.subject_id || 'none';
     return [
-      `<button class="agenda-session subject-${e(subjId)}" data-subject="${e(subjId)}" `,
+      `<button class="agenda-session subject-colored" style="${e(subjectStyle(subjId))}" data-subject="${e(subjId)}" `,
       [
         `${
           feedbackMode ? `data-feedback-session="${e(session.id)}"` : [

@@ -404,7 +404,7 @@ def test_migrate_library_v2_without_losing_documents(corpus):
     assert index_library(db, RagSettings('fake:1'), FakeEmbedder())['indexed_versions'] == 1
     assert show_document(db, doc['document_id'])['enabled']
     with sqlite3.connect(db) as connection:
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 7
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
         assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
 
 

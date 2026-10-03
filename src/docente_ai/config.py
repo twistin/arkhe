@@ -45,7 +45,7 @@ SCHEMAS = {
     'centers': ('id name', ''),
     'teachers': ('id name', ''),
     'academic_years': ('id name start_date end_date', ''),
-    'subjects': ('id name', 'description'),
+    'subjects': ('id name', 'description color periods'),
     'groups': ('id name subject_id center_id academic_year_id teacher_id level', 'language'),
     'schedule_rules': ('id group_id weekday start_time duration_minutes valid_from valid_to', 'room timezone'),
     'calendar_exceptions': ('id schedule_rule_id date', 'cancelled start_time duration_minutes room'),
@@ -87,6 +87,48 @@ def iso_date(value, where):
         fail(f'{where}: fecha inválida.')
 
 
+# Compatibilidad de carpetas existentes; solo se aplica cuando falta periods.
+LEGACY_PERIODS = {
+    'historia-i': [
+        ('00 Xeral e Tratados', 'Xeral e Tratados'),
+        ('01 Antiguedade', 'Antigüidade'),
+        ('02 Idade Media', 'Idade Media'),
+        ('03 Renacemento', 'Renacemento'),
+    ],
+    'historia-ii': [
+        ('00 Xeral e Tratados', 'Xeral e Tratados'),
+        ('01 Barroco e Preclasicismo', 'Barroco e Preclasicismo'),
+        ('02 Clasicismo', 'Clasicismo'),
+        ('03 Romanticismo', 'Romanticismo'),
+        ('04 Seculo XX e Contemporanea', 'Século XX e Contemporánea'),
+    ],
+}
+
+
+def migrate_subject(subject):
+    if 'periods' not in subject and subject['id'] in LEGACY_PERIODS:
+        subject['periods'] = [{'id': key, 'nombre': name} for key, name in LEGACY_PERIODS[subject['id']]]
+    return subject
+
+
+def validate_periods(value):
+    if not isinstance(value, list):
+        fail('subjects.periods: se esperaba una lista ordenada.')
+    seen = set()
+    for period in value:
+        fields(period, ['id', 'nombre'], [], 'período')
+        key, name = period['id'], period['nombre']
+        if (not isinstance(key, str) or not key.strip() or len(key) > 128
+                or key.startswith('.') or any(c in key for c in '/\\\x00')
+                or key != key.strip() or any(ord(c) < 32 for c in key)):
+            fail('Período: identificador de carpeta inválido.')
+        if not isinstance(name, str) or not name.strip() or len(name) > 200:
+            fail('Período: nombre inválido.')
+        if key.casefold() in seen:
+            fail('Período: identificador duplicado.')
+        seen.add(key.casefold())
+
+
 def validate(raw: dict) -> dict:
     fields(raw, ['schema_version', *SCHEMAS], ['timezone'], 'configuración')
     if type(raw['schema_version']) is not int or raw['schema_version'] != 1:
@@ -109,7 +151,12 @@ def validate(raw: dict) -> dict:
             fields(row, required.split(), optional.split(), table)
             for key, value in row.items():
                 where = f'{table}.{key}'
-                if key in TEXT_LISTS:
+                if key == 'color':
+                    if not isinstance(value, str) or not re.fullmatch(r'#[0-9A-Fa-f]{6}', value):
+                        fail('subjects.color: utiliza un color hexadecimal #RRGGBB.')
+                elif key == 'periods':
+                    validate_periods(value)
+                elif key in TEXT_LISTS:
                     if not isinstance(value, list) or any(not isinstance(v, str) or not v.strip() for v in value):
                         fail(f'{where}: se esperaba una lista de textos no vacíos.')
                 elif key in {'weekday', 'duration_minutes', 'order', 'version'}:
@@ -136,6 +183,8 @@ def validate(raw: dict) -> dict:
                             time.fromisoformat(value)
                         except ValueError:
                             fail(f'{where}: utiliza una hora válida HH:MM.')
+            if table == 'subjects':
+                migrate_subject(row)
             if row['id'] in indexes[table]:
                 fail(f"{table}: ID duplicado {row['id']}.")
             indexes[table][row['id']] = row

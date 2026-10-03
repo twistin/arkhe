@@ -694,3 +694,19 @@ Las plantillas extensas se separan en funciones de panel y de fila, y en fragmen
 La comparación visual usa dos límites simultáneos (superficie ≤0,01 % y delta RGB ≤2), con dimensiones idénticas. `--strict`/`DOCENTE_UI_STRICT=1` restablece la comparación exacta. Los informes guardan píxeles, porcentaje, delta máximo y aceptación; no hay máscaras ni captura de calentamiento. Tests con imágenes sintéticas cubren los límites y dimensiones.
 
 `tests/ui_templates.py` recorre las plantillas HTML, sus expresiones anidadas y los fragmentos unidos, reconoce composiciones mediante constructores de la lista explícita `HTML_SEGURO` y señala interpolaciones sin `e()`. Hay excepciones internas acotadas para valores ya escapados de Markdown, SVG literal y HTML compuesto recibido por constructores base. Los títulos, atributos, cantidades, estado del proveedor y metadatos textuales se escapan en el punto de salida. Las plantillas de texto dentro de `option` se escapan allí una única vez. Tests negativos del analizador y un caso de navegador con nombres/metadatos hostiles comprueban estas fronteras; no sustituyen una revisión de seguridad de nuevas construcciones JS.
+
+### Materias, colores y períodos configurables
+
+En Ajustes se pueden editar el color opcional `#RRGGBB` y los períodos ordenados
+de cada materia. `teaching.yaml` admite `color` y `periods: [{id, nombre}]`;
+importación y exportación conservan ambos campos. El identificador del período
+es el nombre de su carpeta, sin separadores ni rutas relativas; `nombre` es su
+etiqueta visible. Una lista vacía permite trabajar sin períodos. Cambiar un
+identificador crea otra carpeta y conserva los archivos anteriores.
+
+Sin color se utiliza una paleta fija mediante un hash estable del identificador.
+La interfaz aplica variables CSS, sin selectores específicos por asignatura.
+La migración SQLite 8 y la lectura de YAML antiguo añaden únicamente los períodos
+históricos de Historia I y II cuando falta `periods`, conservando exactamente sus
+carpetas; una lista explícita vacía no se modifica. Las materias nuevas no
+reciben carpetas temáticas predeterminadas.

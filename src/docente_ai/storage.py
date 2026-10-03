@@ -9,7 +9,7 @@ import sqlite3
 
 from docente_ai.config import RELATIONS, SCHEMAS, validate
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 
 
@@ -94,6 +94,16 @@ def migrate(connection: sqlite3.Connection) -> None:
         connection.execute('PRAGMA user_version = 7')
         # UPDATE abre una transacción implícita; los servicios comienzan la
         # suya justo después de migrate().
+        connection.commit()
+        version = 7
+    if version == 7:
+        from docente_ai.config import migrate_subject
+        for key, payload in connection.execute('SELECT id, payload FROM subjects').fetchall():
+            subject = json.loads(payload)
+            if 'periods' not in subject:
+                migrate_subject(subject)
+                connection.execute('UPDATE subjects SET payload=? WHERE id=?', (json.dumps(subject), key))
+        connection.execute('PRAGMA user_version = 8')
         connection.commit()
 
 
