@@ -825,3 +825,5 @@ compartidos existentes.
 El frontend utiliza módulos ES nativos en `static/js`: `main.js` coordina la navegación y los eventos, `api.js` concentra las peticiones, `state.js` conserva un único estado y `ui.js` reúne utilidades. Las cinco secciones viven en `vistas/` y los documentos, trabajos, audiciones y materiales compartidos en `componentes/`. Los imports internos no llevan parámetros de versión y los assets se sirven con `Cache-Control: no-store`. Mermaid permanece como script clásico local, fuera del grafo ES.
 
 `tests/test_frontend_modules.py` comprueba que no hay ciclos ni imports de otra vista: cada vista solo puede depender de `api.js`, `state.js`, `ui.js` y `componentes/`.
+
+Los scripts se sirven desde archivos locales con `script-src 'self'`: no se permiten scripts inline. Los botones de láminas utilizan el mismo manejador de eventos delegado en `main.js`, sin atributos `onclick` ni funciones globales.

@@ -98,6 +98,9 @@ def test_shell_local_assets_and_empty_state(web):
     response=client.get('/')
     assert response.status_code==200
     assert "frame-ancestors 'none'" in response.headers['content-security-policy']
+    directives = dict(part.strip().split(' ', 1) for part in response.headers['content-security-policy'].split(';'))
+    assert directives['script-src'] == "'self'"
+    assert client.get('/assets/js/main.js').headers['cache-control'] == 'no-store'
     assert client.get('/assets/js/main.js').status_code==200
     assert client.get('/assets/style.css').status_code==200
     state=client.get('/api/state').json()

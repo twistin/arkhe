@@ -11,7 +11,6 @@ export function switchEgyptTab(btn, tabId) {
   if (p1) p1.style.display = (tabId === 'egypt-page-1') ? 'block' : 'none';
   if (p2) p2.style.display = (tabId === 'egypt-page-2') ? 'block' : 'none';
 }
-window.switchEgyptTab = switchEgyptTab;
 
 export function renderEgyptInfographic(run) {
   return `
@@ -19,10 +18,10 @@ export function renderEgyptInfographic(run) {
       <!-- CONTROL DE PÁGINAS DE LÁMINAS -->
       <div class="egypt-page-tabs">
         <span class="egypt-tab-label">LÁMINAS DIDÁCTICAS · HISTORIA DA MÚSICA I:</span>
-        <button type="button" class="egypt-tab-btn active" data-tab="egypt-page-1" onclick="switchEgyptTab(this, 'egypt-page-1')">
+        <button type="button" class="egypt-tab-btn active" data-tab="egypt-page-1">
           📜 Lámina 1: Contexto, funciones y rasgos
         </button>
-        <button type="button" class="egypt-tab-btn" data-tab="egypt-page-2" onclick="switchEgyptTab(this, 'egypt-page-2')">
+        <button type="button" class="egypt-tab-btn" data-tab="egypt-page-2">
           𓏢 Lámina 2: Instrumentos, práctica y fuentes
         </button>
       </div>

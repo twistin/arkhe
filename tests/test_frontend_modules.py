@@ -77,3 +77,28 @@ def test_css_imports_locales_sin_parametros():
         for url in re.findall(r'@import\s+url\(["\']?([^"\')]+)', path.read_text()):
             assert '?' not in url and '#' not in url and url.startswith('.')
             assert (path.parent / url).is_file()
+
+
+def test_sin_scripts_inline_ni_atributos_de_eventos():
+    from html.parser import HTMLParser
+    class Scripts(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.scripts = []
+        def handle_starttag(self, tag, attrs):
+            assert not any(name.startswith('on') for name, _ in attrs)
+            if tag == 'script':
+                attributes = dict(attrs)
+                assert attributes.get('src'), 'Script inline en index.html'
+                self.scripts.append(attributes)
+    parser = Scripts()
+    parser.feed((ROOT.parent / 'index.html').read_text())
+    assert any(s.get('type') == 'module' and '/js/main.js' in s['src'] for s in parser.scripts)
+    assert any(s.get('type') != 'module' and s['src'] == '/assets/mermaid.min.js' for s in parser.scripts)
+    for path in ROOT.rglob('*.js'):
+        assert not re.search(r'<[^>]*\son[a-z]+\s*=', path.read_text(), re.I), path
+
+
+def test_mermaid_fuera_del_grafo_y_egipto_sin_global():
+    assert not any(p.name == 'mermaid.min.js' for p in module_graph(ROOT))
+    assert 'window.switchEgyptTab' not in (ROOT / 'infografias/egipto.js').read_text()

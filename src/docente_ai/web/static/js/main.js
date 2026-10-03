@@ -6,6 +6,7 @@ import { ensureRemoteConsent } from './componentes/consentimiento.js';
 import { sourcesModal, teacherWorkedExample } from './componentes/documentos.js';
 import { printStudentDocument, studentMaterialModal } from './componentes/material-alumnado.js';
 import { checkStatus, monitor, openRun, queue, refresh } from './componentes/trabajos.js';
+import { switchEgyptTab } from './infografias/egipto.js';
 import { store, view } from './state.js';
 import { $, dateLabel, dialog, e, fail, icon, main, modal, render, runStatus, toast } from './ui.js';
 import { settings } from './vistas/ajustes.js';
@@ -35,6 +36,7 @@ document.addEventListener('click', async event=>{
   if(event.target.closest('.skip')){event.preventDefault();main.focus();return;}
   const target=event.target.closest('button,a[data-nav]');if(!target)return;
   try {
+    if(target.matches('.egypt-tab-btn'))switchEgyptTab(target, target.dataset.tab);
     if(target.dataset.document){await showDocument(target.dataset.document);return;}
     if(target.dataset.run){if(dialog.open)dialog.close();await openRun(target.dataset.run);return;}
     if(target.dataset.studentRun){await studentMaterialModal(target.dataset.studentRun);return;}
