@@ -102,3 +102,11 @@ def test_sin_scripts_inline_ni_atributos_de_eventos():
 def test_mermaid_fuera_del_grafo_y_egipto_sin_global():
     assert not any(p.name == 'mermaid.min.js' for p in module_graph(ROOT))
     assert 'window.switchEgyptTab' not in (ROOT / 'infografias/egipto.js').read_text()
+
+
+def test_modulos_legibles_sin_lineas_monoliticas():
+    largas = [(str(path.relative_to(ROOT)), numero, len(linea))
+              for path in ROOT.rglob('*.js')
+              for numero, linea in enumerate(path.read_text().splitlines(), 1)
+              if len(linea) > 120]
+    assert not largas, largas

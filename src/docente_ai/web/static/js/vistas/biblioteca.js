@@ -1,52 +1,355 @@
 // Módulo local: responsabilidad separada sin alterar el contenido.
-import { api } from '../api.js';
-import { subjectModal } from '../componentes/configuracion.js';
-import { locatorLabel } from '../componentes/documentos.js';
-import { store, subjectName } from '../state.js';
-import { $, e, formatPeriod, header, icon, modal, option, primary, statusBadge, subjectOptions, toast } from '../ui.js';
+import {
+  api
+} from '../api.js';
+import {
+  subjectModal
+} from '../componentes/configuracion.js';
+import {
+  locatorLabel
+} from '../componentes/documentos.js';
+import {
+  store,
+  subjectName
+} from '../state.js';
+import {
+  $,
+  e,
+  formatPeriod,
+  header,
+  icon,
+  modal,
+  option,
+  primary,
+  statusBadge,
+  subjectOptions,
+  toast
+} from '../ui.js';
 
 export function library() {
   const subjectPeriods = (store.selected ? store.state.subject_periods?.[store.selected] : []) || [];
-  return header('BIBLIOTECA DE CONOCIMIENTO', 'Tus fuentes, en un solo lugar.', 'Elige el conocimiento con el que trabajará tu asistente.', primary('Añadir documentos','add-source')) +
-  `<section class="folder-banner"><div class="folder-symbol">${icon('folder')}</div><div class="folder-copy"><h3>Una biblioteca que sigue siendo tuya</h3><p>Añade archivos aquí o cópialos a tu carpeta Conocimiento.</p></div><button class="button ghost" data-action="reveal">Abrir carpeta ${icon('external')}</button></section>
-  <div class="library-toolbar"><div class="tabs" role="tablist" aria-label="Tipo de fuente">${[['all','Todas las fuentes'],['documental','Documentación'],['profesor','Mis materiales'],['pending','Por revisar']].map(([id,text]) => `<button class="tab ${store.tab===id?'active':''}" role="tab" aria-selected="${store.tab===id}" data-tab="${id}">${text}</button>`).join('')}</div><label class="search">${icon('search')}<input id="library-search" type="search" placeholder="Buscar en la biblioteca" aria-label="Buscar en la biblioteca" value="${e(store.query)}"></label></div>
-  <div class="filter-row"><span class="filter-label">CURSO / MATERIA</span><button class="chip ${!store.selected?'active':''}" data-subject="">Todas</button>${store.state.config.subjects.map(s => `<button class="chip ${store.selected===s.id?'active':''}" data-subject="${e(s.id)}">${e(s.name)}</button>`).join('')}<button class="icon-button" data-action="new-subject" aria-label="Añadir materia" title="Añadir materia">${icon('plus')}</button></div>
-  ${subjectPeriods.length ? `<div class="filter-row period-filter-row"><span class="filter-label">PERÍODO</span><button class="chip ${!store.selectedPeriod?'active':''}" data-period="">Todos os períodos</button>${subjectPeriods.map(p => {
-    const pCount = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store.selected)) && d.period === p).length;
-    return `<button class="chip ${store.selectedPeriod===p?'active':''}" data-period="${e(p)}">${e(formatPeriod(p))}${pCount ? ` <small>(${pCount})</small>` : ''}</button>`;
-  }).join('')}</div>` : ''}
-  <div id="library-results">${libraryResults()}</div>`;
+  return header('BIBLIOTECA DE CONOCIMIENTO', 'Tus fuentes, en un solo lugar.',
+    'Elige el conocimiento con el que trabajará tu asistente.', primary('Añadir documentos', 'add-source')
+  ) + [
+    `<section class="folder-banner"><div class="folder-symbol">${icon('folder')}`,
+    `</div><div class="folder-copy"><h3>Una biblioteca que sigue siendo tuya</h3><p>`,
+    `Añade archivos aquí o cópialos a tu carpeta Conocimiento.</p></div><button `,
+    `class="button ghost" data-action="reveal">Abrir carpeta ${icon('external')}`,
+    `</button></section>\n  <div class="library-toolbar"><div class="tabs" `,
+    `role="tablist" aria-label="Tipo de fuente">`,
+    [
+      `${
+        [
+          ['all', 'Todas las fuentes'],
+          ['documental', 'Documentación'],
+          ['profesor', 'Mis materiales'],
+          ['pending', 'Por revisar']
+        ].map(([id, text]) => [
+          [
+            `<button class="tab ${store.tab===id?'active':''}" role="tab" aria-selected="${store.tab===id}`
+          ].join(''),
+          `" data-tab="${id}">${text}</button>`
+        ].join('')).join('')
+      }`
+    ].join(''),
+    `</div><label class="search">${icon('search')}`,
+    `<input id="library-search" type="search" placeholder="Buscar en la biblioteca" `,
+    `aria-label="Buscar en la biblioteca" value="${e(store.query)}`,
+    `"></label></div>\n  <div class="filter-row"><span class="filter-label">CURSO / `,
+    [
+      `MATERIA</span><button class="chip ${!store.selected?'active':''}" data-subject="">Todas</button>`
+    ].join(''),
+    [
+      `${
+        store.state.config.subjects.map(s => [
+          [
+            `<button class="chip ${store.selected===s.id?'active':''}" data-subject="${e(s.id)}">${e(s.name)}`
+          ].join(''),
+          `</button>`
+        ].join('')).join('')
+      }`
+    ].join(''),
+    `<button class="icon-button" data-action="new-subject" aria-label="Añadir `,
+    `materia" title="Añadir materia">${icon('plus')}</button></div>\n  `,
+    [
+      `${
+        subjectPeriods.length ? [
+          `<div class="filter-row period-filter-row"><span class="filter-label">`,
+          `PERÍODO</span><button class="chip ${!store.selectedPeriod?'active':''}`,
+          [
+            `" data-period="">Todos os períodos</button>${subjectPeriods.map(botonPeriodo).join('')}</div>`
+          ].join('')
+        ].join('') : ''
+      }`
+    ].join(''),
+    `\n  <div id="library-results">${libraryResults()}</div>`
+  ].join('');
 }
 
 export function libraryResults() {
-  const docs = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store.selected)) && (!store.selectedPeriod || d.period === store.selectedPeriod) && (store.tab==='all' || store.tab==='pending' && !d.enabled || d.category===store.tab) && `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} ${(d.metadata.tags||[]).join(' ')} ${d.period||''}`.toLocaleLowerCase().includes(store.query.toLocaleLowerCase()));
-  if (!store.state.documents.length) return `<section class="empty-library"><div class="library-art" aria-hidden="true"><span class="book-spine"></span><span class="book-spine"></span><span class="book-spine"></span></div><h2>Empieza por tus fuentes.</h2><p>Libros, artículos y apuntes que conoces y en los que confías. Tú decides qué puede utilizar el asistente.</p>${primary('Añadir mi primer documento','add-source','plus')}<span class="format-hint">PDF · DOCX · Markdown · TXT</span></section><div class="steps"><div class="step"><span>01</span><div><h3>Incorpora tus fuentes</h3><p>Arrastra archivos o elígelos desde tu equipo.</p></div></div><div class="step"><span>02</span><div><h3>Organiza y revisa</h3><p>Asigna una materia y comprueba el contenido.</p></div></div><div class="step"><span>03</span><div><h3>Trabaja con el asistente</h3><p>Consulta y prepara con referencias a tus fuentes.</p></div></div></div><div class="form-footer"><span></span><button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>`;
+  const docs = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store
+    .selected)) && (!store.selectedPeriod || d.period === store.selectedPeriod) && (store.tab === 'all' ||
+    store.tab === 'pending' && !d.enabled || d.category === store.tab) && [
+    [
+      `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} ${(d.metadata.tags||[]).join(' ')} `
+    ].join(''),
+    `${d.period||''}`
+  ].join('').toLocaleLowerCase().includes(store.query.toLocaleLowerCase()));
+  if (!store.state.documents.length) return [
+    `<section class="empty-library"><div class="library-art" aria-hidden="true"><span `,
+    `class="book-spine"></span><span class="book-spine"></span><span `,
+    `class="book-spine"></span></div><h2>Empieza por tus fuentes.</h2><p>Libros, `,
+    `artículos y apuntes que conoces y en los que confías. Tú decides qué puede `,
+    `utilizar el asistente.</p>${primary('Añadir mi primer documento','add-source','plus')}`,
+    `<span class="format-hint">PDF · DOCX · Markdown · TXT</span></section><div `,
+    `class="steps"><div class="step"><span>01</span><div><h3>Incorpora tus `,
+    `fuentes</h3><p>Arrastra archivos o elígelos desde tu equipo.</p></div></div><div `,
+    `class="step"><span>02</span><div><h3>Organiza y revisa</h3><p>Asigna una materia `,
+    `y comprueba el contenido.</p></div></div><div class="step"><span>03</span><div>`,
+    `<h3>Trabaja con el asistente</h3><p>Consulta y prepara con referencias a tus `,
+    `fuentes.</p></div></div></div><div class="form-footer"><span></span><button `,
+    [
+      `class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>`
+    ].join('')
+  ].join('');
   const periodSub = store.selectedPeriod ? ` · ${formatPeriod(store.selectedPeriod)}` : '';
-  return `<div class="library-summary"><span>${docs.length} ${docs.length===1?'documento':'documentos'}${store.selected?' · '+e(subjectName(store.selected)):''}${e(periodSub)}</span><button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>` + (docs.length ? `<div class="source-list">${docs.map(d => {
-    const firstSubj = d.subjects && d.subjects.length ? d.subjects[0] : 'none';
-    const subjBadges = d.shared ? '<span class="subject-badge subject-tag-xeral">Compartido</span>' : (d.subjects && d.subjects.length ? d.subjects.map(s => `<span class="subject-badge subject-tag-${e(s)}">${e(subjectName(s))}</span>`).join(' ') : '<span class="subject-badge subject-tag-none">Sin materia</span>');
-    return `<button class="source-row subject-${e(firstSubj)}" data-document="${e(d.id)}"><span class="file-icon ${d.category}">${e(d.format.toUpperCase())}</span><span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">${e(d.metadata.authors?.join(', ') || (d.category==='profesor'?'Material propio':'Autor pendiente de indicar'))}${d.metadata.year?' · '+e(d.metadata.year):''}${d.period ? ` · <span class="period-tag">${e(formatPeriod(d.period))}</span>` : ''}</span></span><span class="source-area">${subjBadges}</span>${statusBadge(d)}${icon('arrow')}</button>`;
-  }).join('')}</div>` : `<div class="empty-library"><h2>No hay coincidencias.</h2><p>Prueba otra materia, período o una búsqueda diferente.</p><button class="button" data-action="clear-filter">Limpiar filtros</button></div>`);
+  return [
+    [
+      `<div class="library-summary"><span>${docs.length} ${docs.length===1?'documento':'documentos'}`
+    ].join(''),
+    `${store.selected?' · '+e(subjectName(store.selected)):''}${e(periodSub)}`,
+    `</span><button class="button ghost small" data-action="scan">${icon('refresh')}`,
+    `Revisar carpeta</button></div>`
+  ].join('') + (docs.length ? `<div class="source-list">${docs.map(filaFuente).join('')}</div>` : [
+    `<div class="empty-library"><h2>No hay coincidencias.</h2><p>Prueba otra materia, `,
+    `período o una búsqueda diferente.</p><button class="button" `,
+    `data-action="clear-filter">Limpiar filtros</button></div>`
+  ].join(''));
 }
 
 export function sourceModal() {
-  if(!store.state.config.subjects.length){subjectModal();toast('Primero, crea la materia a la que pertenecen tus fuentes.');return;}
-  store.chosenFiles=[];
-  modal('Añadir a tu biblioteca',`<p>Incorpora documentos y revisa su contenido antes de permitir que los utilice el asistente.</p><form data-form="upload" id="upload-form"><label class="dropzone" id="dropzone" tabindex="0">${icon('up')}<strong>Arrastra tus archivos aquí</strong><small>o haz clic para elegirlos · PDF, DOCX, TXT y Markdown</small><input class="file-input" type="file" id="files" multiple accept=".pdf,.docx,.txt,.md" aria-label="Elegir documentos"></label><div class="chosen-files" id="chosen-files">Hasta 300 MB por archivo</div><div class="form-row"><div class="field"><label class="label" for="upload-subject">Materia</label><select id="upload-subject" name="subject" required>${subjectOptions(store.selected,true)}</select></div><div class="field"><label class="label" for="upload-category">Tipo de contenido</label><select id="upload-category" name="category"><option value="documental">Fuente documental</option><option value="profesor">Material propio</option></select></div></div><p class="field-note">Libros y artículos van en documentación. Tus apuntes y ejercicios, en material propio.</p><div class="dialog-actions"><button class="button ghost" type="button" data-action="scan">Revisar carpeta</button><button class="button primary" type="submit">Añadir y revisar ${icon('arrow')}</button></div></form>`);
+  if (!store.state.config.subjects.length) {
+    subjectModal();
+    toast('Primero, crea la materia a la que pertenecen tus fuentes.');
+    return;
+  }
+  store.chosenFiles = [];
+  modal('Añadir a tu biblioteca', [
+    `<p>Incorpora documentos y revisa su contenido antes de permitir que los utilice `,
+    `el asistente.</p><form data-form="upload" id="upload-form"><label `,
+    `class="dropzone" id="dropzone" tabindex="0">${icon('up')}`,
+    `<strong>Arrastra tus archivos aquí</strong><small>o haz clic para elegirlos · `,
+    `PDF, DOCX, TXT y Markdown</small><input class="file-input" type="file" `,
+    `id="files" multiple accept=".pdf,.docx,.txt,.md" aria-label="Elegir documentos">`,
+    `</label><div class="chosen-files" id="chosen-files">Hasta 300 MB por `,
+    `archivo</div><div class="form-row"><div class="field"><label class="label" `,
+    `for="upload-subject">Materia</label><select id="upload-subject" name="subject" required>`,
+    `${subjectOptions(store.selected,true)}`,
+    `</select></div><div class="field"><label class="label" for="upload-category">`,
+    `Tipo de contenido</label><select id="upload-category" name="category"><option `,
+    `value="documental">Fuente documental</option><option value="profesor">Material `,
+    `propio</option></select></div></div><p class="field-note">Libros y artículos van `,
+    `en documentación. Tus apuntes y ejercicios, en material propio.</p><div `,
+    `class="dialog-actions"><button class="button ghost" type="button" `,
+    `data-action="scan">Revisar carpeta</button><button class="button primary" `,
+    `type="submit">Añadir y revisar ${icon('arrow')}</button></div></form>`
+  ].join(''));
 }
 
-export function setFiles(files){store.chosenFiles=Array.from(files);$('#chosen-files').textContent=store.chosenFiles.length?store.chosenFiles.map(f=>f.name).join(' · '):'Hasta 300 MB por archivo';}
+export function setFiles(files) {
+  store.chosenFiles = Array.from(files);
+  $('#chosen-files').textContent = store.chosenFiles.length ? store.chosenFiles.map(f => f.name).join(' · ') :
+    'Hasta 300 MB por archivo';
+}
 
 export async function showDocument(id) {
-  modal('Abriendo documento', '<div class="initial-loading"><span class="spinner"></span>Consultando la biblioteca…</div>');
-  const doc=await api('/documents/'+encodeURIComponent(id));
-  const version=doc.versions.find(v=>v.id===doc.selected_version_id), warnings=version?.warnings||[];
-  modal(e(doc.metadata.title),`<div class="document-meta"><span class="file-icon ${doc.category}">${e(version?.format?.toUpperCase()||'DOC')}</span><span>${doc.category==='profesor'?'Material del profesor':'Fuente documental'}<br>${e(doc.subjects.map(subjectName).join(', ')||'Sin materia')}</span></div>${version?.derived_from_version_id?'<p class="field-note">Texto OCR · Versión derivada. El PDF original se conserva por separado.</p>':''}${version?.error?`<div class="notice error">${e(version.error)}</div>`:''}${warnings.map(w=>`<div class="notice warning">${e(w)}</div>`).join('')}<details class="metadata"><summary>Editar título, autor y materia</summary><form data-form="metadata" data-id="${e(id)}"><div class="field"><label class="label" for="doc-title">Título</label><input class="input" id="doc-title" name="title" required value="${e(doc.metadata.title)}"></div><div class="form-row"><div class="field"><label class="label" for="doc-authors">Autores, separados por punto y coma</label><input class="input" id="doc-authors" name="authors" value="${e(doc.metadata.authors?.join('; ')||'')}"></div><div class="field"><label class="label" for="doc-year">Año · opcional</label><input class="input" id="doc-year" name="year" type="number" value="${e(doc.metadata.year||'')}"></div></div><div class="field"><label class="label" for="doc-subject">Materia</label><select id="doc-subject" name="subject" required>${subjectOptions(doc.subjects[0]||'',true)}</select></div><button class="button small" type="submit">Guardar cambios</button></form></details><div class="panel-header"><h3>Vista previa del contenido</h3><button class="button ghost small" data-original="${e(id)}">${icon('download')}Original</button>${version?.derived_from_version_id?`<button class="button ghost small" data-ocr-document="${e(id)}">${icon('download')}PDF con texto OCR</button>`:''}</div><div class="text-preview">${doc.segments.map(s=>`<small>${e(locatorLabel(s.locator))}</small>${e(s.text)}`).join('')||'No se ha podido extraer texto utilizable.'}</div>${doc.preview_truncated?'<p class="field-note">Vista previa abreviada. El original completo se conserva en la biblioteca.</p>':''}<form data-form="authorize" data-id="${e(id)}">${warnings.length?'<label class="check"><input type="checkbox" name="accept_warnings" required>He revisado los avisos y acepto utilizar esta extracción.</label>':''}<div class="dialog-actions"><button type="button" class="button danger small" data-delete-document="${e(id)}">${icon('trash')}Eliminar de la biblioteca</button>${doc.enabled?`<button type="button" class="button ghost small" data-exclude="${e(id)}">Excluir del asistente</button>`:'<span class="field-note">Este archivo aún no puede utilizarse.</span>'}<button class="button primary" type="submit" ${version?.status==='failed'?'disabled':''}>${icon('check')}${doc.enabled?'Preparar de nuevo':'Permitir al asistente'}</button></div></form>`);
+  modal('Abriendo documento',
+    '<div class="initial-loading"><span class="spinner"></span>Consultando la biblioteca…</div>');
+  const doc = await api('/documents/' + encodeURIComponent(id));
+  const version = doc.versions.find(v => v.id === doc.selected_version_id),
+    warnings = version?.warnings || [];
+  modal(e(doc.metadata.title), [
+    `<div class="document-meta"><span class="file-icon ${doc.category}">`,
+    `${e(version?.format?.toUpperCase()||'DOC')}</span><span>`,
+    `${doc.category==='profesor'?'Material del profesor':'Fuente documental'}<br>`,
+    `${e(doc.subjects.map(subjectName).join(', ')||'Sin materia')}</span></div>`,
+    [
+      `${
+        version?.derived_from_version_id ?
+          '<p class="field-note">Texto OCR · Versión derivada. El PDF original se conserva por separado.</p>' : ''
+      }`
+    ].join(''),
+    `${version?.error?`<div class="notice error">${e(version.error)}</div>`:''}`,
+    `${warnings.map(w=>`<div class="notice warning">${e(w)}</div>`).join('')}`,
+    `<details class="metadata"><summary>Editar título, autor y materia</summary><form `,
+    `data-form="metadata" data-id="${e(id)}`,
+    `"><div class="field"><label class="label" for="doc-title">Título</label><input `,
+    `class="input" id="doc-title" name="title" required value="${e(doc.metadata.title)}`,
+    `"></div><div class="form-row"><div class="field"><label class="label" `,
+    `for="doc-authors">Autores, separados por punto y coma</label><input `,
+    [
+      `class="input" id="doc-authors" name="authors" value="${e(doc.metadata.authors?.join('; ')||'')}`
+    ].join(''),
+    `"></div><div class="field"><label class="label" for="doc-year">Año · `,
+    `opcional</label><input class="input" id="doc-year" name="year" type="number" value="`,
+    [
+      `${e(doc.metadata.year||'')}"></div></div><div class="field"><label class="label" for="doc-subject">`
+    ].join(''),
+    `Materia</label><select id="doc-subject" name="subject" required>`,
+    `${subjectOptions(doc.subjects[0]||'',true)}`,
+    `</select></div><button class="button small" type="submit">Guardar `,
+    `cambios</button></form></details><div class="panel-header"><h3>Vista previa del `,
+    [
+      `contenido</h3><button class="button ghost small" data-original="${e(id)}">${icon('download')}`
+    ].join(''),
+    `Original</button>`,
+    [
+      `${
+        version?.derived_from_version_id ? [
+          `<button class="button ghost small" data-ocr-document="${e(id)}">${icon('download')}`,
+          `PDF con texto OCR</button>`
+        ].join('') : ''
+      }`
+    ].join(''),
+    `</div><div class="text-preview">`,
+    [
+      `${
+        doc.segments.map(s => `<small>${e(locatorLabel(s.locator))}</small>${e(s.text)}`).join('') ||
+          'No se ha podido extraer texto utilizable.'
+      }`
+    ].join(''),
+    `</div>`,
+    [
+      `${
+        doc.preview_truncated ?
+          '<p class="field-note">Vista previa abreviada. El original completo se conserva en la biblioteca.</p>' : ''
+      }`
+    ].join(''),
+    `<form data-form="authorize" data-id="${e(id)}">`,
+    [
+      `${
+        warnings.length ?
+          '<label class="check"><input type="checkbox" name="accept_warnings" required>He ' +
+            'revisado los avisos y acepto utilizar esta extracción.</label>' :
+          ''
+      }`
+    ].join(''),
+    [
+      `<div class="dialog-actions"><button type="button" class="button danger small" data-delete-document="`
+    ].join(''),
+    `${e(id)}">${icon('trash')}Eliminar de la biblioteca</button>`,
+    [
+      `${
+        doc.enabled ? [
+          `<button type="button" class="button ghost small" data-exclude="${e(id)}`,
+          `">Excluir del asistente</button>`
+        ].join('') : '<span class="field-note">Este archivo aún no puede utilizarse.</span>'
+      }`
+    ].join(''),
+    [
+      `<button class="button primary" type="submit" ${version?.status==='failed'?'disabled':''}>`
+    ].join(''),
+    [
+      `${icon('check')}${doc.enabled?'Preparar de nuevo':'Permitir al asistente'}</button></div></form>`
+    ].join('')
+  ].join(''));
 }
 
 export async function scanFolder() {
-  modal('Archivos de tu carpeta', '<div class="initial-loading"><span class="spinner"></span>Revisando archivos locales…</div>');
-  const data=await api('/inbox');
-  const pending=data.files.filter(f=>!f.imported);
-  modal('Archivos de tu carpeta',`<p>Incorpora los archivos nuevos o sus versiones actualizadas. Después podrás revisar y autorizar cada fuente.</p>${data.truncated?'<div class="notice warning">Se muestran los primeros 1000 archivos de la carpeta.</div>':''}${pending.length?pending.map(f=>`<form class="inbox-row" data-form="inbox" data-path="${e(f.path)}" data-document-id="${e(f.document_id||'')}"><div>${icon('document')}<span>${e(f.name)}${f.document_id?' <span class="pill">Nueva versión</span>':''}</span></div>${f.too_large?'<div class="notice error">Supera los 300 MB por archivo.</div>':`<div class="form-row"><select name="subject" aria-label="Materia de ${e(f.name)}" ${f.document_id?'disabled':'required'}>${subjectOptions(f.subject||store.selected,true)}</select><select name="category" aria-label="Tipo de ${e(f.name)}" ${f.document_id?'disabled':''}>${option('documental','Fuente documental',f.category)}${option('profesor','Material propio',f.category)}</select><button class="button small" type="submit">Incorporar</button></div>`}</form>`).join(''):`<div class="empty-compact"><h2>Todo al día.</h2><p>${data.files.length?'Los archivos de esta carpeta ya están incorporados.':'Copia tus documentos a Conocimiento o añádelos desde la aplicación.'}</p>${primary('Añadir documentos','add-source')}</div>`}<div class="dialog-actions"><button class="button ghost" data-action="reveal">Abrir carpeta ${icon('external')}</button><button class="button" data-action="close-dialog">Cerrar</button></div>`);
+  modal('Archivos de tu carpeta',
+    '<div class="initial-loading"><span class="spinner"></span>Revisando archivos locales…</div>');
+  const data = await api('/inbox');
+  const pending = data.files.filter(f => !f.imported);
+  modal('Archivos de tu carpeta', [
+    `<p>Incorpora los archivos nuevos o sus versiones actualizadas. Después podrás `,
+    `revisar y autorizar cada fuente.</p>`,
+    [
+      `${
+        data.truncated ? '<div class="notice warning">Se muestran los primeros 1000 archivos de la carpeta.</div>' :
+          ''
+      }`
+    ].join(''),
+    [
+      `${
+        pending.length ? pending.map(f => [
+          `<form class="inbox-row" data-form="inbox" data-path="${e(f.path)}" data-document-id="`,
+          `${e(f.document_id||'')}"><div>${icon('document')}<span>${e(f.name)}`,
+          `${f.document_id?' <span class="pill">Nueva versión</span>':''}</span></div>`,
+          [
+            `${
+        f.too_large ? '<div class="notice error">Supera los 300 MB por archivo.</div>' : [
+          `<div class="form-row"><select name="subject" aria-label="Materia de ${e(f.name)}" `,
+          `${f.document_id?'disabled':'required'}>${subjectOptions(f.subject||store.selected,true)}`,
+          [
+            `</select><select name="category" aria-label="Tipo de ${e(f.name)}" ${f.document_id?'disabled':''}>`
+          ].join(''),
+          `${option('documental','Fuente documental',f.category)}`,
+          `${option('profesor','Material propio',f.category)}`,
+          `</select><button class="button small" type="submit">Incorporar</button></div>`
+        ].join('')
+        }`
+          ].join(''),
+          `</form>`
+        ].join('')).join('') : [
+          `<div class="empty-compact"><h2>Todo al día.</h2><p>`,
+          [
+            `${
+        data.files.length ? 'Los archivos de esta carpeta ya están incorporados.' :
+          'Copia tus documentos a Conocimiento o añádelos desde la aplicación.'
+        }`
+          ].join(''),
+          `</p>${primary('Añadir documentos','add-source')}</div>`
+        ].join('')
+      }`
+    ].join(''),
+    [
+      `<div class="dialog-actions"><button class="button ghost" data-action="reveal">Abrir carpeta `
+    ].join(''),
+    [
+      `${icon('external')}</button><button class="button" data-action="close-dialog">Cerrar</button></div>`
+    ].join('')
+  ].join(''));
+}
+
+function filaFuente(d) {
+
+  const firstSubj = d.subjects && d.subjects.length ? d.subjects[0] : 'none';
+  const subjBadges = d.shared ? '<span class="subject-badge subject-tag-xeral">Compartido</span>' : (d
+    .subjects && d.subjects.length ? d.subjects.map(s => [
+      `<span class="subject-badge subject-tag-${e(s)}">${e(subjectName(s))}</span>`
+    ].join('')).join(' ') :
+    '<span class="subject-badge subject-tag-none">Sin materia</span>');
+  return [
+    `<button class="source-row subject-${e(firstSubj)}" data-document="${e(d.id)}`,
+    `"><span class="file-icon ${d.category}">${e(d.format.toUpperCase())}`,
+    [
+      `</span><span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">`
+    ].join(''),
+    [
+      `${
+        e(d.metadata.authors?.join(', ') || (d.category === 'profesor' ? 'Material propio' :
+          'Autor pendiente de indicar'))
+      }`
+    ].join(''),
+    `${d.metadata.year?' · '+e(d.metadata.year):''}`,
+    `${
+      d.period ? ` · <span class="period-tag">${e(formatPeriod(d.period))}</span>` : ''
+    }`,
+    [
+      `</span></span><span class="source-area">${subjBadges}</span>${statusBadge(d)}${icon('arrow')}`
+    ].join(''),
+    `</button>`
+  ].join('');
+
+}
+
+function botonPeriodo(p) {
+
+  const pCount = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store
+    .selected)) && d.period === p).length;
+  return [
+    `<button class="chip ${store.selectedPeriod===p?'active':''}" data-period="${e(p)}">`,
+    `${e(formatPeriod(p))}${pCount ? ` <small>(${pCount})</small>` : ''}</button>`
+  ].join('');
+
 }

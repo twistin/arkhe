@@ -77,7 +77,9 @@ def test_confirmacion_persistida_y_reconfirmacion_por_cambio(web):
     assert not client.get('/api/state').json()['provider_info']['remote_confirmed']
     assert 'generation-indicator' in client.get('/').text
     script = client.get('/assets/js/componentes/consentimiento.js').text
-    assert 'Nunca se envían documentos completos, registros del diario ni feedback de sesiones' in script
+    import re
+    fragments = ''.join(re.findall(r'`([^`]+)`', script))
+    assert 'Nunca se envían documentos completos, registros del diario ni feedback de sesiones' in fragments
     assert 'ensureRemoteConsent' in script
 
 
