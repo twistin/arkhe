@@ -18,7 +18,7 @@ from docente_ai.doctor import DEFAULT_HOST, diagnose, local_url, positive_timeou
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="docente-ai", description="ENJAMBRE IA DOCENTE LOCAL",
+        prog="docente-ai", description="ARKHÉ IA DOCENTE LOCAL",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     add_generation_commands(commands)
     add_pedagogy_commands(commands)
     add_record_commands(commands)
-    web = commands.add_parser('ui', help='Abrir la interfaz gráfica local de Enjambre.')
+    web = commands.add_parser('ui', help='Abrir la interfaz gráfica local de Arkhé.')
     web.add_argument('--host', type=str, default='127.0.0.1', help='Dirección IP de escucha (ej. 127.0.0.1 o 0.0.0.0 para Tailscale / red local).')
     web.add_argument('--port', type=int, default=8765)
     web.add_argument('--no-browser', action='store_true')

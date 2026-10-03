@@ -1,4 +1,4 @@
-"""ENJAMBRE IA DOCENTE LOCAL."""
+"""ARKHÉ IA DOCENTE LOCAL."""
 
 from importlib.metadata import version
 from docente_ai.secrets import install_log_filter

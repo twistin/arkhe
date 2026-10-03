@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none"><rect width="40" height="40" rx="11" fill="#244b3e"/><g stroke="#f5f3e8" stroke-width="1.5" stroke-linejoin="round"><path d="m20 7 7 4v8l-7 4-7-4v-8z"/><path d="m12 19 7 4v8l-7 4-7-4v-8zM28 19l7 4v8l-7 4-7-4v-8z"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
+  <title>Arkhé: arco y libro abierto</title>
+  <rect width="40" height="40" rx="11" fill="#244b3e"/>
+  <g stroke="#f5f3e8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 25V18a9 9 0 0 1 18 0v7M16 22v-4a4 4 0 0 1 8 0v4"/>
+    <path d="M8 28c5-1 8 0 12 3 4-3 7-4 12-3v4c-5-1-8 0-12 3-4-3-7-4-12-3zM20 31v4"/>
+    <path d="m25 7 3-3"/>
+  </g>
+</svg>

@@ -56,7 +56,7 @@ export function renderPage() {
   if (store.isClosed) {
     main.innerHTML =
       '<section class="empty-library"><h2>Tu espacio está cerrado.</h2><p>Todo queda ' +
-        'guardado. Abre Enjambre.app para volver a trabajar.</p></section>';
+        'guardado. Abre Arkhe.app para volver a trabajar.</p></section>';
     return;
   }
   const focused = document.activeElement,
@@ -79,7 +79,7 @@ export function renderPage() {
     diario: 'Diario docente',
     ajustes: 'Ajustes'
   })[active];
-  document.title = `Enjambre · ${$('#section-name').textContent}`;
+  document.title = `Arkhé · ${$('#section-name').textContent}`;
   main.className = 'content-enter';
   main.innerHTML = dailyAgenda() + ({
     biblioteca: library,

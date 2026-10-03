@@ -25,10 +25,12 @@ def launch(args):
             try:
                 with httpx.Client(timeout=2, trust_env=False) as client:
                     response = client.get(url)
-                if response.headers.get('X-Enjambre-Workspace') == hashlib.sha256(str(args.workspace.resolve()).encode()).hexdigest():
+                workspace_id = hashlib.sha256(str(args.workspace.resolve()).encode()).hexdigest()
+                if workspace_id in [response.headers.get('X-Arkhe-Workspace'),
+                                    response.headers.get('X-Enjambre-Workspace')]:
                     if not args.no_browser:
                         webbrowser.open(url)
-                    print(f'Enjambre ya está abierto: {url}')
+                    print(f'Arkhé ya está abierto: {url}')
                     return 0
             except httpx.HTTPError:
                 pass
@@ -36,7 +38,7 @@ def launch(args):
         allowed_hosts = [f'{host}:{args.port}', host] if host != '127.0.0.1' else []
         app = create_app(args.workspace, port=args.port, allowed_hosts=allowed_hosts)
         local_url = f'http://{"127.0.0.1" if host == "0.0.0.0" else host}:{args.port}'
-        print(f'Enjambre · {local_url}\nBiblioteca: {app.state.workspace.knowledge}', flush=True)
+        print(f'Arkhé · {local_url}\nBiblioteca: {app.state.workspace.knowledge}', flush=True)
         if host == '0.0.0.0':
             print('Acceso remoto activado para Tailscale y red local.')
         timer = None

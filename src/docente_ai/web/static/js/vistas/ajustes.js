@@ -246,7 +246,7 @@ export function settings() {
     ].join(''),
     `${schedulePanel()}\n  ${panelConocimiento()}\n  ${providerSettingsPanel()}`,
     `</div><div class="form-footer"><span></span><button class="button ghost small" `,
-    `data-action="shutdown-dialog">Cerrar Enjambre</button></div>`
+    `data-action="shutdown-dialog">Cerrar Arkhé</button></div>`
   ].join('');
 }
 
@@ -256,7 +256,7 @@ async function accionShutdownDialog() {
     `<p>Se cerrará el servidor local. Tus documentos y propuestas quedan `,
     `guardados.</p><div class="dialog-actions"><button class="button ghost" `,
     `data-action="close-dialog">Volver</button><button class="button primary" `,
-    `data-action="shutdown">Cerrar Enjambre</button></div>`
+    `data-action="shutdown">Cerrar Arkhé</button></div>`
   ].join(''));
 }
 
@@ -266,7 +266,7 @@ async function accionShutdown() {
   clearInterval(store.monitorTimer);
   dialog.close();
   $('#connection').disabled = true;
-  $('#connection').innerHTML = 'Enjambre cerrado';
+  $('#connection').innerHTML = 'Arkhé cerrado';
   render();
 }
 

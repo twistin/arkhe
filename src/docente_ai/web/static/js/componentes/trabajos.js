@@ -83,7 +83,7 @@ export async function monitor() {
     }
   } catch (error) {
     if (store.state && !store.connectionLost) {
-      toast('No hay conexión con Enjambre. Si lo has vuelto a abrir, recarga esta página.', true);
+      toast('No hay conexión con Arkhé. Si lo has vuelto a abrir, recarga esta página.', true);
       store.connectionLost = true;
     }
   } finally {

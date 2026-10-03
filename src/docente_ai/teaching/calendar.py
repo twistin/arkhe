@@ -108,7 +108,7 @@ def to_ical(
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Docente AI//Enjambre Docente//ES",
+        "PRODID:-//Docente AI//Arkhé Docente//ES",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         f"X-WR-CALNAME:{_escape_ical(cal_name)}",

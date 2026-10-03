@@ -30,7 +30,7 @@ export function studentDocumentHTML(run) {
 
   return [
     `<article class="student-handout">\n    <header class="student-cover">\n      `,
-    `<div class="student-brand">\n        <span class="student-pill">ENJAMBRE · `,
+    `<div class="student-brand">\n        <span class="student-pill">ARKHÉ · `,
     `MATERIAL DE CLASE</span>\n        <span class="student-topic-tag">CUADERNO `,
     `DIDÁCTICO DEL ALUMNADO</span>\n      </div>\n      <h1>${e(title)}`,
     [
@@ -541,7 +541,7 @@ export function studentDocumentHTML(run) {
           [
             `class="source-pill-icon">📄</span>\n            <div>\n              <strong>${e(meta.title)}`
           ].join(''),
-          `</strong>\n              <small>${e(meta.authors?.join(', ') || 'Biblioteca Enjambre')}`,
+          `</strong>\n              <small>${e(meta.authors?.join(', ') || 'Biblioteca Arkhé')}`,
           [
             `${meta.year ? ` · ${e(meta.year)}` : ''}</small>\n            </div>\n          </div>\n        `
           ].join('')
@@ -598,7 +598,7 @@ export function printStudentDocument() {
 
   doc.open();
   doc.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + docTitle +
-    ' · Enjambre</title></head><body class="print-isolated-body"></body></html>');
+    ' · Arkhé</title></head><body class="print-isolated-body"></body></html>');
   doc.close();
 
   // Copy all style elements and stylesheets so custom typography, colors, and layout apply

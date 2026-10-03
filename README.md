@@ -1,4 +1,6 @@
-# ENJAMBRE IA DOCENTE LOCAL
+# ARKHÉ IA DOCENTE LOCAL
+
+Antes llamado Enjambre.
 
 Asistente docente con biblioteca local y fuentes controladas por el profesor.
 Los embeddings siempre se ejecutan en Ollama local (bge-m3 como modelo de referencia);
@@ -9,7 +11,7 @@ el espacio de trabajo del profesor.
 
 ## Abrir la aplicación
 
-Haz doble clic en **Enjambre.app**, dentro de esta carpeta, o ejecuta:
+Haz doble clic en **Arkhe.app**, dentro de esta carpeta, o ejecuta:
 
 ```sh
 uv run --locked docente-ai ui
@@ -856,3 +858,20 @@ La interfaz sigue utilizando módulos ES nativos, sin compilador ni dependencias
 npm. Las acciones y formularios se mantienen en sus vistas o componentes;
 `main.js` coordina el registro, los eventos y la navegación. La suite comprueba
 que todos los controles tienen manejador y que no hay nombres duplicados.
+
+### Marca y compatibilidad del lanzador
+
+La marca visible es **Arkhé** (en mayúsculas, **ARKHÉ**). El símbolo representa
+un arco y un libro abierto, con un trazo que recuerda el acento del nombre.
+El bundle macOS es `Arkhe.app`, con nombre y nombre visible `Arkhé`. Para
+generarlo junto al proyecto: `uv run --locked --group ui python scripts/build_macos_app.py`.
+Utiliza Pillow del grupo opcional `ui` ya existente para crear el icono ICNS;
+no añade dependencias. El lanzador sigue usando `.venv/bin/docente-ai`.
+
+Se conserva `Enjambre.app`: puedes eliminarlo manualmente cuando quieras.
+Durante esta versión el servidor publica tanto `X-Arkhe-Workspace` como
+`X-Enjambre-Workspace`; el lanzador acepta cualquiera de las dos cabeceras para
+reutilizar el servidor correcto. El paquete Python, comando, servicio del
+Llavero, rutas de datos y esquema SQLite permanecen intactos. También se
+conservan las claves internas de localStorage, eventos JS y UID del calendario
+para mantener preferencias y evitar duplicar sesiones ya importadas.

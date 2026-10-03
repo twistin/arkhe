@@ -576,3 +576,16 @@ def test_editar_materia_conserva_archivos_y_exporta_periodos(web, tmp_path):
     target = tmp_path / 'export.yaml'
     target.write_text(yaml.safe_dump(read_config(ws.db), allow_unicode=True, sort_keys=False))
     assert load(target) == read_config(ws.db)
+
+
+def test_cabeceras_workspace_marca_nueva_y_compatibilidad(web):
+    import hashlib
+    client, ws = web
+    response = client.get('/')
+    expected = hashlib.sha256(str(ws.root).encode()).hexdigest()
+    assert response.headers['X-Arkhe-Workspace'] == expected
+    assert response.headers['X-Enjambre-Workspace'] == expected
+    assert '<title>Arkhé' in response.text
+    calendar = client.get('/api/calendar.ics').text
+    assert 'PRODID:-//Docente AI//Arkhé Docente//ES' in calendar
+    assert '@enjambre.local' in calendar  # UID estable: no duplicar clases importadas.

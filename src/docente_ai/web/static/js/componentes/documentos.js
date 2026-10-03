@@ -603,7 +603,7 @@ async function accionOpenDownload({target}) {
       (decodeURIComponent(response.headers.get('Content-Disposition')?.match(
           /filename\*=utf-8''([^;]+)/i)?.[1] || '') || response.headers.get('Content-Disposition')
         ?.match(/filename="([^"]+)"/)?.[1] || 'original') :
-      'enjambre-' + identifier + '.md';
+      'arkhe-' + identifier + '.md';
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();

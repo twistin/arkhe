@@ -99,7 +99,11 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
         except Exception:
             mtime = 1
         html = (STATIC / 'index.html').read_text().replace('__TOKEN__', token).replace('__VERSION__', str(mtime))
-        return HTMLResponse(html, headers={'X-Enjambre-Workspace': hashlib.sha256(str(ws.root).encode()).hexdigest()})
+        workspace_id = hashlib.sha256(str(ws.root).encode()).hexdigest()
+        return HTMLResponse(html, headers={
+            'X-Arkhe-Workspace': workspace_id,
+            'X-Enjambre-Workspace': workspace_id,  # Compatibilidad con lanzadores anteriores.
+        })
 
     async def state(request):
         return JSONResponse(await run_in_threadpool(ws.state))
@@ -282,7 +286,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
 
     async def shutdown(request):
         if any(j['status'] in ('queued', 'running') for j in ws.job_list()):
-            raise ValueError('Espera a que terminen las tareas antes de cerrar Enjambre.')
+            raise ValueError('Espera a que terminen las tareas antes de cerrar Arkhé.')
         callback = getattr(request.app.state, 'shutdown', None)
         if callback is None:
             raise ValueError('Este servidor se cierra desde su lanzador.')

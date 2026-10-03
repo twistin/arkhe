@@ -1,4 +1,6 @@
-# ENJAMBRE IA DOCENTE LOCAL — Arquitectura
+# ARKHÉ IA DOCENTE LOCAL — Arquitectura
+
+Antes llamado Enjambre.
 
 Fecha: 18 de septiembre de 2026. Arquitectura aprobada por el profesor al autorizar la fase 1.
 
@@ -513,7 +515,7 @@ escaneo detecta cambios mediante hash; las copias originales y su trazabilidad s
 conservan en la biblioteca existente. La importación no autoriza automáticamente.
 Las subidas no sobrescriben archivos existentes y se limitan a PDF, DOCX, TXT y Markdown.
 
-El lanzador macOS Enjambre.app usa el entorno Python del proyecto y abre la interfaz
+El lanzador macOS Arkhe.app usa el entorno Python del proyecto y abre la interfaz
 en el navegador. Reconoce una instancia del mismo espacio de trabajo para evitar
 servidores duplicados. Ajustes permite cerrar el servidor cuando no hay tareas.
 
@@ -728,3 +730,20 @@ ciclos. Los tests revisan registros duplicados, referencias HTML, formularios y
 bindings sin manejador, el grafo ES y el límite de 250 líneas del coordinador.
 El smoke también comprueba los mapas contra el DOM de vistas y diálogos, y
 recorre el formulario de materia, sus períodos y el indicador de color.
+
+### Marca y compatibilidad del lanzador
+
+La marca visible es **Arkhé** (en mayúsculas, **ARKHÉ**). El símbolo representa
+un arco y un libro abierto, con un trazo que recuerda el acento del nombre.
+El bundle macOS es `Arkhe.app`, con nombre y nombre visible `Arkhé`. Para
+generarlo junto al proyecto: `uv run --locked --group ui python scripts/build_macos_app.py`.
+Utiliza Pillow del grupo opcional `ui` ya existente para crear el icono ICNS;
+no añade dependencias. El lanzador sigue usando `.venv/bin/docente-ai`.
+
+Se conserva `Enjambre.app`: puedes eliminarlo manualmente cuando quieras.
+Durante esta versión el servidor publica tanto `X-Arkhe-Workspace` como
+`X-Enjambre-Workspace`; el lanzador acepta cualquiera de las dos cabeceras para
+reutilizar el servidor correcto. El paquete Python, comando, servicio del
+Llavero, rutas de datos y esquema SQLite permanecen intactos. También se
+conservan las claves internas de localStorage, eventos JS y UID del calendario
+para mantener preferencias y evitar duplicar sesiones ya importadas.
