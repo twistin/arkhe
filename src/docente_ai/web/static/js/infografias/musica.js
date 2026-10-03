@@ -1,8 +1,9 @@
+import { e } from '../ui.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function renderStaffSvg(type) {
   const lines = [8, 14, 20, 26, 32].map(y => [
-    `<line x1="24" y1="${y}" x2="315" y2="${y}" stroke="#cbd5e1" stroke-width="1.2"/>`
+    `<line x1="24" y1="${e(y)}" x2="315" y2="${e(y)}" stroke="#cbd5e1" stroke-width="1.2"/>`
   ].join('')).join('');
   let content = '';
   switch (type) {

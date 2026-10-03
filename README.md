@@ -811,8 +811,8 @@ ASGI en memoria sobre fixtures temporales: no abre sockets ni consulta servicios
 o datos personales. Mantiene el bloqueo de red de `conftest.py`.
 
 Las doce capturas originales están en `tests/ui_baseline/`, con reloj, idioma,
-zona horaria y viewport fijos. La comparación es exacta en el mismo sistema y
-versión de Chromium; en otros entornos el smoke sigue activo y el informe indica
+zona horaria y viewport fijos. La comparación aplica la tolerancia indicada abajo
+en el mismo sistema y versión de Chromium (exacta con `--strict`); en otros entornos el smoke sigue activo y el informe indica
 que la comparación visual no es aplicable. Los informes y diferencias PNG se
 guardan en el directorio indicado. Solo `--update-baseline` permite renovar
 explícitamente las referencias; no usarlo para ocultar regresiones.
@@ -831,3 +831,7 @@ Los scripts se sirven desde archivos locales con `script-src 'self'`: no se perm
 El panel Horario y Calendario de Ajustes se genera exclusivamente desde los grupos, reglas semanales y excepciones importados. Muestra días, horas, aulas, cancelaciones y cambios puntuales por grupo. Sin grupos invita a crear o importar la configuración; no contiene horarios personales de ejemplo.
 
 Para mantener el JavaScript legible se usan funciones de panel/fila y fragmentos HTML unidos sin introducir espacios. Los módulos tienen líneas de hasta 120 caracteres. Como herramienta de desarrollo opcional, `uv tool run --from jsbeautifier==2.0.3 js-beautify` permite formatear código JS desde una herramienta Python sin npm; no es dependencia del proyecto. No aplicar el formateador directamente a plantillas HTML: puede modificar literales. Toda edición debe preservar las cadenas y superar la comparación visual estricta.
+
+El smoke visual admite por defecto como máximo un 0,01 % de píxeles distintos y una diferencia máxima de 2 niveles en cada canal RGB; deben cumplirse ambos límites y las dimensiones deben coincidir. El informe siempre conserva el número exacto de diferencias. Ejecuta `uv run --locked --group ui python scripts/check_ui_local.py --strict` para exigir cero diferencias, o `DOCENTE_UI_STRICT=1 uv run --locked pytest` para la suite estricta. No se toma una captura adicional de calentamiento. Para una modificación visual intencionada puede actualizarse únicamente Ajustes mediante `--update-baseline --update-views ajustes`; nunca se actualizan referencias automáticamente.
+
+El test de interpolaciones analiza todos los módulos, plantillas anidadas y fragmentos HTML unidos. Exige `e()` para datos o constructores incluidos en la lista explícita `HTML_SEGURO` de `tests/ui_templates.py`. Las excepciones internas de los constructores base están enumeradas y revisadas: texto previamente escapado de Markdown, SVG literal y parámetros de HTML compuesto de cabecera/diálogo. No pasar texto de la API como HTML compuesto. Este análisis léxico es una guarda para la sintaxis utilizada por el proyecto, no un analizador general de JavaScript; la sintaxis nueva requiere ampliar sus casos de prueba.

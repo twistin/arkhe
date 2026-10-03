@@ -99,7 +99,7 @@ export function resultHTML(run) {
       }`
     ].join(''),
     `${
-      totalMinutes ? `<span class="result-meta-pill">${totalMinutes} min</span>` : ''
+      totalMinutes ? `<span class="result-meta-pill">${e(totalMinutes)} min</span>` : ''
     }`,
     [
       `${
@@ -142,7 +142,7 @@ export function resultHTML(run) {
         `${
           sources.length ? [
             `<details class="abstention-sources"><summary>Documentos recuperados para esta consulta (`,
-            `${sources.length})</summary><ul>`,
+            `${e(sources.length)})</summary><ul>`,
             [
               `${
           sources.map(item => `<li>${e(item.metadata?.title||item.citation)}</li>`).join('')
@@ -207,7 +207,7 @@ export function resultHTML(run) {
         `${
           plan.objectives.map((o, idx) => [
             `\n                  <div class="objective-item">\n                    <span class="obj-index">`,
-            `${idx + 1}</span>\n                    <p>${e(o)}</p>\n                  </div>\n                `
+            `${e(idx + 1)}</span>\n                    <p>${e(o)}</p>\n                  </div>\n                `
           ].join('')).join('')
         }`
       ].join(''),
@@ -230,14 +230,14 @@ export function resultHTML(run) {
             return [
               `\n          <div class="timeline-step">\n            <div class="step-timing">\n `,
               `             <span class="timing-range">${start}–${elapsed}`,
-              ` min</span>\n              <span class="timing-dur">${a.minutes}`,
+              ` min</span>\n              <span class="timing-dur">${e(a.minutes)}`,
               ` min</span>\n            </div>\n            <div class="step-card">\n           `,
               `   <div class="step-card-header">\n                <div class="step-title-row">`,
               `\n                  <h4>${e(a.title)}</h4>\n                  ${dynamicBadge}`,
               [
                 `\n                </div>\n                <span class="step-claims-badge">Fundamento: Contenidos `
               ].join(''),
-              `${a.claim_ids.map(c => '#' + c).join(', ')}`,
+              `${e(a.claim_ids.map(c => '#' + c).join(', '))}`,
               [
                 `</span>\n              </div>\n              <p class="step-instructions">${e(a.instructions)}`
               ].join(''),
@@ -281,7 +281,7 @@ export function resultHTML(run) {
     ].join('') : (isInf ? 'ANÁLISIS E INFERENCIA' : 'SÍNTESIS');
     content += [
       `\n    <div class="academic-section">\n      <div class="section-tag-bar">\n      `,
-      `  <span class="academic-tag ${isInf ? 'tag-inf' : 'tag-syn'}">${tag}`,
+      `  <span class="academic-tag ${isInf ? 'tag-inf' : 'tag-syn'}">${e(tag)}`,
       `</span>\n      </div>\n      <div class="claim-body">${formatMarkdown(claim.text)}</div>\n    </div>`
     ].join('');
   }
@@ -526,7 +526,7 @@ export function visualHTML(run, visual) {
     `<div class="visual-node"><strong>${e(item.label)}</strong><span>${e(item.detail)}</span></div>`
   ].join('')).join('');
   return [
-    `<section class="source-visual source-visual-${type}" aria-label="${e(visual.title)}`,
+    `<section class="source-visual source-visual-${e(type)}" aria-label="${e(visual.title)}`,
     `"><span class="eyebrow">ESQUEMA DOCUMENTADO</span><h3>${e(visual.title)}`,
     [
       `</h3><div class="visual-canvas">${items}</div><p class="visual-caption">${e(visual.caption)}`

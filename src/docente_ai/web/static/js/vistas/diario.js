@@ -131,7 +131,7 @@ export async function existingFeedbackModal(id) {
   const record = await api('/records/' + encodeURIComponent(id)),
     fb = record.feedback || {};
   modal('Feedback de la clase', [
-    `<div class="record-summary"><span>${e(record.session_date)} · ${record.duration_minutes}`,
+    `<div class="record-summary"><span>${e(record.session_date)} · ${e(record.duration_minutes)}`,
     [
       ` min</span><h3>${e(record.topic)}</h3></div><form data-form="feedback" data-record="${e(id)}`
     ].join(''),
@@ -179,7 +179,7 @@ function entradaDiario(record) {
     [
       `</span></div><div class="diary-entry-copy"><span class="eyebrow">${e(nombreGrupo(record.group_id))} · `
     ].join(''),
-    `${record.duration_minutes} min</span><h3>${e(record.topic)}</h3><p>`,
+    `${e(record.duration_minutes)} min</span><h3>${e(record.topic)}</h3><p>`,
     [
       `${
         complete ? e(fb.next_session_note || fb.what_worked || 'Feedback registrado') : 'Feedback pendiente'

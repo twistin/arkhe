@@ -46,7 +46,7 @@ export function dailyAgenda() {
       `${e(session.subject)}">${e(session.subject)}</strong><small title="${e(session.group)}`,
       `${session.room?' · '+e(session.room):''}">${e(session.group)}`,
       `${session.room?' · '+e(session.room):''}</small></span><span class="agenda-status `,
-      `${status.toLowerCase()}">${status}</span><span class="agenda-action">`,
+      `${e(status.toLowerCase())}">${status}</span><span class="agenda-action">`,
       `${feedbackMode?'Dar feedback':'Preparar'} ${icon('arrow')}</span></button>`
     ].join('');
   }).join('');
@@ -59,7 +59,7 @@ export function dailyAgenda() {
     [
       `${
         sessions.length
-          ? `${sessions.length} ${sessions.length===1?'clase':'clases'} en tu agenda`
+          ? `${e(sessions.length)} ${sessions.length===1?'clase':'clases'} en tu agenda`
           : 'Hoy no tienes clases programadas'
       }`
     ].join(''),

@@ -393,9 +393,9 @@ document.addEventListener('click', async event => {
       case 'all-answers':
         modal('Tus consultas', store.state.runs.filter(r => r.kind === 'answer').map(r => [
           [
-            `<button class="recent-item" data-run="${e(r.id)}">${e(r.title)}<span>${dateLabel(r.created_at)} · `
+            `<button class="recent-item" data-run="${e(r.id)}">${e(r.title)}<span>${e(dateLabel(r.created_at))} · `
           ].join(''),
-          `${runStatus(r.status)}</span></button>`
+          `${e(runStatus(r.status))}</span></button>`
         ].join('')).join(''));
         break;
       case 'shutdown-dialog':

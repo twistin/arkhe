@@ -55,7 +55,7 @@ export function assistant() {
       `</div></div><aside class="panel context-panel"><div class="aside-title">TU CONTEXTO</div><h3>`
     ].join(''),
     [
-      `${e(subjectName(subject))}</h3><div class="context-number">${count}</div><div class="context-label">`
+      `${e(subjectName(subject))}</h3><div class="context-number">${e(count)}</div><div class="context-label">`
     ].join(''),
     `${count===1?'fuente preparada':'fuentes preparadas'}`,
     `</div><hr class="context-rule"><p class="muted-small">`,
@@ -71,9 +71,9 @@ export function assistant() {
       `${
         store.state.runs.filter(r => r.kind === 'answer').slice(0, 5).map(r => [
           [
-            `<button class="recent-item" data-run="${e(r.id)}">${e(r.title)}<span>${dateLabel(r.created_at)} · `
+            `<button class="recent-item" data-run="${e(r.id)}">${e(r.title)}<span>${e(dateLabel(r.created_at))} · `
           ].join(''),
-          `${runStatus(r.status)}</span></button>`
+          `${e(runStatus(r.status))}</span></button>`
         ].join('')).join('') || '<p class="muted-small">Tus consultas aparecerán aquí.</p>'
       }`
     ].join(''),

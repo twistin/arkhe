@@ -43,7 +43,7 @@ export async function checkStatus() {
   const label = name + (store.modelStatus.connected ? (remote ? ' · clave configurada' : ' conectado') : (
     remote ? ' · sin clave' : ' sin conexión'));
   $('#connection').innerHTML = [
-    `<span class="status-dot ${store.modelStatus.connected?'':'offline'}"></span><span>${label}</span>`
+    `<span class="status-dot ${store.modelStatus.connected?'':'offline'}"></span><span>${e(label)}</span>`
   ].join('');
   if (view() === 'ajustes') render();
 }
@@ -68,12 +68,12 @@ export async function monitor() {
         [
           `${
             running.progress ? [
-              `${running.progress.done} de ${running.progress.total} fragmentos · `,
-              `${Math.round(100*running.progress.done/running.progress.total)}% · `
+              `${e(running.progress.done)} de ${e(running.progress.total)} fragmentos · `,
+              `${e(Math.round(100*running.progress.done/running.progress.total))}% · `
             ].join('') : ''
           }`
         ].join(''),
-        `${active.length>1?`${active.length-1} en espera · `:''}`,
+        `${active.length>1?`${e(active.length-1)} en espera · `:''}`,
         `Puedes seguir trabajando en tu espacio.</small></div>`
       ].join('');
     }

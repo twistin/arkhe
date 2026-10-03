@@ -46,9 +46,9 @@ export function library() {
           ['pending', 'Por revisar']
         ].map(([id, text]) => [
           [
-            `<button class="tab ${store.tab===id?'active':''}" role="tab" aria-selected="${store.tab===id}`
+            `<button class="tab ${store.tab===id?'active':''}" role="tab" aria-selected="${e(store.tab===id)}`
           ].join(''),
-          `" data-tab="${id}">${text}</button>`
+          `" data-tab="${e(id)}">${e(text)}</button>`
         ].join('')).join('')
       }`
     ].join(''),
@@ -115,7 +115,7 @@ export function libraryResults() {
   const periodSub = store.selectedPeriod ? ` · ${formatPeriod(store.selectedPeriod)}` : '';
   return [
     [
-      `<div class="library-summary"><span>${docs.length} ${docs.length===1?'documento':'documentos'}`
+      `<div class="library-summary"><span>${e(docs.length)} ${docs.length===1?'documento':'documentos'}`
     ].join(''),
     `${store.selected?' · '+e(subjectName(store.selected)):''}${e(periodSub)}`,
     `</span><button class="button ghost small" data-action="scan">${icon('refresh')}`,
@@ -169,7 +169,7 @@ export async function showDocument(id) {
   const version = doc.versions.find(v => v.id === doc.selected_version_id),
     warnings = version?.warnings || [];
   modal(e(doc.metadata.title), [
-    `<div class="document-meta"><span class="file-icon ${doc.category}">`,
+    `<div class="document-meta"><span class="file-icon ${e(doc.category)}">`,
     `${e(version?.format?.toUpperCase()||'DOC')}</span><span>`,
     `${doc.category==='profesor'?'Material del profesor':'Fuente documental'}<br>`,
     `${e(doc.subjects.map(subjectName).join(', ')||'Sin materia')}</span></div>`,
@@ -321,7 +321,7 @@ function filaFuente(d) {
     '<span class="subject-badge subject-tag-none">Sin materia</span>');
   return [
     `<button class="source-row subject-${e(firstSubj)}" data-document="${e(d.id)}`,
-    `"><span class="file-icon ${d.category}">${e(d.format.toUpperCase())}`,
+    `"><span class="file-icon ${e(d.category)}">${e(d.format.toUpperCase())}`,
     [
       `</span><span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">`
     ].join(''),
@@ -349,7 +349,7 @@ function botonPeriodo(p) {
     .selected)) && d.period === p).length;
   return [
     `<button class="chip ${store.selectedPeriod===p?'active':''}" data-period="${e(p)}">`,
-    `${e(formatPeriod(p))}${pCount ? ` <small>(${pCount})</small>` : ''}</button>`
+    `${e(formatPeriod(p))}${pCount ? ` <small>(${e(pCount)})</small>` : ''}</button>`
   ].join('');
 
 }

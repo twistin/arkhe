@@ -91,16 +91,16 @@ export function fail(error) {
 export function header(eyebrow, title, description, actions = '') {
   return [
     [
-      `<section class="page-head"><div><span class="eyebrow">${eyebrow}</span><h1>${title}</h1><p>`
+      `<section class="page-head"><div><span class="eyebrow">${e(eyebrow)}</span><h1>${e(title)}</h1><p>`
     ].join(''),
     [
-      `${description}</p></div>${actions ? `<div class="head-actions">${actions}</div>` : ''}</section>`
+      `${e(description)}</p></div>${actions ? `<div class="head-actions">${actions}</div>` : ''}</section>`
     ].join('')
   ].join('');
 }
 
 export function primary(text, action, name = 'plus') {
-  return `<button class="button primary" data-action="${action}">${icon(name)}${text}</button>`;
+  return `<button class="button primary" data-action="${e(action)}">${icon(name)}${e(text)}</button>`;
 }
 
 export function formatMarkdown(text) {
@@ -160,10 +160,9 @@ export function formatMarkdown(text) {
   }).join('');
 }
 
-export function modal(title, content) {
-  dialog.classList.remove('student-dialog');
-  $('#dialog-content').innerHTML = [
-    `<div class="dialog-head"><h2 id="dialog-title">${title}`,
+function dialogHTML(title, content) {
+  return [
+    `<div class="dialog-head"><h2 id="dialog-title">${e(title)}`,
     [
       `</h2><button class="icon-button" data-action="close-dialog" aria-label="Cerrar">${icon('close')}`
     ].join(''),
@@ -171,6 +170,11 @@ export function modal(title, content) {
       `</button></div><div class="dialog-body"><div class="form-error" role="alert"></div>${content}</div>`
     ].join('')
   ].join('');
+}
+
+export function modal(title, content) {
+  dialog.classList.remove('student-dialog');
+  $('#dialog-content').innerHTML = dialogHTML(title, content);
   if (!dialog.open) dialog.showModal();
 }
 

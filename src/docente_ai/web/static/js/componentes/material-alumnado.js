@@ -50,7 +50,7 @@ export function studentDocumentHTML(run) {
     [
       `</strong>\n        <span>${e(context.group?.level || 'Conservatorio')}</span>\n        <span>⏱ `
     ].join(''),
-    `${context.duration_minutes || 60} minutos</span>\n        `,
+    `${e(context.duration_minutes || 60)} minutos</span>\n        `,
     `${session ? `<span>📅 ${e(session.date)}</span>` : ''}`,
     `\n      </div>\n    </header>\n\n    <!-- OBJETIVOS DIDÁCTICOS -->\n    <section `,
     `class="student-section section-intro">\n      <div `,
@@ -77,7 +77,7 @@ export function studentDocumentHTML(run) {
       `${
         claims.map((claim, index) => [
           `\n          <div class="student-content theory-claim-card">\n            <span `,
-          `class="claim-index-badge">${String(index + 1).padStart(2, '0')}`,
+          `class="claim-index-badge">${e(String(index + 1).padStart(2, '0'))}`,
           [
             `</span>\n            <div class="claim-body">\n              ${formatMarkdown(claim.text)}`
           ].join(''),
@@ -152,7 +152,7 @@ export function studentDocumentHTML(run) {
             [
               `${
         claims.slice(0, 4).map((c, i) => [
-          `\n              <div class="visual-item"><strong>Eje ${i + 1}</strong><span>`,
+          `\n              <div class="visual-item"><strong>Eje ${e(i + 1)}</strong><span>`,
           `${e(c.text.slice(0, 180))}…</span></div>\n            `
         ].join('')).join('')
         }`
@@ -254,14 +254,14 @@ export function studentDocumentHTML(run) {
           visuals.flatMap(v => v.items || []).slice(0, 8).map((it, i) => [
             `\n            <div class="concept-card">\n              <div `,
             [
-              `class="concept-head"><span class="concept-badge">CONCEPTO ${i + 1}</span><strong>${e(it.label)}`
+              `class="concept-head"><span class="concept-badge">CONCEPTO ${e(i + 1)}</span><strong>${e(it.label)}`
             ].join(''),
             `</strong></div>\n              <p>${e(it.detail)}</p>\n            </div>\n          `
           ].join('')).join('') || claims.slice(0, 6).map((c, i) => {
             const first = c.text.split('.')[0];
             return [
               `\n              <div class="concept-card">\n                <div `,
-              `class="concept-head"><span class="concept-badge">CLAVE ${i + 1}</span><strong>`,
+              `class="concept-head"><span class="concept-badge">CLAVE ${e(i + 1)}</span><strong>`,
               `${e(first.slice(0, 40))}…</strong></div>\n                <p>${e(c.text)}`,
               `</p>\n              </div>\n            `
             ].join('');
@@ -285,10 +285,10 @@ export function studentDocumentHTML(run) {
           renderListeningCardItem(l, false)).join('') : (
           [1, 2, 3, 4].map(i => {
             const act = (plan.activities || [])[i - 1] || {};
-            const actTitle = act.title || `Obra y audición ${i} de la sesión`;
+            const actTitle = act.title || `Obra y audición ${e(i)} de la sesión`;
             return [
               `\n              <div class="listening-card">\n                <div `,
-              `class="listening-head">\n                  <span class="listening-badge">AUDICIÓN ${i}`,
+              `class="listening-head">\n                  <span class="listening-badge">AUDICIÓN ${e(i)}`,
               `</span>\n                  <div>\n                    <strong>${e(actTitle)}`,
               `</strong>\n                    <small>Ejemplo práctico y análisis para ${e(title)}`,
               `</small>\n                  </div>\n                </div>\n                <div `,
@@ -483,7 +483,7 @@ export function studentDocumentHTML(run) {
           elapsed += mins;
           return [
             `\n                    <div class="student-activity">\n                      <span>${start}–`,
-            `${elapsed} min</span>\n                      <div>\n                        <h3>${index + 1}. `,
+            `${elapsed} min</span>\n                      <div>\n                        <h3>${e(index + 1)}. `,
             `${e(activity.title)}</h3>\n                        <p>${e(activity.instructions)}`,
             `</p>\n                      </div>\n                    </div>\n                  `
           ].join('');
@@ -554,7 +554,7 @@ export function studentDocumentHTML(run) {
           ].join(''),
           `</strong>\n              <small>${e(meta.authors?.join(', ') || 'Biblioteca Enjambre')}`,
           [
-            `${meta.year ? ` · ${meta.year}` : ''}</small>\n            </div>\n          </div>\n        `
+            `${meta.year ? ` · ${e(meta.year)}` : ''}</small>\n            </div>\n          </div>\n        `
           ].join('')
         ].join('')).join('')
       }`

@@ -32,9 +32,9 @@ export function runStatsPanel() {
     `<section class="panel"><div class="panel-header"><h2>Calidad de generación</h2>`,
     `</div><form data-form="run-stats"><label class="label" for="stats-limit">Últimas `,
     `ejecuciones</label><div class="form-footer"><input id="stats-limit" name="limit" `,
-    `type="number" min="1" max="10000" value="${stats.limit}`,
+    `type="number" min="1" max="10000" value="${e(stats.limit)}`,
     `" required><button class="button small" type="submit">Actualizar</button></div>`,
-    `<div class="form-error" role="alert"></div></form><p class="muted-small">${stats.total}`,
+    `<div class="form-error" role="alert"></div></form><p class="muted-small">${e(stats.total)}`,
     ` ejecuciones · porcentajes sobre el total seleccionado.</p>`,
     [
       `${
@@ -44,21 +44,21 @@ export function runStatsPanel() {
           ['abstained', 'Sin respaldo']
         ].map(([key, label]) => [
           [
-            `<div class="setting-row"><span>${label}</span><strong>${stats.counts[key]} · ${stats.rates[key]}`
+            `<div class="setting-row"><span>${e(label)}</span><strong>${e(stats.counts[key])} · ${e(stats.rates[key])}`
           ].join(''),
           `%</strong></div>`
         ].join('')).join('')
       }`
     ].join(''),
     [
-      `<p class="muted-small">${stats.repaired_drafts} borradores recuperados mediante reparación · `
+      `<p class="muted-small">${e(stats.repaired_drafts)} borradores recuperados mediante reparación · `
     ].join(''),
-    `${stats.counts.cancelled} canceladas · ${stats.counts.running}`,
+    `${e(stats.counts.cancelled)} canceladas · ${e(stats.counts.running)}`,
     ` en curso.</p><details class="metadata"><summary>Errores por tipo</summary>`,
     [
       `${
         Object.entries(stats.errors).map(([key, count]) => [
-            `<div class="setting-row"><span>${e(names[key]||key)}</span><strong>${count}</strong></div>`
+            `<div class="setting-row"><span>${e(names[key]||key)}</span><strong>${e(count)}</strong></div>`
           ].join('')).join('') ||
           '<p class="muted-small">Sin errores en este periodo.</p>'
       }`
@@ -198,7 +198,7 @@ function panelMaterias() {
       `${
         store.state.config.subjects.map(s => [
           `<div class="setting-row"><span>${e(s.name)}<small>`,
-          `${store.state.documents.filter(d=>d.subjects.includes(s.id)).length}`,
+          `${e(store.state.documents.filter(d=>d.subjects.includes(s.id)).length)}`,
           ` documentos</small></span><button class="icon-button" data-edit-subject="${e(s.id)}`,
           `" aria-label="Editar ${e(s.name)}">${icon('edit')}</button></div>`
         ].join('')).join('') || '<p class="muted-small">Crea una materia para empezar a organizar tus fuentes.</p>'

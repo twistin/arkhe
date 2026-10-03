@@ -69,7 +69,7 @@ export function groupModal(id) {
     ].join(''),
     `"></div></div><div class="form-row"><div class="field"><label class="label" `,
     `for="group-year">Año de inicio del curso</label><input class="input" `,
-    `id="group-year" name="year" type="number" min="2000" max="2100" value="${year}`,
+    `id="group-year" name="year" type="number" min="2000" max="2100" value="${e(year)}`,
     `" required><p class="field-note">De septiembre a agosto del año siguiente.</p>`,
     `</div><div class="field"><label class="label" for="group-language">Idioma de las `,
     `propuestas</label><select id="group-language" name="language">`,

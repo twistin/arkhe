@@ -258,7 +258,7 @@ export function renderListeningCardItem(l, isProposal = false) {
   return [
     `\n    <div class="listening-card ${isProposal ? 'proposal-listening-card' : ''}`,
     [
-      `">\n      <div class="listening-head">\n        <span class="listening-badge">AUDICIÓN ${l.index}`
+      `">\n      <div class="listening-head">\n        <span class="listening-badge">AUDICIÓN ${e(l.index)}`
     ].join(''),
     [
       `</span>\n        <div>\n          <strong>${e(l.composer ? l.composer + ' · ' : '')}${e(l.title)}`

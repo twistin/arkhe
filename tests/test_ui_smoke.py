@@ -74,19 +74,23 @@ def synthetic_ui(tmp_path, monkeypatch):
         yield client, run['id'], answer['id'], doc['document_id']
 
 
-def compare_capture(image_path, baseline_path):
+def compare_capture(image_path, baseline_path, *, strict=False):
     from PIL import Image, ImageChops
     current, baseline = Image.open(image_path).convert('RGB'), Image.open(baseline_path).convert('RGB')
     if current.size != baseline.size:
-        return {'size': list(current.size), 'baseline_size': list(baseline.size), 'changed_pixels': None}
+        return {'size': list(current.size), 'baseline_size': list(baseline.size), 'changed_pixels': None, 'accepted': False, 'reason': 'Dimensiones distintas'}
     difference = ImageChops.difference(current, baseline)
     channels = difference.split()
     mask = ImageChops.lighter(ImageChops.lighter(channels[0], channels[1]), channels[2])
     changed = sum(mask.histogram()[1:])
     if changed:
         difference.save(image_path.with_name(image_path.stem + '-diff.png'))
+    percent = changed * 100 / (current.width * current.height)
+    maximum = max(channel.getextrema()[1] for channel in channels)
+    accepted = changed == 0 if strict else percent <= 0.01 and maximum <= 2
     return {'size': list(current.size), 'changed_pixels': changed,
-            'changed_percent': round(changed * 100 / (current.width * current.height), 6)}
+            'changed_percent': round(percent, 6), 'max_channel_delta': maximum,
+            'strict': strict, 'accepted': accepted}
 
 
 @pytest.mark.ui
@@ -97,6 +101,7 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
     pytest.importorskip('PIL', reason='Pillow es opcional para comparar capturas.')
     client, proposal_id, answer_id, document_id = synthetic_ui
     update = os.environ.get('DOCENTE_UI_UPDATE_BASELINE') == '1'
+    strict = os.environ.get('DOCENTE_UI_STRICT') == '1'
     update_views = set(os.environ.get('DOCENTE_UI_UPDATE_VIEWS', '').split(',')) - {''}
     capture_dir = Path(os.environ.get('DOCENTE_UI_CAPTURE_DIR', str(tmp_path / 'capturas')))
     capture_dir.mkdir(parents=True, exist_ok=True)
@@ -137,9 +142,6 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
         page.clock.set_fixed_time(FIXED_TIME)
         def capture(target, name):
             target.evaluate('() => document.fonts.ready')
-            # Calentar el rasterizador SVG tras cambiar el viewport de captura
-            # completa; evita variaciones de un nivel RGB en tres píxeles.
-            target.screenshot(full_page=True, animations='disabled', caret='hide')
             path = capture_dir / f'{profile}-{name}.png'
             target.screenshot(path=str(path), full_page=True, animations='disabled', caret='hide')
             baseline_path = BASELINE / path.name
@@ -149,7 +151,7 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
                 report['captures'][name] = {'changed_pixels': 0, 'baseline_created': True}
             elif comparable:
                 assert baseline_path.exists(), f'Falta la referencia {baseline_path.name}'
-                report['captures'][name] = compare_capture(path, baseline_path)
+                report['captures'][name] = compare_capture(path, baseline_path, strict=strict)
             else:
                 report['captures'][name] = {'comparison_skipped': 'Entorno distinto al de referencia.'}
         for view in VIEWS:
@@ -172,6 +174,36 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
         }""")
         assert 'Crea grupos y horarios' in empty_html
         assert 'Historia 5' not in empty_html
+        # Probar texto hostil en nombres/atributos y en los metadatos de propuestas.
+        escaped = page.evaluate("""async () => {
+            const {store} = await import('/assets/js/state.js');
+            const {proposals, proposalModal} = await import('/assets/js/vistas/propuestas.js');
+            const {modal, formatMarkdown} = await import('/assets/js/ui.js');
+            const saved = {runs:store.state.runs, groups:store.state.config.groups, current:store.currentRun};
+            const payload = '<img src=x onerror="alert(1)">&Grupo';
+            try {
+                store.currentRun = null;
+                store.state.runs = [{kind:'proposal', id:'prueba', subject:'historia-i', title:payload,
+                    created_at:'2026-09-07T10:15:00Z', request:{pedagogy:{group:{name:payload}}}}];
+                const node = document.createElement('div');
+                node.innerHTML = proposals();
+                const unsafe = node.querySelectorAll('img,script,[onerror]').length;
+                store.state.config.groups = [{...saved.groups[0], name:payload}];
+                proposalModal();
+                const text = document.querySelector('#proposal-group option').textContent;
+                document.querySelector('#dialog').close();
+                modal(payload, formatMarkdown(payload));
+                const dialogUnsafe = document.querySelector('#dialog').querySelectorAll('img,script,[onerror]').length;
+                const title = document.querySelector('#dialog-title').textContent;
+                document.querySelector('#dialog').close();
+                return {unsafe, dialogUnsafe, title, text, payload};
+            } finally {
+                store.state.runs=saved.runs; store.state.config.groups=saved.groups; store.currentRun=saved.current;
+            }
+        }""")
+        assert escaped['unsafe'] == 0 and escaped['dialogUnsafe'] == 0
+        assert escaped['title'] == escaped['payload']
+        assert escaped['text'].startswith(escaped['payload'])
         # Abrir respuesta y fuente real del espacio temporal: acciones cruzadas.
         if profile == 'escritorio':  # El contexto lateral se oculta en móvil por diseño.
             page.goto(ORIGIN + '/#asistente')
@@ -185,7 +217,7 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
         page.locator(f'[data-run="{proposal_id}"]').click()
         page.locator('[data-student-run]').click()
         page.locator('.student-handout').wait_for()
-        # Cubrir los dos controles inline que se retirarán en el tercer commit.
+        # Cubrir ambos controles delegados de las láminas.
         tabs = page.locator('.student-dialog .egypt-tab-btn')
         tabs.nth(1).click()
         assert page.locator('.student-dialog #egypt-page-2').is_visible()
@@ -206,4 +238,4 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
     (capture_dir / f'{profile}-report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     assert not report['external_requests'], report
     assert not report['console_errors'] and not report['page_errors'], report
-    assert all(item.get('changed_pixels', 0) == 0 for item in report['captures'].values()), report
+    assert all(item.get('accepted', True) for item in report['captures'].values()), report

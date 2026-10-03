@@ -28,7 +28,7 @@ export function proposals() {
         `Volver a mis propuestas</button>${resultHTML(store.currentRun)}`
       ].join('') :
       runs.length ? [
-        `<div class="library-summary"><span>${runs.length} `,
+        `<div class="library-summary"><span>${e(runs.length)} `,
         `${runs.length===1?'propuesta guardada':'propuestas guardadas'}`,
         [
           `</span><span>Revisa cada propuesta antes de utilizarla</span></div><div class="proposal-list">`
@@ -176,7 +176,7 @@ function tarjetaPropuesta(r) {
     `">\n            <h3 class="proposal-card-title">`,
     `${e(r.title || r.request?.question || 'Propuesta sin título')}`,
     [
-      `</h3>\n            <div class="proposal-card-meta">\n              <span>${metaParts.join(' · ')}`
+      `</h3>\n            <div class="proposal-card-meta">\n              <span>${e(metaParts.join(' · '))}`
     ].join(''),
     [
       `</span>\n            </div>\n            <span class="proposal-card-cta">Abrir propuesta `
