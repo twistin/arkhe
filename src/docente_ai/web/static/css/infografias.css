@@ -1,0 +1,1245 @@
+/* infografias: reglas originales conservadas, sin cambios de declaraciones. */
+
+
+/* SECTION 02: ESQUEMA GRÁFICO (INFOGRAPHIC POSTER) */
+.section-infographic {
+  background: #fdfbf7;
+  border-color: #e5ded3;
+  border-left: 6px solid #881337;
+  padding: 18px;
+}
+.section-infographic .student-section-number {
+  background: #ffe4e6;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+.infographic-poster {
+  background: #fdfcf9;
+  border: 2px solid #d8cebe;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 12px rgba(60, 40, 20, 0.05);
+}
+.infographic-main-head {
+  text-align: center;
+  border-bottom: 2px solid #d8cebe;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+.info-tag-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.info-badge {
+  background: #1e3a5f;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+.info-badge-sub {
+  background: #782333;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+.infographic-main-head h2 {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #1e293b;
+  margin: 6px 0 2px;
+  font-family: var(--serif, Georgia, serif);
+}
+.info-subtitle {
+  font-size: 12.5px;
+  font-style: italic;
+  color: #64748b;
+  margin: 0;
+}
+
+.infographic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 18px;
+}
+.infographic-panel {
+  background: #ffffff;
+  border: 1px solid #d8cebe;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.panel-header-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1e3a5f;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.panel-header-bar.accent-wine {
+  background: #782333;
+}
+.panel-number {
+  font-size: 18px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.2);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.panel-header-bar h3 {
+  font-size: 13.5px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+.panel-sub {
+  font-size: 10.5px;
+  opacity: 0.9;
+  display: block;
+}
+
+/* Model Blocks (Left Panel) */
+.model-block {
+  background: #fafafa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+.model-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+.model-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.model-circle-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1e3a5f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.model-circle-badge.accent-amber {
+  background: #d97706;
+}
+.model-circle-badge.accent-green {
+  background: #059669;
+}
+.model-header-row h4 {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+.model-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+.model-quote {
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  text-align: right;
+  max-width: 200px;
+}
+
+.model-body-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.voice-staves-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.voice-row {
+  display: grid;
+  grid-template-columns: 105px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.voice-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+}
+.voice-tenor-highlight {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+.voice-tenor-badge {
+  color: #92400e !important;
+  font-weight: 800 !important;
+}
+.staff-svg {
+  width: 100%;
+  height: 34px;
+  display: block;
+}
+
+.model-side-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.model-chars-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #334155;
+}
+.model-chars-card strong {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.model-chars-card ul {
+  margin: 0;
+  padding-left: 14px;
+  line-height: 1.45;
+}
+.model-example-card {
+  background: #fffbeb;
+  border: 1px solid #fef08a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.ex-badge {
+  display: inline-block;
+  background: #d97706;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+.model-example-card strong {
+  display: block;
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 2px;
+}
+.model-example-card p {
+  margin: 0;
+  color: #78350f;
+  line-height: 1.4;
+}
+
+/* Parody Diagram */
+.parody-diagram-box {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px;
+}
+.parody-box-side {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px;
+}
+.parody-box-title {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  text-align: center;
+  margin-bottom: 4px;
+  color: #475569;
+}
+.p-voice {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  margin-bottom: 3px;
+  border-radius: 3px;
+}
+.p-voice.v1 { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.p-voice.v2 { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.p-voice.v3 { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.p-voice.v4 { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.parody-arrow-center {
+  font-size: 9px;
+  font-weight: 800;
+  color: #782333;
+  text-align: center;
+  padding: 0 4px;
+}
+
+/* Steps (Right Panel) */
+.step-card {
+  background: #fafafa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px;
+}
+.step-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.step-badge {
+  background: #782333;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.step-title-row strong {
+  font-size: 12px;
+  color: #0f172a;
+}
+.step-title-row p {
+  margin: 0;
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.source-branches-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.source-branch-card {
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+}
+.source-branch-card.sacred {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.source-branch-card.secular {
+  background: #fdf2f8;
+  border: 1px solid #fbcfe8;
+}
+.branch-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.branch-head strong {
+  font-size: 11px;
+  display: block;
+  color: #1e293b;
+}
+.branch-head small {
+  font-size: 10px;
+  color: #64748b;
+  display: block;
+}
+.source-branch-card ul {
+  margin: 0 0 6px;
+  padding-left: 14px;
+  line-height: 1.35;
+}
+.branch-examples {
+  font-size: 10px;
+  color: #475569;
+  border-top: 1px dashed rgba(0, 0, 0, 0.1);
+  padding-top: 4px;
+}
+
+.flow-arrow-down {
+  text-align: center;
+  font-size: 14px;
+  color: #94a3b8;
+  margin: -6px 0;
+}
+
+.treatment-cols-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.treatment-box {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 10.5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.treatment-box.col-cf { border-top: 3px solid #b45309; }
+.treatment-box.col-pf { border-top: 3px solid #059669; }
+.treatment-box.col-pd { border-top: 3px solid #2563eb; }
+.treatment-icon {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.treatment-box strong {
+  font-size: 11px;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.treatment-box ul {
+  margin: 0;
+  padding-left: 12px;
+  line-height: 1.35;
+}
+.treatment-res {
+  background: #f1f5f9;
+  border-radius: 4px;
+  padding: 4px;
+  margin-top: 6px;
+  font-size: 10px;
+}
+.treatment-res small {
+  display: block;
+  font-weight: 800;
+  color: #475569;
+}
+.treatment-res span {
+  font-style: italic;
+  color: #0f172a;
+}
+
+.unification-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.unification-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 10.5px;
+}
+.u-card-head {
+  margin-bottom: 4px;
+}
+.u-card-head strong {
+  font-size: 11px;
+  display: block;
+  color: #0f172a;
+}
+.u-card-head small {
+  color: #64748b;
+}
+.unification-card ul {
+  margin: 6px 0 0;
+  padding-left: 14px;
+  line-height: 1.35;
+}
+
+.infographic-footer-banner {
+  background: #1e293b;
+  color: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 6px;
+  margin-top: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.footer-composers {
+  color: #fbbf24;
+}
+
+/* ==========================================================================
+   ANCIENT EGYPT INFOGRAPHIC & SHEET STYLING (Historia da Música I)
+   ========================================================================== */
+
+.egypt-infographic-poster {
+  background: #fdfaf2;
+  border: 2px solid #c99a45;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(180, 125, 27, 0.08);
+}
+
+.egypt-page-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f5eedb;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #dfcfad;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.egypt-tab-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #78350f;
+  text-transform: uppercase;
+}
+
+.egypt-tab-btn {
+  background: #ffffff;
+  border: 1px solid #d4a373;
+  color: #1e3a5f;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.egypt-tab-btn:hover {
+  background: #fdf6e7;
+  border-color: #b47d1b;
+}
+
+.egypt-tab-btn.active {
+  background: #0f3b5f;
+  color: #ffffff;
+  border-color: #0c2b4a;
+  box-shadow: 0 2px 6px rgba(15, 59, 95, 0.25);
+}
+
+.egypt-sheet {
+  background: #fbf8ee;
+  border: 2px solid #b47d1b;
+  outline: 1px solid #d4a373;
+  outline-offset: -5px;
+  border-radius: 8px;
+  padding: 24px 20px;
+  position: relative;
+}
+
+.egypt-sheet-header {
+  border-bottom: 2px solid #b47d1b;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.egypt-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.egypt-header-icon {
+  font-size: 38px;
+  color: #b47d1b;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(180, 125, 27, 0.3));
+}
+
+.egypt-header-center {
+  text-align: center;
+  flex: 1;
+}
+
+.egypt-header-center h1 {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #0c2b4a;
+  margin: 0 0 4px;
+  font-family: var(--serif, 'Cinzel', Georgia, serif);
+}
+
+.egypt-sheet-sub {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #881337;
+  margin-bottom: 3px;
+}
+
+.egypt-sheet-page-indicator {
+  display: inline-block;
+  font-size: 12px;
+  font-style: italic;
+  color: #64748b;
+  background: #f3ecd8;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid #dfcfad;
+}
+
+.egypt-header-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #78350f;
+  text-align: right;
+  border-left: 2px solid #d4a373;
+  padding-left: 10px;
+}
+
+.egypt-banner-motto {
+  text-align: center;
+  font-size: 13px;
+  font-style: italic;
+  color: #1e3a5f;
+  margin: 10px 0 0;
+  font-weight: 600;
+}
+
+/* Blocks */
+.egypt-block {
+  background: #ffffff;
+  border: 1px solid #e2d7c3;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(60, 40, 10, 0.03);
+}
+
+.egypt-block-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid #ede4d1;
+  padding-bottom: 8px;
+}
+
+.egypt-num-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #0f3b5f;
+  color: #fef08a;
+  font-weight: 900;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.egypt-block-title-row h3 {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #0c2b4a;
+  margin: 0;
+}
+
+.egypt-block-title-row small {
+  font-size: 12px;
+  font-style: italic;
+  color: #64748b;
+  display: block;
+}
+
+/* Marco Histórico */
+.egypt-hist-body {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.egypt-hist-text {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #334155;
+}
+
+.egypt-hist-text p {
+  margin: 0 0 10px;
+}
+
+.egypt-nile-card {
+  background: #f6f0df;
+  border: 1px solid #dfcfad;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.nile-illustration {
+  margin-bottom: 8px;
+}
+
+.nile-svg {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+.nile-quote {
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 600;
+  color: #0c2b4a;
+  margin: 4px 0 6px;
+}
+
+.nile-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #78350f;
+  background: #eddcb8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Funciones de la música */
+.egypt-functions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.fn-card {
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid;
+}
+
+.fn-religious {
+  background: #fef2f2;
+  border-color: #fecdd3;
+}
+.fn-religious .fn-header { color: #881337; }
+
+.fn-funerary {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.fn-funerary .fn-header { color: #1e40af; }
+
+.fn-court {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.fn-court .fn-header { color: #166534; }
+
+.fn-popular {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.fn-popular .fn-header { color: #b45309; }
+
+.fn-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fn-symbol {
+  font-size: 20px;
+}
+
+.fn-header h4 {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.fn-scene {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+}
+
+.scene-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.scene-desc {
+  font-size: 11px;
+  font-style: italic;
+  color: #1e293b;
+}
+
+.fn-points {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  margin: 0 0 10px;
+  padding-left: 18px;
+  flex: 1;
+}
+
+.fn-points li {
+  margin-bottom: 6px;
+}
+
+.fn-footer {
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 600;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 6px;
+}
+
+/* Rasgos Generales */
+.egypt-traits-body {
+  display: grid;
+  grid-template-columns: 3fr 1.5fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.traits-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.traits-text p {
+  margin: 0 0 8px;
+}
+
+.traits-badge-card {
+  background: #f5eedb;
+  border: 1px solid #dfcfad;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.traits-badge-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #78350f;
+}
+
+.traits-badge-card p {
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 700;
+  color: #0c2b4a;
+  margin: 4px 0 8px;
+}
+
+.traits-symbols {
+  font-size: 18px;
+  color: #b47d1b;
+  letter-spacing: 4px;
+}
+
+/* Dual Grid */
+.egypt-dual-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.study-keys-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.study-keys-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.study-keys-list li span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #881337;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vocab-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.vocab-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-bottom: 1px dashed #e2d7c3;
+  padding-bottom: 4px;
+}
+
+.vocab-row strong {
+  color: #0c2b4a;
+}
+
+.vocab-row span {
+  color: #475569;
+}
+
+.egypt-remember-box {
+  background: #fdf6e7;
+  border: 1px solid #d4a373;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rem-icon {
+  font-size: 20px;
+  color: #b47d1b;
+  flex-shrink: 0;
+}
+
+.egypt-remember-box p {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #78350f;
+  margin: 0;
+}
+
+.egypt-sheet-footer {
+  text-align: center;
+  border-top: 2px solid #b47d1b;
+  padding-top: 14px;
+  margin-top: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #0c2b4a;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.egypt-key-idea {
+  font-size: 12px;
+  font-weight: 700;
+  color: #881337;
+}
+
+.egypt-final-motto {
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  letter-spacing: 1px;
+}
+
+/* Instrumentos (Organología - Página 2) */
+.instruments-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.inst-col {
+  background: #faf8f2;
+  border: 1px solid #dfcfad;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inst-col-head {
+  border-bottom: 2px solid;
+  padding-bottom: 6px;
+}
+
+.inst-chordophones .inst-col-head { border-color: #881337; color: #881337; }
+.inst-aerophones .inst-col-head { border-color: #1e40af; color: #1e40af; }
+.inst-idiophones .inst-col-head { border-color: #b45309; color: #b45309; }
+
+.inst-col-head h4 {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.inst-col-head small {
+  font-size: 11px;
+  font-style: italic;
+  color: #64748b;
+  display: block;
+}
+
+.inst-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.inst-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.inst-name-row strong {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.inst-pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+}
+
+.inst-card p {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #475569;
+  margin: 0;
+}
+
+/* Práctica Musical & Mural */
+.practice-body-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.practice-formats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pf-item {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #334155;
+  background: #faf8f2;
+  border-left: 3px solid #b47d1b;
+  padding: 4px 10px;
+  border-radius: 0 4px 4px 0;
+}
+
+.practice-mural-card {
+  background: #f5eedb;
+  border: 1px solid #dfcfad;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+
+.mural-scene-tag {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #0c2b4a;
+}
+
+.mural-caption {
+  font-size: 11px;
+  font-style: italic;
+  color: #78350f;
+  margin-bottom: 8px;
+}
+
+.mural-quotes p {
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1.4;
+  color: #334155;
+  margin: 6px 0;
+  border-top: 1px dashed #d4a373;
+  padding-top: 4px;
+}
+
+/* Fuentes */
+.egypt-sources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.src-card {
+  background: #faf8f2;
+  border: 1px solid #dfcfad;
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.src-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.src-card strong {
+  font-size: 12.5px;
+  color: #0c2b4a;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.src-card p {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Comentario */
+.commentary-content p {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #334155;
+  margin: 0;
+}
+
+/* Actividades de Repaso */
+.review-questions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-questions-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.review-questions-list li span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0f3b5f;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Glosario */
+.glossary-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gl-item {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #475569;
+  border-bottom: 1px dashed #e2d7c3;
+  padding-bottom: 4px;
+}
+
+.gl-item strong {
+  color: #0c2b4a;
+}
+
+/* Badges for Egyptian Concepts & Listenings */
+.egypt-b-ritual { background: #ffe4e6; color: #9f1239; border: 1px solid #fecdd3; }
+.egypt-b-gesto { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.egypt-b-cordas { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.egypt-b-vento { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+.egypt-b-liturxia { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+.egypt-b-fonte { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.egypt-b-arqueo { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+
+.egypt-listen-badge {
+  background: #0c2b4a !important;
+  color: #fef08a !important;
+  border: 1px solid #b47d1b !important;
+}
+
+.egypt-tag {
+  background: #fdf6e7 !important;
+  color: #78350f !important;
+  border-color: #d4a373 !important;
+}

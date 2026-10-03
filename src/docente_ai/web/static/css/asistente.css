@@ -1,0 +1,65 @@
+/* asistente: reglas originales conservadas, sin cambios de declaraciones. */
+
+
+/* Workspace Grid (Asistente & Taller) */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 28px;
+  align-items: start;
+}
+
+.question-box {
+  font: 16px/1.6 var(--sans);
+  font-weight: 500;
+  min-height: 180px;
+  border: 1px solid var(--line-dark);
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+  margin-bottom: 16px;
+}
+.question-box::placeholder { color: #94a3b8; font-style: normal; }
+
+.context-panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.context-panel .aside-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--green);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+.context-panel h3 { font-size: 18px; font-weight: 700; color: var(--ink); margin: 0 0 8px; }
+.context-number {
+  font: 44px/1 var(--sans);
+  font-weight: 800;
+  color: var(--green);
+  margin: 12px 0 4px;
+}
+.context-label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.context-rule { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
+.recent-item {
+  display: block;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 6px;
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+.recent-item:hover { background: #f8fafc; color: var(--green); }
+.recent-item span { display: block; color: var(--muted); font-size: 10.5px; font-weight: 400; margin-top: 4px; }

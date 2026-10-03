@@ -666,3 +666,13 @@ La cabecera muestra siempre «Generación local» o «Fragmentos enviados a prov
 contractuales de retención o subprocesamiento. Biblioteca, SQLite, diario e índice
 siguen locales; bge-m3 es el modelo de embeddings de referencia, con otros modelos
 locales configurables. No hay fallback automático entre proveedores.
+
+## Estilos locales separados
+
+`static/style.css` es un manifiesto de `@import` locales sin parámetros de versión.
+`static/css/` separa variables (`tokens.css`), base, componentes, las cinco vistas,
+material del alumnado, infografías, impresión y responsive. Diario y Ajustes usan
+actualmente estilos compartidos; sus archivos solo documentan esa situación y no
+añaden reglas. Se conservan todas las declaraciones originales, sin eliminar
+supuestas reglas muertas. Las capturas de referencia verifican la cascada y la
+impresión en escritorio y móvil. El servidor mantiene `Cache-Control: no-store`.

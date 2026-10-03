@@ -1,0 +1,578 @@
+/* material-alumnado: reglas originales conservadas, sin cambios de declaraciones. */
+
+
+/* ==========================================================================
+   Student Material Modal & Handout (5 Differentiated Sections + Infographic)
+   ========================================================================== */
+.student-dialog {
+  width: min(1060px, calc(100vw - 32px));
+  max-height: 94vh;
+}
+.student-handout {
+  font-family: var(--sans);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+/* Cover Header */
+.student-cover {
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--line);
+  margin-bottom: 26px;
+}
+.student-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.student-pill {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #1e3a8a;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.student-topic-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.student-cover h1 {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 6px 0 12px;
+  line-height: 1.25;
+}
+.student-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+}
+.student-meta strong {
+  color: var(--ink);
+  background: #f1f5f9;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+/* Differentiated Section Containers */
+.student-section {
+  margin-bottom: 30px;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  position: relative;
+}
+.student-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.student-section-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.student-section-header h2 {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 4px;
+  line-height: 1.3;
+}
+.student-section-intro {
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Specific Section Identifiers & Theme Colors */
+.section-intro {
+  background: #ffffff;
+  border-left: 5px solid #64748b;
+}
+.section-intro .student-section-number {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+/* SECTION 01: TEORÍA DE LAS FUENTES */
+.section-theory {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  border-left: 6px solid #2563eb;
+}
+.section-theory .student-section-number {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.theory-claims-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.theory-claim-card {
+  display: flex;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.claim-index-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.claim-body {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: #1e293b;
+}
+.claim-body p {
+  margin: 0 0 6px;
+}
+.claim-source-badge {
+  margin-top: 8px;
+}
+.claim-source-badge span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #dbeafe;
+}
+
+/* SECTION 03: CONCEPTOS OBLIGATORIOS */
+.section-concepts {
+  background: #fffdf5;
+  border-color: #fef08a;
+  border-left: 6px solid #d97706;
+}
+.section-concepts .student-section-number {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.concept-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.concept-card {
+  background: #ffffff;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+.concept-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.concept-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #b45309;
+  background: #fef3c7;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.concept-head strong {
+  font-size: 14px;
+  color: #78350f;
+}
+.concept-card p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #451a03;
+}
+
+/* SECTION 04: RELACIÓN DE 4 AUDICIONES */
+.section-listenings {
+  background: #faf8ff;
+  border-color: #ddd6fe;
+  border-left: 6px solid #7c3aed;
+}
+.section-listenings .student-section-number {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+}
+.listening-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+.listening-card {
+  background: #ffffff;
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.listening-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.listening-badge {
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.listening-head strong {
+  display: block;
+  font-size: 14px;
+  color: #1e1b4b;
+}
+.listening-head small {
+  display: block;
+  font-size: 11.5px;
+  color: #6b7280;
+}
+.listening-anthology {
+  background: #f5f3ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #6b21a8;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.listening-points strong {
+  display: block;
+  font-size: 11.5px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.listening-points ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+.listening-performer {
+  font-size: 12px;
+  color: #1e3a8a;
+  background: #eff6ff;
+  border-left: 3px solid #3b82f6;
+  padding: 5px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.listening-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.yt-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.yt-link-btn:hover {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #f87171;
+  text-decoration: none;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.15);
+}
+.listening-teacher-note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #065f46;
+  background: #ecfdf5;
+  border-left: 3px solid #10b981;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+/* SECTION 05: TRABAJOS PARA EL ALUMNADO */
+.section-assignments {
+  background: #f4fbf7;
+  border-color: #bbf7d0;
+  border-left: 6px solid #059669;
+}
+.section-assignments .student-section-number {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+.assignment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.assignment-card {
+  background: #ffffff;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.assign-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.assign-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #059669;
+  letter-spacing: 0.5px;
+}
+.assign-head strong {
+  font-size: 14px;
+  color: #064e3b;
+}
+.assignment-card p {
+  font-size: 12.5px;
+  color: #374151;
+  margin: 0 0 8px;
+}
+.assign-instructions ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+
+.class-session-work {
+  border-top: 1px solid #bbf7d0;
+  padding-top: 16px;
+}
+.session-work-title {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #065f46;
+  margin: 0 0 12px;
+}
+
+/* Timeline Activity Items */
+.student-activities {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.student-activity {
+  display: flex;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.student-activity span {
+  font-size: 11px;
+  font-weight: 800;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 3px 8px;
+  border-radius: 4px;
+  align-self: flex-start;
+  white-space: nowrap;
+}
+.student-activity h3 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.student-activity p {
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* SECTION 06: FUENTES Y BIBLIOGRAFÍA */
+.section-sources {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  border-left: 6px solid #64748b;
+}
+.section-sources .student-section-number {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+.sources-pills-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.source-pill-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.source-pill-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.source-pill-card strong {
+  display: block;
+  font-size: 12px;
+  color: #1e293b;
+}
+.source-pill-card small {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Share Actions Bar */
+.student-share-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 18px;
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+/* SECTION 07: DISCOGRAFÍA */
+.section-discography {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  border-left: 6px solid #334155;
+}
+.section-discography .student-section-number {
+  background: #e2e8f0;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+}
+.discography-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #ffffff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.discography-table th {
+  background: #f1f5f9;
+  color: #334155;
+  font-weight: 700;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 2px solid #cbd5e1;
+}
+.discography-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+  line-height: 1.4;
+}
+.discography-table tr:last-child td {
+  border-bottom: none;
+}
+.disco-performer {
+  display: inline-block;
+  font-size: 11.5px;
+  color: #1e293b;
+  font-weight: 600;
+}
+.disco-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.yt-link-table {
+  font-size: 11px;
+  padding: 4px 8px;
+}
+.disco-note {
+  display: block;
+  font-size: 11.5px;
+  color: #475569;
+  line-height: 1.4;
+}
+
+/* Proposal view infographic & listenings blocks */
+.proposal-infographic-block {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+.proposal-infographic-wrap {
+  margin-top: 14px;
+}
+.proposal-listenings-block {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+.proposal-listening-card {
+  border: 1px solid #cbd5e1;
+}

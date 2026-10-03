@@ -816,3 +816,8 @@ versión de Chromium; en otros entornos el smoke sigue activo y el informe indic
 que la comparación visual no es aplicable. Los informes y diferencias PNG se
 guardan en el directorio indicado. Solo `--update-baseline` permite renovar
 explícitamente las referencias; no usarlo para ocultar regresiones.
+
+Los estilos se organizan en `src/docente_ai/web/static/css/`; `style.css` mantiene
+el orden de sus importaciones locales. No hay compilador CSS, dependencias npm
+ni URL externas. Diario y Ajustes conservan su presentación mediante los estilos
+compartidos existentes.

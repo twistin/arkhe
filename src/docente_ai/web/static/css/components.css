@@ -1,0 +1,563 @@
+/* components: reglas originales conservadas, sin cambios de declaraciones. */
+
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 25px;
+  margin-bottom: 30px;
+}
+.page-head h1 { margin-bottom: 10px; }
+.page-head p { font-size: 13.5px; max-width: 580px; color: var(--muted); }
+.head-actions { display: flex; gap: 10px; padding-bottom: 4px; flex-shrink: 0; }
+
+.button {
+  border: 1px solid var(--line-dark);
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+.button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+.button.primary {
+  background: var(--green);
+  border-color: var(--green);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+}
+.button.primary:hover {
+  background: var(--green-hover);
+  border-color: var(--green-hover);
+}
+.button.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.button.ghost:hover {
+  background: var(--sidebar);
+  color: var(--ink);
+}
+.button.small { padding: 6px 12px; font-size: 12px; }
+.button.danger {
+  color: var(--danger);
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.button.danger:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+.icon-button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+.icon-button:hover {
+  background: var(--sidebar-hover);
+  color: var(--ink);
+}
+
+.panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 26px;
+  box-shadow: var(--shadow-sm);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.panel-header h2 { font-size: 22px; color: var(--ink); }
+
+.label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.field { margin-bottom: 20px; }
+.input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--line-dark);
+  border-radius: 8px;
+  padding: 11px 14px;
+  background: var(--white);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+.input:focus, select:focus, textarea:focus {
+  border-color: var(--green);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+/* Agenda diaria */
+.daily-agenda {
+  margin: -17px 0 34px;
+  padding: 22px 26px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+}
+.agenda-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+.agenda-heading .eyebrow { margin: 0 0 4px; font-size: 10px; font-weight: 700; color: var(--green); }
+.agenda-heading h2 { font: 22px/1.2 var(--serif); color: var(--ink); font-weight: 700; }
+.agenda-note { font-size: 12px; color: var(--muted); }
+
+.agenda-track {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.agenda-session {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "time copy status" "time copy action";
+  align-items: center;
+  gap: 3px 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  text-align: left;
+  transition: all 0.18s ease;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.agenda-session:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.agenda-time { grid-area: time; font: 22px/1 var(--sans); font-weight: 700; color: var(--green); }
+.agenda-copy { grid-area: copy; display: flex; flex-direction: column; min-width: 0; }
+.agenda-copy strong { font-size: 13.5px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-copy small { font-size: 11px; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-status {
+  grid-area: status;
+  justify-self: end;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--sidebar-hover);
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.agenda-status.ahora { color: #166534; background: #dcfce7; }
+.agenda-status.próxima, .agenda-status.proxima { color: #0369a1; background: #e0f2fe; }
+.agenda-status.finalizada { color: #64748b; background: #f1f5f9; }
+.agenda-action {
+  grid-area: action;
+  justify-self: end;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Subject Badges Base */
+.subject-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Subject Colors Palette */
+/* 1. Historia da Música I (Verde Esmeralda) */
+.subject-historia-i {
+  border-left: 5px solid #16a34a !important;
+}
+.subject-tag-historia-i {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+/* 2. Historia da Música II (Azul Cielo / Sky) */
+.subject-historia-ii {
+  border-left: 5px solid #0284c7 !important;
+}
+.subject-tag-historia-ii {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+}
+
+/* 3. Guitarra (Ámbar Cálido) */
+.subject-guitarra {
+  border-left: 5px solid #d97706 !important;
+}
+.subject-tag-guitarra {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+/* 4. Conxunto de Guitarras (Púrpura / Violeta) */
+.subject-conxunto-guitarra {
+  border-left: 5px solid #9333ea !important;
+}
+.subject-tag-conxunto-guitarra {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #d8b4fe;
+}
+
+/* 5. NTAM (Teal / Turquesa) */
+.subject-ntam {
+  border-left: 5px solid #0d9488 !important;
+}
+.subject-tag-ntam {
+  background: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #5eead4;
+}
+
+/* 6A. Música 1º ESO (Naranja Vivo) */
+.subject-musica-1-eso, .subject-1-eso, .subject-eso-1 {
+  border-left: 5px solid #ea580c !important;
+}
+.subject-tag-musica-1-eso, .subject-tag-1-eso, .subject-tag-eso-1 {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+/* 6B. Música 2º ESO (Carmesí / Coral Red) */
+.subject-musica-2-eso, .subject-2-eso, .subject-eso-2 {
+  border-left: 5px solid #e11d48 !important;
+}
+.subject-tag-musica-2-eso, .subject-tag-2-eso, .subject-tag-eso-2 {
+  background: #ffe4e6;
+  color: #be123c;
+  border: 1px solid #fda4af;
+}
+
+/* 6C. Música 3º ESO (Índigo Profundo) */
+.subject-musica-3-eso, .subject-3-eso, .subject-eso-3 {
+  border-left: 5px solid #4f46e5 !important;
+}
+.subject-tag-musica-3-eso, .subject-tag-3-eso, .subject-tag-eso-3 {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #a5b4fc;
+}
+
+/* 6D. Música 4º ESO (Fucsia / Magenta) */
+.subject-musica-4-eso, .subject-4-eso, .subject-eso-4 {
+  border-left: 5px solid #c026d3 !important;
+}
+.subject-tag-musica-4-eso, .subject-tag-4-eso, .subject-tag-eso-4 {
+  background: #fae8ff;
+  color: #86198f;
+  border: 1px solid #f0abfc;
+}
+
+/* 6E. Música ESO Genérica (Verde Menta) */
+.subject-musica-eso, .subject-eso {
+  border-left: 5px solid #059669 !important;
+}
+.subject-tag-musica-eso, .subject-tag-eso {
+  background: #d1fae5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+}
+
+/* 7. Default / Sin materia */
+.subject-none, .subject-xeral {
+  border-left: 5px solid #94a3b8 !important;
+}
+.subject-tag-none, .subject-tag-xeral {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+/* Notices and Alerts */
+.notice {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #f8fafc;
+  padding: 14px 18px;
+  margin: 14px 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.notice.tip {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+.notice.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.notice.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+/* Empty State */
+.empty-library {
+  position: relative;
+  min-height: 340px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Modal Dialog */
+dialog {
+  padding: 0;
+  border: 1px solid var(--line-dark);
+  border-radius: 14px;
+  background: var(--white);
+  color: var(--ink);
+  width: min(640px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+dialog::backdrop { background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(4px); }
+.dialog-head {
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+.dialog-head h2 { font-size: 24px; color: var(--ink); }
+.dialog-body { padding: 24px 28px; }
+.dialog-actions { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  max-width: 400px;
+  border: 1px solid var(--line-dark);
+  background: var(--white);
+  border-radius: 10px;
+  padding: 16px 22px;
+  box-shadow: var(--shadow-lg);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 50;
+}
+#toast.error { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
+
+/* Result Documents / Pedagogy Detail */
+.result-document {
+  padding: 28px 32px 36px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  box-shadow: var(--shadow-sm);
+  margin-top: 14px;
+}
+
+.result-cover {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.result-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.result-meta-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-secondary);
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.result-title {
+  font-size: 21px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 6px 0 0;
+  letter-spacing: -0.3px;
+  font-family: var(--sans);
+}
+
+.result-subtitle {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 6px 0 0;
+  font-weight: 400;
+  max-width: 900px;
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+}
+
+.result-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.proposal-outline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+
+.proposal-outline span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.proposal-outline span:not(:last-child):after {
+  content: "·";
+  margin-left: 8px;
+  color: var(--line-dark);
+  font-weight: bold;
+}
+
+.proposal-outline strong {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.teacher-criteria-card {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 26px;
+}
+.criteria-badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #b45309; margin-bottom: 6px; text-transform: uppercase; }
+.teacher-criteria-card p { font-size: 13px; line-height: 1.7; color: #78350f; margin: 0; font-weight: 500; }
+
+.pedagogy-block { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); }
+.block-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+.block-num {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--green);
+  color: #ffffff;
+  font: 700 14px/1 var(--sans);
+  flex-shrink: 0;
+}
+.block-header h3 { font: 20px/1.25 var(--serif); color: var(--ink); margin: 0 0 4px; font-weight: 700; }
+.block-desc { font-size: 12px; color: var(--muted); margin: 0; }
+
+.objectives-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.objective-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.obj-index {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: var(--green-light);
+  color: var(--green);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.objective-item p { font-size: 13.5px; line-height: 1.65; color: var(--ink); margin: 0; font-weight: 500; }
+
+.step-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+}
