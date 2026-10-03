@@ -97,6 +97,7 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
     pytest.importorskip('PIL', reason='Pillow es opcional para comparar capturas.')
     client, proposal_id, answer_id, document_id = synthetic_ui
     update = os.environ.get('DOCENTE_UI_UPDATE_BASELINE') == '1'
+    update_views = set(os.environ.get('DOCENTE_UI_UPDATE_VIEWS', '').split(',')) - {''}
     capture_dir = Path(os.environ.get('DOCENTE_UI_CAPTURE_DIR', str(tmp_path / 'capturas')))
     capture_dir.mkdir(parents=True, exist_ok=True)
     report = {'profile': profile, 'console_errors': [], 'page_errors': [], 'external_requests': [], 'captures': {}}
@@ -142,7 +143,7 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
             path = capture_dir / f'{profile}-{name}.png'
             target.screenshot(path=str(path), full_page=True, animations='disabled', caret='hide')
             baseline_path = BASELINE / path.name
-            if update:
+            if update and (not update_views or name in update_views):
                 BASELINE.mkdir(exist_ok=True)
                 baseline_path.write_bytes(path.read_bytes())
                 report['captures'][name] = {'changed_pixels': 0, 'baseline_created': True}
@@ -156,6 +157,21 @@ def test_ui_smoke(synthetic_ui, tmp_path, profile, viewport):
             page.wait_for_function("() => document.querySelector('#main h1') && document.querySelector('#connection').textContent.includes('conectado')")
             assert page.locator(f'[data-nav="{view}"]').get_attribute('aria-current') == 'page'
             capture(page, view)
+        page.goto(ORIGIN + '/#ajustes')
+        assert page.get_by_text('Lunes · 17:00–18:00 · Aula 1', exact=True).is_visible()
+        assert page.get_by_text('2026-10-12 · Clase cancelada', exact=True).is_visible()
+        assert page.get_by_text('2026-10-19 · 18:00–19:00 · Aula 2', exact=True).is_visible()
+        empty_html = page.evaluate("""async () => {
+            const {store} = await import('/assets/js/state.js');
+            const {schedulePanel} = await import('/assets/js/vistas/ajustes.js');
+            const previous = store.state.config;
+            try {
+                store.state.config = {groups: [], schedule_rules: [], calendar_exceptions: []};
+                return schedulePanel();
+            } finally { store.state.config = previous; }
+        }""")
+        assert 'Crea grupos y horarios' in empty_html
+        assert 'Historia 5' not in empty_html
         # Abrir respuesta y fuente real del espacio temporal: acciones cruzadas.
         if profile == 'escritorio':  # El contexto lateral se oculta en móvil por diseño.
             page.goto(ORIGIN + '/#asistente')

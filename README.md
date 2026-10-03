@@ -827,3 +827,5 @@ El frontend utiliza módulos ES nativos en `static/js`: `main.js` coordina la na
 `tests/test_frontend_modules.py` comprueba que no hay ciclos ni imports de otra vista: cada vista solo puede depender de `api.js`, `state.js`, `ui.js` y `componentes/`.
 
 Los scripts se sirven desde archivos locales con `script-src 'self'`: no se permiten scripts inline. Los botones de láminas utilizan el mismo manejador de eventos delegado en `main.js`, sin atributos `onclick` ni funciones globales.
+
+El panel Horario y Calendario de Ajustes se genera exclusivamente desde los grupos, reglas semanales y excepciones importados. Muestra días, horas, aulas, cancelaciones y cambios puntuales por grupo. Sin grupos invita a crear o importar la configuración; no contiene horarios personales de ejemplo.

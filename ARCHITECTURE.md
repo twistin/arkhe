@@ -686,3 +686,5 @@ impresión en escritorio y móvil. El servidor mantiene `Cache-Control: no-store
 ### CSP y eventos sin código inline
 
 La CSP utiliza `script-src 'self'`. `index.html` solo contiene scripts externos locales (Mermaid clásico y main ES). Las láminas de Egipto conservan la función de cambio de pestaña, llamada desde el manejador delegado de main; no exponen una función global ni atributos `onclick`. La impresión copia el documento ya renderizado y no añade scripts inline. `style-src` conserva su permiso inline para los estilos dinámicos existentes; este refactor no cambia esa política de estilos.
+
+El panel de horarios consume `config.groups`, `config.schedule_rules` y `config.calendar_exceptions` de `/api/state`. Agrupa las reglas por grupo y ordena los días/horas; muestra las excepciones por fecha y aplica sus modificaciones a hora, duración y aula. El endpoint ya exponía los tres conjuntos; un test garantiza que corresponden a los datos importados. La referencia visual de Ajustes se actualiza por este cambio intencionado; las otras cinco vistas conservan sus referencias.

@@ -485,3 +485,14 @@ def test_export_calendar_ics_via_api(web):
     assert 'BEGIN:VCALENDAR' in text
     assert 'BEGIN:VALARM' in text
     assert 'TRIGGER:-PT15M' in text
+
+
+def test_estado_expone_grupos_horarios_y_excepciones_importados(web):
+    client, ws = web
+    expected = read_config(ws.db)
+    config = client.get('/api/state').json()['config']
+    for field in ('groups', 'schedule_rules', 'calendar_exceptions'):
+        assert config[field] == expected[field]
+        assert config[field]
+    assert config['schedule_rules'][0]['room'] == 'Aula 1'
+    assert any(item.get('cancelled') for item in config['calendar_exceptions'])
