@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 from docente_ai.generation.quotations import passages
 
-PROMPT_VERSION = 'grounded-answer:5'
+PROMPT_VERSION = 'grounded-answer:6'
 SYSTEM = """Eres un asistente académico de conservatorio y universidad. Responde con rigor basándote solo en los pasajes dados. Redacta explicaciones amplias, profundas y articuladas en prosa continua (evita fragmentar en pocas líneas); desarrolla contexto histórico, técnica y análisis musical formal. Usa títulos Markdown (###), listas y tablas comparativas cuando proceda.
 Cada claim es una sección temática con kind (summary o inference), text y evidence ([{"source_id":"S1","quote":"quote_001"}]).
 Si la pregunta analiza formas musicales, evolución o taxonomía, añade 1 o 2 visualizations (type sequence, relationship o table) con title, items (label y detail), caption y evidence. No escribas HTML ni Mermaid en text.
@@ -20,7 +20,7 @@ RESPONSE_SCHEMA = {
     'type': 'object', 'additionalProperties': False,
     'properties': {
         'status': {'type': 'string', 'enum': ['answered', 'insufficient_sources']},
-        'claims': {'type': 'array', 'minItems': 1, 'maxItems': 10, 'items': {
+        'claims': {'type': 'array', 'minItems': 0, 'maxItems': 10, 'items': {
             'type': 'object', 'additionalProperties': False,
             'properties': {
                 'kind': {'type': 'string', 'enum': ['summary', 'inference']},
@@ -48,13 +48,26 @@ RESPONSE_SCHEMA = {
 }
 
 
-def response_schema(messages):
-    schema = deepcopy(RESPONSE_SCHEMA)
-    try:
-        payload = json.loads(messages[-1]['content'])
-    except (json.JSONDecodeError, IndexError, KeyError):
-        return schema
-    if not isinstance(payload, dict):
+def response_schema(messages, base_schema=None):
+    payload = None
+    claim_limit = None
+    for message in messages:
+        if message.get('role') != 'user':
+            continue
+        try:
+            value = json.loads(message['content'])
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+        if isinstance(value, dict) and isinstance(value.get('sources'), list):
+            payload = value
+        if isinstance(value, dict) and value.get('repair') is True and value.get('max_claims') == 5:
+            claim_limit = 5
+    if base_schema is None and payload and 'context' in payload:
+        from docente_ai.agents.pedagogy import RESPONSE_SCHEMA as base_schema
+    schema = deepcopy(base_schema or RESPONSE_SCHEMA)
+    if claim_limit and 'claims' in schema.get('properties', {}):
+        schema['properties']['claims']['maxItems'] = claim_limit
+    if not payload or 'claims' not in schema.get('properties', {}):
         return schema
     options = []
     for source in payload.get('sources', []):

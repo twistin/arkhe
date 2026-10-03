@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
                 return launch(args)
             if args.command == "pedagogy":
                 return run_pedagogy(args)
-            if args.command in ("ask", "generation"):
+            if args.command in ("ask", "generation", "runs"):
                 return run_generation(args)
             if args.command == "search":
                 return run_rag(args)

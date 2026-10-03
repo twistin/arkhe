@@ -34,8 +34,11 @@ def eligible(connection, *, subject=None, category='all', document_ids=None):
         raise ValueError('Categoría de búsqueda inválida.')
     if subject:
         check_subjects(connection, [subject])
-    query = '''SELECT d.id AS document_id,d.category,d.metadata,v.id AS version_id,v.sha256,v.original_path
+    query = '''SELECT d.id AS document_id,d.category,d.metadata,v.id AS version_id,v.sha256,v.original_path,
+               json_extract(v.metadata_snapshot, '$.extraction.derived_from_version_id') AS derived_from_version_id,
+               p.original_path AS parent_path,p.sha256 AS parent_sha256
                FROM documents d JOIN document_versions v ON v.id=d.current_version_id
+               LEFT JOIN document_versions p ON p.id=json_extract(v.metadata_snapshot, '$.extraction.derived_from_version_id') AND p.document_id=d.id
                WHERE d.enabled=1 AND v.status IN ('ready','needs_review')'''
     args = []
     if subject:
@@ -58,6 +61,12 @@ def verify_original(db, version):
     original = original_file(db, version['original_path'])
     if not original.is_file() or hashlib.sha256(original.read_bytes()).hexdigest() != version['sha256']:
         raise ValueError(f"Original ausente o alterado: {version['document_id']}. Revisa la biblioteca.")
+    if version.get('derived_from_version_id'):
+        if not version.get('parent_path'):
+            raise ValueError('Versión original del OCR ausente. Revisa la biblioteca.')
+        parent = original_file(db, version['parent_path'])
+        if not parent.is_file() or hashlib.sha256(parent.read_bytes()).hexdigest() != version['parent_sha256']:
+            raise ValueError(f"Original previo al OCR ausente o alterado: {version['document_id']}. Revisa la biblioteca.")
 
 
 def representation(settings):
@@ -157,8 +166,16 @@ def citation(meta, locator):
     if locator['kind'] == 'pdf_page':
         # Esta fase no dispone de un flujo de verificación de página impresa.
         location = f"página {locator['pdf_page_index']} del archivo PDF"
+    elif locator['kind'] == 'docx_paragraph':
+        location = f"párrafo {locator['paragraph_index']} del DOCX"
+    elif locator['kind'] == 'docx_table':
+        location = f"tabla {locator['table_index']} del DOCX"
     else:
         location = f"líneas {locator['line_start']}–{locator['line_end']}"
+    if locator.get('section'):
+        location += f" · {locator['section']}"
+    if locator.get('ocr_document') or locator.get('text_origin') == 'texto OCR':
+        location += ' · texto OCR: posible error de reconocimiento'
     return f"{author}, {year}, {location}. {meta['title']}"
 
 

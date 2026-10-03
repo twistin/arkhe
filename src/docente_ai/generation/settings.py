@@ -3,11 +3,23 @@
 from dataclasses import dataclass
 import math
 from pathlib import Path
+import logging
+import os
+from uuid import uuid4
+from urllib.parse import urlsplit
+import hashlib
 
 import yaml
 
 from docente_ai.config import StrictLoader
 from docente_ai.doctor import DEFAULT_HOST, local_url
+from docente_ai.secrets import set_secret
+from docente_ai.llm.presets import PRESETS, RESIDENCY_LABELS
+from docente_ai.generation.errors import NonRecoverableGenerationError
+
+
+class ConsentRequiredError(NonRecoverableGenerationError):
+    error_type = 'consent_required'
 
 
 @dataclass(frozen=True)
@@ -23,17 +35,34 @@ class GenerationSettings:
     num_batch: int = 128
     # Proveedor externo: 'ollama' (por defecto, local) o 'deepseek' (API en la nube).
     provider: str = 'ollama'
-    # Clave de API para proveedores externos. Vacío = local.
-    api_key: str = ''
+    base_url: str = ''
+    data_residency: str = ''
+    response_format: str = ''
+    remote_consent: str = ''
 
     def __post_init__(self):
-        if self.provider not in ('ollama', 'deepseek'):
-            raise ValueError("provider debe ser 'ollama' o 'deepseek'.")
-        if self.provider == 'deepseek':
+        if self.provider not in PRESETS:
+            raise ValueError('provider debe ser un preset conocido: ' + ', '.join(PRESETS))
+        preset = PRESETS[self.provider]
+        if self.data_residency and self.data_residency != preset['data_residency']:
+            raise ValueError('La residencia debe coincidir con la declarada por el preset.')
+        object.__setattr__(self, 'data_residency', preset['data_residency'])
+        if not isinstance(self.remote_consent, str):
+            raise ValueError('remote_consent debe ser texto.')
+        if self.is_remote:
+            endpoint = self.base_url or preset['base_url']
+            if preset['base_url'] and endpoint.rstrip('/') != preset['base_url']:
+                raise ValueError('Para cambiar el destino utiliza el preset personalizado.')
+            parsed = urlsplit(endpoint)
+            if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+                raise ValueError('El endpoint debe ser HTTPS sin credenciales, parámetros ni fragmentos.')
+            object.__setattr__(self, 'base_url', endpoint.rstrip('/'))
+            capability = self.response_format or preset['models'].get(self.model, preset['response_format'])
+            if capability not in ('none', 'json_object', 'json_schema'):
+                raise ValueError('response_format debe ser none, json_object o json_schema.')
+            object.__setattr__(self, 'response_format', capability)
             if not isinstance(self.model, str) or not self.model.strip():
-                raise ValueError('Elige un modelo de DeepSeek (p.ej. deepseek-chat o deepseek-reasoner).')
-            if not isinstance(self.api_key, str):
-                raise ValueError('api_key debe ser una cadena de texto.')
+                raise ValueError('Elige un modelo del proveedor generativo.')
             # Para deepseek, input_budget es ilimitado en la práctica (128k); usamos num_ctx como referencia.
             if type(self.num_ctx) is not int or not 2048 <= self.num_ctx <= 131072:
                 raise ValueError('num_ctx debe ser un entero entre 2048 y 131072.')
@@ -58,6 +87,30 @@ class GenerationSettings:
             raise ValueError('think debe ser true o false.')
 
     @property
+    def is_remote(self):
+        return PRESETS[self.provider]['transport'] != 'ollama'
+
+    @property
+    def secret_name(self):
+        return PRESETS[self.provider]['secret_name']
+
+    @property
+    def consent_scope(self):
+        return hashlib.sha256(repr(('remote:1', self.provider, self.base_url, self.model, self.data_residency, self.response_format)).encode()).hexdigest()
+
+    @property
+    def remote_confirmed(self):
+        return self.is_remote and self.remote_consent == self.consent_scope
+
+    def require_consent(self):
+        if self.is_remote and not self.remote_confirmed:
+            raise ConsentRequiredError('Confirma explícitamente el envío de pregunta y fragmentos al proveedor en Ajustes antes de consultar.')
+
+    @property
+    def indicator(self):
+        return ('Fragmentos enviados a ' + PRESETS[self.provider]['name'] + ' (' + RESIDENCY_LABELS[self.data_residency] + ')') if self.is_remote else 'Generación local'
+
+    @property
     def input_budget(self):
         return self.num_ctx - self.max_output_tokens - self.context_margin
 
@@ -68,12 +121,27 @@ def load_settings(path: Path) -> GenerationSettings:
             raise ValueError('Configuración generativa demasiado grande.')
         data = yaml.load(path.read_text(encoding='utf-8'), Loader=StrictLoader)
     except (OSError, UnicodeError, yaml.YAMLError, RecursionError) as exc:
-        raise ValueError(f'No se pudo leer la configuración generativa: {exc}') from exc
+        raise ValueError('No se pudo leer la configuración generativa.') from None
     if not isinstance(data, dict) or set(data) != {'schema_version', 'generation'} or type(data['schema_version']) is not int or data['schema_version'] != 1:
         raise ValueError('Se necesitan schema_version: 1 y generation.')
     if not isinstance(data['generation'], dict):
         raise ValueError('generation debe ser un objeto.')
+    has_legacy_key = 'api_key' in data['generation']
+    legacy_key = data['generation'].pop('api_key', '')
     try:
-        return GenerationSettings(**data['generation'])
+        settings = GenerationSettings(**data['generation'])
     except TypeError as exc:
         raise ValueError('Campos generativos desconocidos o falta el campo model.') from exc
+    if has_legacy_key:
+        if not isinstance(legacy_key, str):
+            raise ValueError('La clave antigua debe ser texto.')
+        if legacy_key.strip():
+            set_secret(settings.secret_name or 'deepseek_api_key', legacy_key)
+        temporary = path.with_name('.' + path.name + '.' + uuid4().hex)
+        try:
+            temporary.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding='utf-8')
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        logging.getLogger(__name__).warning('Configuración antigua migrada: credencial retirada del YAML y guardada en el Llavero cuando existía.')
+    return settings

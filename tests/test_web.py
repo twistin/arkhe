@@ -34,6 +34,48 @@ def web(tmp_path):
         yield client,ws
 
 
+def test_api_no_devuelve_credenciales_y_permite_borrado(web, monkeypatch):
+    from docente_ai.secrets import get_secret
+    client, ws = web
+    key = 'sk-' + 'B' * 32
+    monkeypatch.setattr('docente_ai.web.workspace.httpx.Client', lambda **kwargs: (_ for _ in ()).throw(ValueError('Sin red')))
+    response = client.post('/api/models', json={'provider': 'deepseek', 'generation': 'deepseek-chat', 'api_key': key})
+    assert response.status_code == 200, response.text
+    assert key not in response.text
+    for name in ('generation', 'pedagogy'):
+        assert key not in (ws.root / f'config/{name}.yaml').read_text()
+    state = client.get('/api/state')
+    assert state.json()['api_key_configured'] is True
+    assert key not in state.text
+    status = ws.model_status()
+    assert status['api_key_configured'] is True
+    assert key not in str(status)
+    assert get_secret('deepseek_api_key') == key
+    response = client.post('/api/models', json={'provider': 'deepseek', 'api_key': ''})
+    assert response.status_code == 200
+    assert get_secret('deepseek_api_key') == key
+    response = client.delete('/api/secrets/deepseek', headers={'X-Docente-Token': 'invalido'})
+    assert response.status_code == 403
+    assert get_secret('deepseek_api_key') == key
+    response = client.delete('/api/secrets/deepseek')
+    assert response.status_code == 200 and response.json()['api_key_configured'] is False
+    assert get_secret('deepseek_api_key') is None
+    monkeypatch.setenv('DOCENTE_AI_DEEPSEEK_API_KEY', key)
+    response = client.delete('/api/secrets/deepseek')
+    assert response.json()['api_key_configured'] is True
+    assert key not in response.text
+
+
+def test_stats_api_y_bloque_ajustes(web):
+    client, _ = web
+    response = client.get('/api/runs/stats?limit=20')
+    assert response.status_code == 200 and response.json()['total'] == 0
+    assert response.json()['limit'] == 20
+    assert client.get('/api/runs/stats?limit=0').status_code == 400
+    assert client.get('/api/state').json()['run_stats']['limit'] == 100
+    assert 'Calidad de generación' in client.get('/assets/app.js').text
+
+
 def wait(ws):
     ws.pool.submit(lambda: None).result(timeout=5)
     return ws.job_list()[-1]

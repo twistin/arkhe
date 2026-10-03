@@ -3,10 +3,27 @@
 import json
 import re
 from docente_ai.generation.quotations import passages
+from docente_ai.generation.errors import RecoverableGenerationError
 
 
-class ResponseValidationError(ValueError):
+class ResponseValidationError(RecoverableGenerationError):
     pass
+
+
+class JsonFormatError(ResponseValidationError):
+    error_type = 'json_format'
+
+
+class ExtraFieldsError(ResponseValidationError):
+    error_type = 'extra_fields'
+
+
+class InvalidEnumError(ResponseValidationError):
+    error_type = 'invalid_enum'
+
+
+class QuoteResolutionError(ResponseValidationError):
+    error_type = 'quote_unresolved'
 
 
 def fail(message):
@@ -63,50 +80,16 @@ def normalize_evidence(value, known=None):
     return normalized
 
 
-def normalize_text_variants(text):
-    text = text.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'").replace('«', '"').replace('»', '"')
-    text = text.replace('–', '-').replace('—', '-')
-    var_a = re.sub(r'(\w+)[\xad\u2010\u2013-]\s*[\r\n]+\s*(\w+)', r'\1\2', text)
-    var_b = re.sub(r'(\w+)[\xad\u2010\u2013-]\s*[\r\n]+\s*(\w+)', r'\1-\2', text)
-    var_c = re.sub(r'(\w+)[\xad\u2010\u2013-]\s*[\r\n]+\s*(\w+)', r'\1 \2', text)
-    clean = lambda t: re.sub(r'[\xad\u200b\u200c\u200d\u2060\ufeff]', '', t)
-    raw = ' '.join(clean(text).split())
-    return [raw, ' '.join(clean(var_a).split()), ' '.join(clean(var_b).split()), ' '.join(clean(var_c).split())]
-
-
 def quote_matches(excerpt, source_text):
-    q_norm = ' '.join(excerpt.split())
-    src_vars = normalize_text_variants(source_text)
-    if any(q_norm in v for v in src_vars):
-        return True
-    clean_q = ' '.join(re.sub(r'[^\w\s]', ' ', q_norm).lower().split())
-    for v in src_vars:
-        clean_v = ' '.join(re.sub(r'[^\w\s]', ' ', v).lower().split())
-        if clean_q in clean_v:
-            return True
-        if re.search(r'\.{2,}|…', excerpt):
-            parts = [p.strip() for p in re.split(r'\.{2,}|…', clean_q) if len(p.strip()) > 8]
-            if parts and all(p in clean_v for p in parts):
-                return True
-    compact_q = re.sub(r'\W+', '', excerpt.lower())
-    if len(compact_q) >= 12:
-        for v in src_vars:
-            if compact_q in re.sub(r'\W+', '', v.lower()):
-                return True
-        if re.search(r'\.{2,}|…', excerpt):
-            parts = [re.sub(r'\W+', '', p.lower()) for p in re.split(r'\.{2,}|…', excerpt) if len(re.sub(r'\W+', '', p.lower())) >= 8]
-            for v in src_vars:
-                compact_v = re.sub(r'\W+', '', v.lower())
-                if parts and all(p in compact_v for p in parts):
-                    return True
-    return False
+    """Solo espacios: nunca reconstruir, traducir o aproximar una cita."""
+    return isinstance(excerpt, str) and bool(excerpt.strip()) and whitespace(excerpt) in whitespace(source_text)
 
 
 def validate_evidence(value, known, *, owner):
     quotes = normalize_evidence(value, known)
     if not isinstance(quotes, list) or not 1 <= len(quotes) <= 30:
         fail(f'{owner} necesita entre una y treinta evidencias.')
-    for quote in quotes:
+    for index, quote in enumerate(quotes):
         if not isinstance(quote, dict):
             fail('Evidencia con estructura inválida.')
         if 'quote_id' in quote and 'quote' not in quote:
@@ -114,10 +97,11 @@ def validate_evidence(value, known, *, owner):
         elif 'quote_id' in quote:
             quote.pop('quote_id', None)
         if set(quote) != {'source_id', 'quote'}:
-            fail('Evidencia con campos no permitidos.')
+            extra = sorted(set(quote) - {'source_id', 'quote'})
+            raise ExtraFieldsError(f'{owner}.evidence[{index}] contiene campos no permitidos {extra}; usa solo source_id y quote.')
         source_id, excerpt = quote['source_id'], quote['quote']
         if not isinstance(source_id, str) or source_id not in known:
-            fail('La respuesta cita una fuente inexistente o que no se envió al modelo.')
+            raise QuoteResolutionError(f'{owner}.evidence[{index}].source_id no identifica una fuente enviada al modelo.')
         if isinstance(excerpt, str):
             choices = {p['id']: p['text'] for p in passages(known[source_id]['text'])}
             if excerpt in choices:
@@ -125,7 +109,7 @@ def validate_evidence(value, known, *, owner):
         if not isinstance(excerpt, str) or not 8 <= len(excerpt.strip()) <= 500:
             fail('La cita debe tener entre 8 y 500 caracteres.')
         if not quote_matches(excerpt, known[source_id]['text']):
-            fail('La cita textual no coincide con el fragmento autorizado.')
+            raise QuoteResolutionError(f'{owner}.evidence[{index}]: La cita textual no coincide con el fragmento autorizado. Usa un quote_XXX permitido para esa fuente.')
     return quotes
 
 
@@ -138,74 +122,26 @@ def validate_generated_text(value, *, label, maximum):
         fail('El modelo incluyó referencias libres; debe usar solo evidence/source_id.')
 
 
-def normalize_visuals(visuals, default_evidence, known=None):
-    if not isinstance(visuals, list):
-        return []
-    normalized = []
-    for v in visuals:
-        if not isinstance(v, dict):
-            continue
-        v_type = v.get('type', 'relationship')
-        title = v.get('title') or 'Esquema conceptual'
-        caption = v.get('caption') or title
-        data_block = v.get('data') if isinstance(v.get('data'), dict) else {}
-        items = v.get('items')
-        steps = v.get('steps') or data_block.get('steps')
-        rows = v.get('rows') or data_block.get('rows')
-
-        if not items and steps and isinstance(steps, list):
-            items = []
-            for idx, s in enumerate(steps):
-                if isinstance(s, str):
-                    parts = s.split(':', 1) if ':' in s else (f'Paso {idx+1}', s)
-                    items.append({'label': parts[0].strip(), 'detail': parts[1].strip()})
-                elif isinstance(s, dict):
-                    items.append({'label': s.get('label', f'Paso {idx+1}'),
-                                  'detail': s.get('description', s.get('detail', s.get('text', '')))})
-        elif not items and rows and isinstance(rows, list):
-            items = [{'label': str(r[0]), 'detail': ' · '.join(str(c) for c in r[1:])}
-                     for r in rows if isinstance(r, list) and len(r) >= 2]
-        if not isinstance(items, list) or len(items) < 2:
-            continue
-        clean_items = []
-        for it in items[:12]:
-            if isinstance(it, dict):
-                l = it.get('label', 'Concepto')[:100]
-                d = it.get('detail', it.get('description', ''))[:360]
-                if l and d:
-                    clean_items.append({'label': l, 'detail': d})
-        if len(clean_items) < 2:
-            continue
-        ev = v.get('evidence')
-        if ev:
-            ev = normalize_evidence(ev, known)
-        if not ev or not isinstance(ev, list):
-            ev = default_evidence[:2] if default_evidence else []
-        normalized.append({'type': v_type, 'title': title[:140], 'caption': caption[:700],
-                           'items': clean_items, 'evidence': ev})
-    return normalized[:3]
-
-
 def validate_response(content: str, evidence: list[dict]) -> dict:
     try:
         data = json.loads(content, object_pairs_hook=unique_object,
                           parse_constant=lambda value: fail('Constante JSON inválida.'))
     except (json.JSONDecodeError, RecursionError) as exc:
-        raise ResponseValidationError('La respuesta del modelo no es JSON válido; no se publica.') from exc
+        raise JsonFormatError('La respuesta del modelo no es JSON válido; devuelve solo un objeto JSON completo.') from exc
     if not isinstance(data, dict):
         fail('La respuesta debe ser un objeto JSON.')
     # Compatibilidad con registros y modelos anteriores a grounded-answer:5.
     data.setdefault('visualizations', [])
+    if not {'status', 'claims'}.issubset(data):
+        fail('La respuesta no cumple el contrato: faltan status y/o claims.')
     for k in list(data.keys()):
         if k not in {'status', 'claims', 'visualizations'}:
             if k in ('observations', 'reason', 'notes', 'explanation', 'message', 'thinking', 'warnings'):
                 data.pop(k, None)
             else:
-                fail('La respuesta no cumple el contrato: status, claims y visualizations.')
-    if data['status'] in ('ok', 'success', 'complete', 'completed'):
-        data['status'] = 'answered'
+                raise ExtraFieldsError(f'Campo de respuesta no permitido: {k!r}; usa status, claims y visualizations.')
     if data['status'] not in ('answered', 'insufficient_sources'):
-        fail('Estado de respuesta no válido.')
+        raise InvalidEnumError('Estado de respuesta no válido; status debe ser answered o insufficient_sources.')
     claims = data['claims']
     if not isinstance(claims, list) or len(claims) > 12:
         fail('claims debe ser una lista con un máximo de doce afirmaciones o secciones.')
@@ -216,24 +152,23 @@ def validate_response(content: str, evidence: list[dict]) -> dict:
     if not claims:
         fail('Una respuesta debe aportar al menos una afirmación sustentada.')
     known = {item['source_id']: item for item in evidence}
-    all_claim_evidence = []
-    for claim in claims:
+    for index, claim in enumerate(claims):
         if not isinstance(claim, dict) or set(claim) != {'kind', 'text', 'evidence'}:
-            fail('Afirmación con campos no permitidos.')
+            raise ExtraFieldsError(f'claims[{index}] tiene campos no permitidos o incompletos; usa kind, text y evidence.')
         if claim['kind'] not in ('summary', 'inference'):
-            fail('Tipo de afirmación no permitido.')
+            raise InvalidEnumError(f'claims[{index}].kind no válido; usa summary o inference.')
         text = claim.get('text')
         validate_generated_text(text, label='Texto de afirmación', maximum=4000)
         # La bibliografía y los localizadores se añaden exclusivamente por código.
-        claim['evidence'] = validate_evidence(claim['evidence'], known, owner='Cada afirmación')
-        all_claim_evidence.extend(claim['evidence'])
-    visuals = normalize_visuals(data['visualizations'], all_claim_evidence)
-    data['visualizations'] = visuals
+        claim['evidence'] = validate_evidence(claim['evidence'], known, owner=f'claims[{index}]')
+    visuals = data['visualizations']
+    if not isinstance(visuals, list) or len(visuals) > 3:
+        fail('visualizations debe ser una lista con un máximo de tres esquemas.')
     for visual in visuals:
         if not isinstance(visual, dict) or set(visual) != {'type', 'title', 'items', 'caption', 'evidence'}:
             fail('Esquema con campos no permitidos.')
         if visual['type'] not in ('sequence', 'relationship', 'table'):
-            fail('Tipo de esquema no permitido.')
+            raise InvalidEnumError('Tipo de esquema no permitido; usa sequence, relationship o table.')
         validate_generated_text(visual['title'], label='Título de esquema', maximum=140)
         validate_generated_text(visual['caption'], label='Descripción de esquema', maximum=700)
         items = visual['items']

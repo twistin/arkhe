@@ -2,6 +2,7 @@
 
 from docente_ai.generation.prompt import RESPONSE_SCHEMA, estimate_input, response_schema
 from docente_ai.llm.local import LocalModelError, LocalOllama
+from docente_ai.generation.errors import GenerationLengthError, ContextBudgetError
 
 
 class OllamaGenerator(LocalOllama):
@@ -11,9 +12,9 @@ class OllamaGenerator(LocalOllama):
     def generate(self, messages):
         if not self.digest:
             raise LocalModelError('Inicializa el adaptador generativo antes de usarlo.')
-        schema = response_schema(messages) if self.response_schema is RESPONSE_SCHEMA else self.response_schema
+        schema = response_schema(messages, self.response_schema)
         if estimate_input(messages, schema) > self.settings.input_budget:
-            raise LocalModelError('El prompt excede el presupuesto configurado.')
+            raise ContextBudgetError('El prompt excede el presupuesto configurado; no se recortan las fuentes ni las citas.')
         self.verify_identity()
         payload = {
             'model': self.model, 'messages': messages, 'stream': False,
@@ -29,7 +30,9 @@ class OllamaGenerator(LocalOllama):
         self.verify_identity()
         message = data.get('message')
         if data.get('done_reason') == 'length':
-            raise LocalModelError('Generación detenida por límite de tokens; no se acepta como respuesta.')
+            raise GenerationLengthError('Generación detenida por límite de tokens; reduce a un máximo de cinco claims y redacta de forma concisa.',
+                                        content=message.get('content', '') if isinstance(message, dict) else '',
+                                        metrics={key: data[key] for key in ('prompt_eval_count', 'eval_count') if type(data.get(key)) is int})
         if data.get('done') is not True or data.get('done_reason') != 'stop':
             raise LocalModelError('Ollama no completó la generación. Revisa su registro y la memoria disponible; prueba a reducir num_ctx/num_batch. No se acepta la respuesta.')
         if not isinstance(message, dict) or message.get('role') != 'assistant' or message.get('tool_calls'):

@@ -34,7 +34,7 @@ def perform(corpus, **kwargs):
 def test_pedagogical_draft_roundtrip_and_history(corpus):
     result = perform(corpus)
     assert result['status'] == 'draft'
-    assert result['prompt_version'] == 'pedagogy:5'
+    assert result['prompt_version'] == 'pedagogy:6'
     assert result['request']['pedagogy']['group']['level'] == '3º GP'
     assert result['request']['pedagogy']['unit']['id'] == 'unidad-1'
     assert result['result']['plan'] == proposal()['plan']
@@ -83,6 +83,7 @@ def test_teacher_document_backfills_complete_lilypond_example(corpus):
     lambda p: p['plan']['activities'][0].update(claim_ids=[True]),
     lambda p: p['plan']['activities'][0].update(claim_ids=[1, 1]),
     lambda p: p['plan']['activities'][0].update(claim_ids=[]),
+    lambda p: p['plan']['activities'][0].update(claim_ids=None),
     lambda p: p['plan'].update(objectives=[]),
     lambda p: p['plan'].update(difficulty='página 999'),
     lambda p: p['plan'].update(resources=['https://inventado.test']),
@@ -310,4 +311,3 @@ def test_pedagogy_abstention_with_observations(corpus):
     assert result['status'] == 'abstained'
     assert result['result']['status'] == 'insufficient_sources'
     assert result['result']['observations'] == 'Las fuentes no cubren el contenido solicitado.'
-

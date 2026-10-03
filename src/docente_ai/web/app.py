@@ -116,7 +116,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
     async def upload(request):
         name = request.query_params.get('name', '')
         if not name or Path(name).name != name or '\\' in name or any(ord(c) < 32 for c in name) or Path(name).suffix.lower() not in SUFFIXES:
-            raise ValueError('Elige un PDF, TXT o Markdown con un nombre válido.')
+            raise ValueError('Elige un PDF, DOCX, TXT o Markdown con un nombre válido.')
         # Leave room for duplicate suffixes and respect the filesystem byte limit.
         if len(name.encode('utf-8')) > 230:
             suffix = Path(name).suffix
@@ -153,11 +153,17 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
         data = await run_in_threadpool(show_document, ws.db, request.path_params['id'], text=True)
         if request.query_params.get('download') == '1':
             version = next(v for v in data['versions'] if v['id'] == data['selected_version_id'])
+            is_ocr = request.query_params.get('derived') == '1'
+            if version['derived_from_version_id'] and not is_ocr:
+                version = next(v for v in data['versions'] if v['id'] == version['derived_from_version_id'])
             path = original_file(ws.db, version['original_path'])
             with path.open('rb') as stream:
                 if hashlib.file_digest(stream, 'sha256').hexdigest() != version['sha256']:
                     raise ValueError('El original ha cambiado; no se puede entregar como una copia íntegra.')
-            return FileResponse(path, filename=Path(version['source_path']).name)
+            filename = Path(version['source_path']).name
+            if is_ocr and version['derived_from_version_id']:
+                filename = Path(filename).stem + '-texto-ocr.pdf'
+            return FileResponse(path, filename=filename)
         data['preview_truncated'] = len(data['segments']) > 30
         data['segments'] = data['segments'][:30]
         for segment in data['segments']:
@@ -192,6 +198,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
 
     async def generation(request):
         data = await body(request)
+        await run_in_threadpool(ws.require_provider_consent, data.get('mode'))
         return JSONResponse(ws.submit('Preparando propuesta' if data.get('mode') == 'pedagogy' else 'Consultando tus fuentes', lambda: ws.generate(data)), status_code=202)
 
     async def run(request):
@@ -251,6 +258,16 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
     async def models(request):
         return JSONResponse(await run_in_threadpool(ws.save_models, await body(request)))
 
+    async def stats(request):
+        from docente_ai.generation.service import run_stats
+        return JSONResponse(await run_in_threadpool(run_stats, ws.db, int(request.query_params.get('limit', '100'))))
+
+    async def delete_api_key(request):
+        return JSONResponse(await run_in_threadpool(ws.delete_api_key))
+
+    async def confirm_provider(request):
+        return JSONResponse(await run_in_threadpool(ws.confirm_provider, await body(request)))
+
     async def reveal(request):
         return JSONResponse(await run_in_threadpool(ws.reveal))
 
@@ -296,6 +313,10 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
               Route('/api/subjects', subject, methods=['POST']), Route('/api/groups', group, methods=['POST']),
               Route('/api/shutdown', shutdown, methods=['POST']), Route('/api/models', models, methods=['POST']), Route('/api/reveal', reveal, methods=['POST']), Route('/api/reveal-diary', reveal_diary, methods=['POST']), Mount('/assets', StaticFiles(directory=STATIC), name='assets')]
 
+    routes.insert(0, Route('/api/secrets/deepseek', delete_api_key, methods=['DELETE']))
+    routes.insert(0, Route('/api/secrets/provider', delete_api_key, methods=['DELETE']))
+    routes.insert(0, Route('/api/provider/confirm', confirm_provider, methods=['POST']))
+    routes.insert(0, Route('/api/runs/stats', stats))
     app = Starlette(routes=routes, lifespan=lifespan, exception_handlers={ValueError: error, OSError: error, sqlite3.Error: error})
     app.add_middleware(LocalOnly, token=token, port=port, allowed_hosts=allowed_hosts)
     app.state.workspace = ws

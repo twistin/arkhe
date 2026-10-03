@@ -1,5 +1,12 @@
 schema_version: 1
 generation:
+  # Presets: ollama, deepseek, mistral (endpoint regional UE) o custom.
+  provider: ollama
+  # Para custom: base_url HTTPS y response_format none/json_object/json_schema.
+  # La confirmación de envío remoto se guarda desde la interfaz, nunca se activa aquí.
+  # Para DeepSeek: provider: deepseek y model: deepseek-chat.
+  # Nunca añadir api_key aquí. Usar Ajustes (Llavero de macOS, servicio docente-ai)
+  # o DOCENTE_AI_DEEPSEEK_API_KEY en el entorno, que tiene prioridad.
   # Modelo disponible utilizado para la prueba; se puede cambiar sin tocar código.
   model: qwen3:14b
   host: http://127.0.0.1:11434

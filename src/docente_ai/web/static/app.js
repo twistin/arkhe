@@ -124,6 +124,8 @@ function render() {
   if(isClosed){main.innerHTML='<section class="empty-library"><h2>Tu espacio está cerrado.</h2><p>Todo queda guardado. Abre Enjambre.app para volver a trabajar.</p></section>';return;}
   const focused=document.activeElement, focusId=main.contains(focused)?focused.id:null, selectionStart=focused?.selectionStart, selectionEnd=focused?.selectionEnd;
   const active = view();
+  const indicators=[state.provider_info?.indicator,state.pedagogy_provider_info?.indicator].filter(Boolean);
+  $('#generation-indicator').textContent=[...new Set(indicators)].join(' · ')||'Proveedor sin configurar';
   document.querySelectorAll('[data-nav]').forEach(link => {link.classList.toggle('active', link.dataset.nav === active); if (link.dataset.nav === active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');});
   $('#section-name').textContent = ({biblioteca:'Biblioteca',asistente:'Asistente',propuestas:'Propuestas',diario:'Diario docente',ajustes:'Ajustes'})[active];
   document.title = `Enjambre · ${$('#section-name').textContent}`;
@@ -145,7 +147,7 @@ function library() {
 }
 function libraryResults() {
   const docs = state.documents.filter(d => (!selected || d.shared || d.subjects.includes(selected)) && (!selectedPeriod || d.period === selectedPeriod) && (tab==='all' || tab==='pending' && !d.enabled || d.category===tab) && `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} ${(d.metadata.tags||[]).join(' ')} ${d.period||''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-  if (!state.documents.length) return `<section class="empty-library"><div class="library-art" aria-hidden="true"><span class="book-spine"></span><span class="book-spine"></span><span class="book-spine"></span></div><h2>Empieza por tus fuentes.</h2><p>Libros, artículos y apuntes que conoces y en los que confías. Tú decides qué puede utilizar el asistente.</p>${primary('Añadir mi primer documento','add-source','plus')}<span class="format-hint">PDF con texto · Markdown · TXT</span></section><div class="steps"><div class="step"><span>01</span><div><h3>Incorpora tus fuentes</h3><p>Arrastra archivos o elígelos desde tu equipo.</p></div></div><div class="step"><span>02</span><div><h3>Organiza y revisa</h3><p>Asigna una materia y comprueba el contenido.</p></div></div><div class="step"><span>03</span><div><h3>Trabaja con el asistente</h3><p>Consulta y prepara con referencias a tus fuentes.</p></div></div></div><div class="form-footer"><span></span><button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>`;
+  if (!state.documents.length) return `<section class="empty-library"><div class="library-art" aria-hidden="true"><span class="book-spine"></span><span class="book-spine"></span><span class="book-spine"></span></div><h2>Empieza por tus fuentes.</h2><p>Libros, artículos y apuntes que conoces y en los que confías. Tú decides qué puede utilizar el asistente.</p>${primary('Añadir mi primer documento','add-source','plus')}<span class="format-hint">PDF · DOCX · Markdown · TXT</span></section><div class="steps"><div class="step"><span>01</span><div><h3>Incorpora tus fuentes</h3><p>Arrastra archivos o elígelos desde tu equipo.</p></div></div><div class="step"><span>02</span><div><h3>Organiza y revisa</h3><p>Asigna una materia y comprueba el contenido.</p></div></div><div class="step"><span>03</span><div><h3>Trabaja con el asistente</h3><p>Consulta y prepara con referencias a tus fuentes.</p></div></div></div><div class="form-footer"><span></span><button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>`;
   const periodSub = selectedPeriod ? ` · ${formatPeriod(selectedPeriod)}` : '';
   return `<div class="library-summary"><span>${docs.length} ${docs.length===1?'documento':'documentos'}${selected?' · '+e(subjectName(selected)):''}${e(periodSub)}</span><button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button></div>` + (docs.length ? `<div class="source-list">${docs.map(d => {
     const firstSubj = d.subjects && d.subjects.length ? d.subjects[0] : 'none';
@@ -199,13 +201,33 @@ function diary(){
     `<section class="folder-banner diary-folder"><div class="folder-symbol">${icon('folder')}</div><div class="folder-copy"><h3>Material de sesiones ordenado por fecha</h3><p>Guías, material del alumnado, anexos y feedback se guardan en 03 Diario docente.</p></div><button class="button ghost" data-action="reveal-diary">Abrir carpeta ${icon('external')}</button></section>`+
     (records.length?`<div class="diary-list">${records.map(record=>{const fb=record.feedback||{};const complete=!!(fb.what_worked||fb.what_failed||fb.next_session_note);return `<article class="diary-entry"><div class="diary-date"><strong>${e(record.session_date.slice(8,10))}</strong><span>${e(new Intl.DateTimeFormat('es',{month:'short'}).format(new Date(record.session_date+'T12:00:00')))}</span></div><div class="diary-entry-copy"><span class="eyebrow">${e(groupName(record.group_id))} · ${record.duration_minutes} min</span><h3>${e(record.topic)}</h3><p>${complete?e(fb.next_session_note||fb.what_worked||'Feedback registrado'):'Feedback pendiente'}</p></div><span class="badge ${complete?'':'pending'}">${complete?'Registrado':'Pendiente'}</span><button class="button small" data-session-record="${e(record.id)}">${complete?'Revisar feedback':'Completar feedback'}</button><button class="icon-button" data-reveal-record="${e(record.id)}" aria-label="Abrir carpeta de la sesión" title="Abrir carpeta">${icon('folder')}</button></article>`;}).join('')}</div>`:`<section class="empty-library diary-empty"><div class="onboarding-mark">${icon('record')}</div><h2>Tu experiencia también forma parte del sistema.</h2><p>Después de cada clase, anota qué funcionó, qué cambiarías y por dónde continuar.</p>${primary('Registrar la primera sesión','new-feedback','record')}</section>`);
 }
+let selectedRunStats = null;
+function runStatsPanel() {
+  const stats = selectedRunStats || state.run_stats;
+  if (!stats) return '';
+  const names = {json_format:'Formato JSON',contract:'Contrato',extra_fields:'Campos extra',invalid_enum:'Valor no permitido',quote_unresolved:'Cita no resoluble',length:'Límite de tokens',network:'Red o disponibilidad',authorization:'Autorización',source_changed:'Fuente cambiada',context_budget:'Presupuesto de contexto',provider:'Proveedor',internal:'Otro fallo',legacy_untyped:'Histórico sin tipo registrado'};
+  return `<section class="panel"><div class="panel-header"><h2>Calidad de generación</h2></div><form data-form="run-stats"><label class="label" for="stats-limit">Últimas ejecuciones</label><div class="form-footer"><input id="stats-limit" name="limit" type="number" min="1" max="10000" value="${stats.limit}" required><button class="button small" type="submit">Actualizar</button></div><div class="form-error" role="alert"></div></form><p class="muted-small">${stats.total} ejecuciones · porcentajes sobre el total seleccionado.</p>${[['draft','Borradores válidos'],['failed','Fallidas'],['abstained','Sin respaldo']].map(([key,label])=>`<div class="setting-row"><span>${label}</span><strong>${stats.counts[key]} · ${stats.rates[key]}%</strong></div>`).join('')}<p class="muted-small">${stats.repaired_drafts} borradores recuperados mediante reparación · ${stats.counts.cancelled} canceladas · ${stats.counts.running} en curso.</p><details class="metadata"><summary>Errores por tipo</summary>${Object.entries(stats.errors).map(([key,count])=>`<div class="setting-row"><span>${e(names[key]||key)}</span><strong>${count}</strong></div>`).join('')||'<p class="muted-small">Sin errores en este periodo.</p>'}</details></section>`;
+}
+function providerSettingsPanel() {
+  const info=state.provider_info||{}, presets=state.provider_presets||{}, current=state.generation_provider||'ollama';
+  return `<section class="panel"><div class="panel-header"><h2>Motor de IA</h2><button class="icon-button" data-action="status" aria-label="Comprobar conexión">${icon('refresh')}</button></div><p>${e(info.indicator||'Proveedor sin configurar')}</p><p class="muted-small">Embeddings siempre locales. Biblioteca y diario permanecen en tu equipo.</p><form data-form="models" class="model-form"><div class="field"><label class="label" for="model-provider">Proveedor</label><select name="provider" id="model-provider">${Object.entries(presets).map(([key,p])=>option(key,p.name,current)).join('')}</select></div><div class="field"><label class="label" for="model-generation">Modelo generativo</label><input id="model-generation" name="generation" value="${e(info.model||state.generation_model)}" required list="provider-models"><datalist id="provider-models">${Object.keys(presets[current]?.models||{}).map(m=>`<option value="${e(m)}">`).join('')}</datalist></div><div class="field custom-only" ${current!=='custom'?'hidden':''}><label class="label" for="provider-url">URL base HTTPS</label><input name="base_url" id="provider-url" type="url" value="${e(info.base_url||'')}" placeholder="https://servidor.example/v1"></div><div class="field remote-only" ${!info.is_remote?'hidden':''}><label class="label" for="model-apikey">Clave del proveedor</label><input id="model-apikey" name="api_key" type="password" autocomplete="off" value=""><p class="field-note">${state.api_key_configured?'Clave configurada.':'Clave pendiente.'} Se guarda en el Llavero; deja vacío para conservarla.</p><button type="button" class="button ghost small" data-action="delete-api-key">Borrar clave del proveedor activo</button><label class="label" for="response-format">Capacidad declarada de salida</label><select id="response-format" name="response_format">${[['','Usar capacidad del preset'],['none','Sin response_format'],['json_object','JSON object'],['json_schema','JSON schema']].map(([key,label])=>option(key,label,'')).join('')}</select></div><div class="field"><label class="label" for="model-embeddings">Embeddings (Ollama local)</label><input name="embeddings" id="model-embeddings" value="${e(modelStatus?.embeddings||'bge-m3')}" required></div><div class="form-error" role="alert"></div><button class="button small" type="submit">Guardar proveedor</button></form>${info.is_remote?`<p class="field-note">${info.remote_confirmed?'Envío remoto confirmado para este destino.':'Antes de consultar se pedirá autorización para enviar la pregunta y los fragmentos.'}</p><button class="button ghost small" data-action="confirm-provider">Revisar y confirmar envío</button>`:''}</section>`;
+}
+async function ensureRemoteConsent(mode='ask') {
+  const info=(mode==='pedagogy'?state.pedagogy_provider_info:null)||state.provider_info;
+  if(!info?.is_remote||info.remote_confirmed)return true;
+  const accepted=confirm(`Enviar a ${info.name} (${info.data_residency}) en ${info.base_url}: pregunta y fragmentos recuperados, con título, autor, año y tipo de fuente. Para propuestas también se envían nivel, idioma, duración, criterios que escribas y la unidad seleccionada. Nunca se envían documentos completos, registros del diario ni feedback de sesiones. También se usa este proveedor para reformular la búsqueda y ordenar pasajes. ¿Confirmas este envío?`);
+  if(!accepted)return false;
+  await api('/provider/confirm',{confirmed:true,consent_scope:info.consent_scope,mode});
+  await refresh(false);
+  return true;
+}
 function settings() {
-  return header('MI ESPACIO','A tu manera.','Organiza tus materias, grupos y entorno de trabajo local.') + `<div class="settings-grid">
+  return header('MI ESPACIO','A tu manera.','Organiza tus materias, grupos y entorno de trabajo local.') + `<div class="settings-grid">${runStatsPanel()}
   <section class="panel"><div class="panel-header"><h2>Materias</h2><button class="button small" data-action="new-subject">${icon('plus')}Añadir</button></div>${state.config.subjects.map(s=>`<div class="setting-row"><span>${e(s.name)}<small>${state.documents.filter(d=>d.subjects.includes(s.id)).length} documentos</small></span><button class="icon-button" data-edit-subject="${e(s.id)}" aria-label="Editar ${e(s.name)}">${icon('edit')}</button></div>`).join('') || '<p class="muted-small">Crea una materia para empezar a organizar tus fuentes.</p>'}</section>
   <section class="panel"><div class="panel-header"><h2>Grupos</h2><button class="button small" data-action="new-group">${icon('plus')}Añadir</button></div>${state.config.groups.map(g=>`<div class="setting-row"><span>${e(g.name)}<small>${e(subjectName(g.subject_id))} · ${e(g.level)}</small></span><button class="icon-button" data-edit-group="${e(g.id)}" aria-label="Editar ${e(g.name)}">${icon('edit')}</button></div>`).join('') || '<p class="muted-small">Añade tus grupos para preparar propuestas adaptadas a su nivel.</p>'}</section>
   <section class="panel"><div class="panel-header"><h2>Horario y Calendario</h2><button class="button primary small" data-action="download-calendar">${icon('download')}Descargar .ics</button></div><p class="muted-small">Sincroniza tus clases semanales con Apple Calendar, Google Calendar u Outlook, con recordatorios configurados 15 min antes.</p><div class="setting-row"><span>Historia 5 (5º GP)<small>Martes y Viernes · 18:30–19:30 · Aula Historia</small></span></div><div class="setting-row"><span>Historia 4 (4º GP)<small>Martes y Viernes · 19:30–20:30 · Aula Historia</small></span></div><div class="setting-row"><span>NNTT 3P B (3º GP)<small>Lunes 19:30–20:30 y Jueves 17:30–18:30 · Aula NNTT</small></span></div><div class="setting-row"><span>Conxuntos y Guitarra<small>Lunes a Viernes · Aula Guitarra 1</small></span></div></section>
   <section class="panel"><div class="panel-header"><h2>Tu carpeta de conocimiento</h2>${icon('folder')}</div><p class="muted-small">Los documentos permanecen en tu equipo. Fuentes documentales y materiales propios se guardan por separado.</p><p class="path">${e(state.knowledge_path)}</p><button class="button" data-action="reveal">${icon('external')}Abrir en Finder</button><button class="button ghost" data-action="scan">Revisar archivos</button></section>
-  <section class="panel"><div class="panel-header"><h2>Motor de IA</h2><button class="icon-button" data-action="status" aria-label="Comprobar conexión">${icon('refresh')}</button></div>${(()=>{const provider=state.generation_provider||'ollama';const isDS=provider==='deepseek';const embedList=modelStatus?.embedding_models?.length?modelStatus.embedding_models:['bge-m3'];const currentEmbed=modelStatus?.embeddings||'bge-m3';const ollamaList=modelStatus?.ollama_models?.length?modelStatus.ollama_models:(modelStatus?.models?.length?modelStatus.models:['qwen3:14b']);const currentGen=modelStatus?.generation||(isDS?'deepseek-chat':'qwen3:14b');return`<div class="settings-model"><span>Proveedor activo</span><strong>${isDS?'DeepSeek (nube)':'Ollama (local)'}</strong></div><div class="settings-model"><span>Modelo generativo</span><strong>${e(currentGen)}</strong></div><div class="settings-model"><span>Búsqueda documental</span><strong>${e(currentEmbed)} · siempre local</strong></div><details class="metadata"><summary>Configurar</summary><form data-form="models" class="model-form"><div class="field"><label class="label" for="model-provider">Proveedor</label><select id="model-provider" name="provider"><option value="deepseek" ${isDS?'selected':''}>DeepSeek (API nube · rápido y potente)</option><option value="ollama" ${!isDS?'selected':''}>Ollama (100% local en este equipo)</option></select></div><div class="field ds-only" ${!isDS?'hidden':''}><label class="label" for="model-apikey">Clave API DeepSeek</label><input id="model-apikey" name="api_key" type="password" autocomplete="off" placeholder="sk-…" value=""><p class="field-note">Tu clave se guarda en tu equipo. Los documentos son locales; solo los fragmentos relevantes se envían.</p></div><div class="field ds-only" ${!isDS?'hidden':''}><label class="label" for="model-gen-ds">Modelo DeepSeek</label><select id="model-gen-ds" name="generation_ds">${[['deepseek-chat','DeepSeek-V3 — rápido y económico'],['deepseek-reasoner','DeepSeek-R1 — razonamiento profundo']].map(([v,t])=>option(v,t,currentGen)).join('')}</select></div><div class="field ollama-only" ${isDS?'hidden':''}><label class="label" for="model-generation">Modelo para respuestas (Ollama)</label><select id="model-generation" name="generation_ollama">${ollamaList.map(m=>option(m,m,currentGen)).join('')}</select></div><div class="field"><label class="label" for="model-embeddings">Modelo para búsqueda documental (local)</label><select id="model-embeddings" name="embeddings" required>${embedList.map(m=>option(m,m,currentEmbed)).join('')}</select><p class="field-note">Búsqueda siempre local en tu Mac.</p></div><div class="form-error" role="alert"></div><button class="button small" type="submit">Guardar</button></form></details>`})()}</section></div><div class="form-footer"><span></span><button class="button ghost small" data-action="shutdown-dialog">Cerrar Enjambre</button></div>`;
+  ${providerSettingsPanel()}</div><div class="form-footer"><span></span><button class="button ghost small" data-action="shutdown-dialog">Cerrar Enjambre</button></div>`;
 }
 
 function is15thCenturyPolyphony(run) {
@@ -781,7 +803,7 @@ function bibliographyHTML(run) {
     const source = run.evidence.find(s => s.source_id === citation.source_id);
     if (!source) continue;
     const m = source.metadata, l = source.locator;
-    const location = l.kind === 'pdf_page' ? `pág. ${l.pdf_page_index}` : `líneas ${l.line_start}–${l.line_end}`;
+    const location = locatorLabel(l);
     html += `
     <div class="bibliography-card">
       <div class="bib-header">
@@ -802,9 +824,19 @@ function sourcesModal(run){
   const appendix=bibliographyHTML(run);
   modal('Anexo documental',`${appendix||'<p>No hay citas documentales disponibles para esta propuesta.</p>'}<div class="dialog-actions"><button class="button" data-download-sources="${e(run.id)}">${icon('download')}Descargar anexo</button><button class="button primary" type="button" data-action="close-dialog">Volver a la propuesta</button></div>`);
 }
+function locatorLabel(locator) {
+  let label;
+  if(locator.kind==='pdf_page') label=`Página ${locator.pdf_page_index} del PDF`;
+  else if(locator.kind==='docx_paragraph') label=`Párrafo ${locator.paragraph_index} del DOCX`;
+  else if(locator.kind==='docx_table') label=`Tabla ${locator.table_index} del DOCX`;
+  else label=`Líneas ${locator.line_start}–${locator.line_end}`;
+  if(locator.section) label+=' · '+locator.section;
+  if(locator.ocr_document||locator.text_origin==='texto OCR') label+=' · Texto OCR: posible error de reconocimiento';
+  return label;
+}
 function evidenceHTML(run,citations) {
   let content='';
-  for (const citation of citations||[]) {const source=run.evidence.find(s=>s.source_id===citation.source_id);if(!source)continue;const m=source.metadata,l=source.locator;const location=l.kind==='pdf_page'?`pág. ${l.pdf_page_index}`:`líneas ${l.line_start}–${l.line_end}`;
+  for (const citation of citations||[]) {const source=run.evidence.find(s=>s.source_id===citation.source_id);if(!source)continue;const m=source.metadata,l=source.locator;const location=locatorLabel(l);
     content+=`<details class="evidence"><summary>${source.category==='profesor'?'Material propio':'Fuente documental'} · ${e(m.title)} · ${e(location)}</summary><blockquote>${e(citation.quote)}</blockquote><p>${e(m.authors?.join(', ') || 'Sin autor')}${m.year?' · '+e(m.year):''}</p><button class="button ghost small" data-document="${e(source.document_id)}">Ver fuente ${icon('arrow')}</button></details>`;
   }
   return content;
@@ -2382,7 +2414,7 @@ async function studentMaterialModal(id) {
 function sourceModal() {
   if(!state.config.subjects.length){subjectModal();toast('Primero, crea la materia a la que pertenecen tus fuentes.');return;}
   chosenFiles=[];
-  modal('Añadir a tu biblioteca',`<p>Incorpora documentos y revisa su contenido antes de permitir que los utilice el asistente.</p><form data-form="upload" id="upload-form"><label class="dropzone" id="dropzone" tabindex="0">${icon('up')}<strong>Arrastra tus archivos aquí</strong><small>o haz clic para elegirlos · PDF, TXT y Markdown</small><input class="file-input" type="file" id="files" multiple accept=".pdf,.txt,.md" aria-label="Elegir documentos"></label><div class="chosen-files" id="chosen-files">Hasta 300 MB por archivo</div><div class="form-row"><div class="field"><label class="label" for="upload-subject">Materia</label><select id="upload-subject" name="subject" required>${subjectOptions(selected,true)}</select></div><div class="field"><label class="label" for="upload-category">Tipo de contenido</label><select id="upload-category" name="category"><option value="documental">Fuente documental</option><option value="profesor">Material propio</option></select></div></div><p class="field-note">Libros y artículos van en documentación. Tus apuntes y ejercicios, en material propio.</p><div class="dialog-actions"><button class="button ghost" type="button" data-action="scan">Revisar carpeta</button><button class="button primary" type="submit">Añadir y revisar ${icon('arrow')}</button></div></form>`);
+  modal('Añadir a tu biblioteca',`<p>Incorpora documentos y revisa su contenido antes de permitir que los utilice el asistente.</p><form data-form="upload" id="upload-form"><label class="dropzone" id="dropzone" tabindex="0">${icon('up')}<strong>Arrastra tus archivos aquí</strong><small>o haz clic para elegirlos · PDF, DOCX, TXT y Markdown</small><input class="file-input" type="file" id="files" multiple accept=".pdf,.docx,.txt,.md" aria-label="Elegir documentos"></label><div class="chosen-files" id="chosen-files">Hasta 300 MB por archivo</div><div class="form-row"><div class="field"><label class="label" for="upload-subject">Materia</label><select id="upload-subject" name="subject" required>${subjectOptions(selected,true)}</select></div><div class="field"><label class="label" for="upload-category">Tipo de contenido</label><select id="upload-category" name="category"><option value="documental">Fuente documental</option><option value="profesor">Material propio</option></select></div></div><p class="field-note">Libros y artículos van en documentación. Tus apuntes y ejercicios, en material propio.</p><div class="dialog-actions"><button class="button ghost" type="button" data-action="scan">Revisar carpeta</button><button class="button primary" type="submit">Añadir y revisar ${icon('arrow')}</button></div></form>`);
 }
 function setFiles(files){chosenFiles=Array.from(files);$('#chosen-files').textContent=chosenFiles.length?chosenFiles.map(f=>f.name).join(' · '):'Hasta 300 MB por archivo';}
 function subjectModal(id) {const subject=state.config.subjects.find(s=>s.id===id);modal(subject?'Editar materia':'Nueva materia',`<p>Cada materia tendrá su propio ámbito de conocimiento y sus carpetas.</p><form data-form="subject"><input type="hidden" name="id" value="${e(subject?.id||'')}"><div class="field"><label class="label" for="subject-name">Nombre de la materia</label><input class="input" id="subject-name" name="name" required maxlength="200" placeholder="Por ejemplo, Historia de la Música I" value="${e(subject?.name||'')}"></div><div class="dialog-actions"><button class="button ghost" type="button" data-action="close-dialog">Cancelar</button><button class="button primary" type="submit">Guardar materia</button></div></form>`);$('#subject-name').focus();}
@@ -2441,7 +2473,7 @@ async function showDocument(id) {
   modal('Abriendo documento', '<div class="initial-loading"><span class="spinner"></span>Consultando la biblioteca…</div>');
   const doc=await api('/documents/'+encodeURIComponent(id));
   const version=doc.versions.find(v=>v.id===doc.selected_version_id), warnings=version?.warnings||[];
-  modal(e(doc.metadata.title),`<div class="document-meta"><span class="file-icon ${doc.category}">${e(version?.format?.toUpperCase()||'DOC')}</span><span>${doc.category==='profesor'?'Material del profesor':'Fuente documental'}<br>${e(doc.subjects.map(subjectName).join(', ')||'Sin materia')}</span></div>${version?.error?`<div class="notice error">${e(version.error)}</div>`:''}${warnings.map(w=>`<div class="notice warning">${e(w)}</div>`).join('')}<details class="metadata"><summary>Editar título, autor y materia</summary><form data-form="metadata" data-id="${e(id)}"><div class="field"><label class="label" for="doc-title">Título</label><input class="input" id="doc-title" name="title" required value="${e(doc.metadata.title)}"></div><div class="form-row"><div class="field"><label class="label" for="doc-authors">Autores, separados por punto y coma</label><input class="input" id="doc-authors" name="authors" value="${e(doc.metadata.authors?.join('; ')||'')}"></div><div class="field"><label class="label" for="doc-year">Año · opcional</label><input class="input" id="doc-year" name="year" type="number" value="${e(doc.metadata.year||'')}"></div></div><div class="field"><label class="label" for="doc-subject">Materia</label><select id="doc-subject" name="subject" required>${subjectOptions(doc.subjects[0]||'',true)}</select></div><button class="button small" type="submit">Guardar cambios</button></form></details><div class="panel-header"><h3>Vista previa del contenido</h3><button class="button ghost small" data-original="${e(id)}">${icon('download')}Original</button></div><div class="text-preview">${doc.segments.map(s=>`<small>${s.locator.kind==='pdf_page'?'Página '+s.locator.pdf_page_index+' del PDF':'Líneas '+s.locator.line_start+'–'+s.locator.line_end}</small>${e(s.text)}`).join('')||'No se ha podido extraer texto utilizable.'}</div>${doc.preview_truncated?'<p class="field-note">Vista previa abreviada. El original completo se conserva en la biblioteca.</p>':''}<form data-form="authorize" data-id="${e(id)}">${warnings.length?'<label class="check"><input type="checkbox" name="accept_warnings" required>He revisado los avisos y acepto utilizar esta extracción.</label>':''}<div class="dialog-actions"><button type="button" class="button danger small" data-delete-document="${e(id)}">${icon('trash')}Eliminar de la biblioteca</button>${doc.enabled?`<button type="button" class="button ghost small" data-exclude="${e(id)}">Excluir del asistente</button>`:'<span class="field-note">Este archivo aún no puede utilizarse.</span>'}<button class="button primary" type="submit" ${version?.status==='failed'?'disabled':''}>${icon('check')}${doc.enabled?'Preparar de nuevo':'Permitir al asistente'}</button></div></form>`);
+  modal(e(doc.metadata.title),`<div class="document-meta"><span class="file-icon ${doc.category}">${e(version?.format?.toUpperCase()||'DOC')}</span><span>${doc.category==='profesor'?'Material del profesor':'Fuente documental'}<br>${e(doc.subjects.map(subjectName).join(', ')||'Sin materia')}</span></div>${version?.derived_from_version_id?'<p class="field-note">Texto OCR · Versión derivada. El PDF original se conserva por separado.</p>':''}${version?.error?`<div class="notice error">${e(version.error)}</div>`:''}${warnings.map(w=>`<div class="notice warning">${e(w)}</div>`).join('')}<details class="metadata"><summary>Editar título, autor y materia</summary><form data-form="metadata" data-id="${e(id)}"><div class="field"><label class="label" for="doc-title">Título</label><input class="input" id="doc-title" name="title" required value="${e(doc.metadata.title)}"></div><div class="form-row"><div class="field"><label class="label" for="doc-authors">Autores, separados por punto y coma</label><input class="input" id="doc-authors" name="authors" value="${e(doc.metadata.authors?.join('; ')||'')}"></div><div class="field"><label class="label" for="doc-year">Año · opcional</label><input class="input" id="doc-year" name="year" type="number" value="${e(doc.metadata.year||'')}"></div></div><div class="field"><label class="label" for="doc-subject">Materia</label><select id="doc-subject" name="subject" required>${subjectOptions(doc.subjects[0]||'',true)}</select></div><button class="button small" type="submit">Guardar cambios</button></form></details><div class="panel-header"><h3>Vista previa del contenido</h3><button class="button ghost small" data-original="${e(id)}">${icon('download')}Original</button>${version?.derived_from_version_id?`<button class="button ghost small" data-ocr-document="${e(id)}">${icon('download')}PDF con texto OCR</button>`:''}</div><div class="text-preview">${doc.segments.map(s=>`<small>${e(locatorLabel(s.locator))}</small>${e(s.text)}`).join('')||'No se ha podido extraer texto utilizable.'}</div>${doc.preview_truncated?'<p class="field-note">Vista previa abreviada. El original completo se conserva en la biblioteca.</p>':''}<form data-form="authorize" data-id="${e(id)}">${warnings.length?'<label class="check"><input type="checkbox" name="accept_warnings" required>He revisado los avisos y acepto utilizar esta extracción.</label>':''}<div class="dialog-actions"><button type="button" class="button danger small" data-delete-document="${e(id)}">${icon('trash')}Eliminar de la biblioteca</button>${doc.enabled?`<button type="button" class="button ghost small" data-exclude="${e(id)}">Excluir del asistente</button>`:'<span class="field-note">Este archivo aún no puede utilizarse.</span>'}<button class="button primary" type="submit" ${version?.status==='failed'?'disabled':''}>${icon('check')}${doc.enabled?'Preparar de nuevo':'Permitir al asistente'}</button></div></form>`);
 }
 async function scanFolder() {
   modal('Archivos de tu carpeta', '<div class="initial-loading"><span class="spinner"></span>Revisando archivos locales…</div>');
@@ -2459,8 +2491,9 @@ async function openRun(id) {
 }
 async function checkStatus() {
   modelStatus=await api('/status');
-  const isDS=(state?.generation_provider||modelStatus?.provider)==='deepseek';
-  const label=isDS?(modelStatus.connected?'DeepSeek conectado':'DeepSeek sin clave'):(modelStatus.connected?'Ollama conectado':'Ollama sin conexión');
+  const remote=state?.provider_info?.is_remote;
+  const name=state?.provider_info?.name||'Ollama';
+  const label=name+(modelStatus.connected?(remote?' · clave configurada':' conectado'):(remote?' · sin clave':' sin conexión'));
   $('#connection').innerHTML=`<span class="status-dot ${modelStatus.connected?'':'offline'}"></span><span>${label}</span>`;
   if(view()==='ajustes')render();
 }
@@ -2534,12 +2567,12 @@ document.addEventListener('click', async event=>{
       }
       return;
     }
-    if(target.dataset.download||target.dataset.original){
-      const identifier = target.dataset.download || target.dataset.original;
-      const isOrig = !!target.dataset.original;
+    if(target.dataset.download||target.dataset.original||target.dataset.ocrDocument){
+      const identifier = target.dataset.download || target.dataset.original || target.dataset.ocrDocument;
+      const isOrig = !!(target.dataset.original || target.dataset.ocrDocument);
       target.disabled = true;
       try {
-        const response = await fetch('/api/' + (isOrig ? 'documents/' : 'runs/') + encodeURIComponent(identifier) + '?download=1', {headers: {'X-Docente-Token': token}});
+        const response = await fetch('/api/' + (isOrig ? 'documents/' : 'runs/') + encodeURIComponent(identifier) + '?download=1'+(target.dataset.ocrDocument?'&derived=1':''), {headers: {'X-Docente-Token': token}});
         if(!response.ok) {
           const errData = await response.json().catch(() => ({}));
           throw new Error(errData.error || 'No se pudo exportar el archivo.');
@@ -2556,7 +2589,7 @@ document.addEventListener('click', async event=>{
         link.click();
         document.body.removeChild(link);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
-        toast('Descargando archivo Markdown (.md)...');
+        toast(isOrig?'Descargando documento…':'Descargando archivo Markdown (.md)…');
       } catch(err) {
         toast(err.message || 'Error al exportar.', true);
       } finally {
@@ -2627,6 +2660,8 @@ document.addEventListener('click', async event=>{
       case 'reveal':await api('/reveal',{});break;
       case 'reveal-diary':await api('/reveal-diary',{});break;
       case 'scan':await scanFolder();break;
+      case 'confirm-provider':await ensureRemoteConsent();await refresh();break;
+      case 'delete-api-key':await api('/secrets/provider',undefined,{method:'DELETE'});await refresh();await checkStatus();toast(state.api_key_configured?'Entrada borrada; sigue configurada desde el entorno.':'Clave borrada del Llavero.');break;
       case 'status':await checkStatus();if(view()!=='ajustes'){location.hash='ajustes';}break;
       case 'clear-filter':selected='';selectedPeriod='';tab='all';query='';render();break;
       case 'close-run':currentRun=null;render();break;
@@ -2645,8 +2680,12 @@ document.addEventListener('change',event=>{
   if(event.target.id==='ask-subject'){drafts['ask-form']??={};drafts['ask-form'].subject=event.target.value;render();}
   if(event.target.id==='model-provider'){
     const form=event.target.closest('form');
-    const isDS=event.target.value==='deepseek';
-    form.querySelectorAll('.ds-only').forEach(el=>el.hidden=!isDS);
+    const preset=state.provider_presets[event.target.value];
+    const isDS=preset.transport!=='ollama';
+    form.elements.generation.value=Object.keys(preset.models)[0]||'';
+    form.elements.base_url.value=preset.base_url;
+    form.querySelectorAll('.custom-only').forEach(el=>el.hidden=event.target.value!=='custom');
+    form.querySelectorAll('.remote-only').forEach(el=>el.hidden=!isDS);
     form.querySelectorAll('.ollama-only').forEach(el=>el.hidden=isDS);
   }
 });
@@ -2660,10 +2699,12 @@ document.addEventListener('submit',async event=>{
   const errorNode=$('.form-error',dialog.open?dialog:form);if(errorNode)errorNode.textContent='';
   try {
     switch(form.dataset.form){
+      case 'run-stats':selectedRunStats=await api('/runs/stats?limit='+encodeURIComponent(data.limit));render();break;
       case 'models':{
         const provider=data.provider||'ollama';
-        const generation=provider==='deepseek'?(data.generation_ds||data.generation):(data.generation_ollama||data.generation);
+        const generation=data.generation;
         await api('/models',{...data,provider,generation});
+        if(form.elements.api_key)form.elements.api_key.value='';
         await refresh();await checkStatus();
         toast('Configuración de motor actualizada.');
         break;
@@ -2673,7 +2714,7 @@ document.addEventListener('submit',async event=>{
       case 'upload':{
         if(!chosenFiles.length)throw new Error('Elige al menos un archivo.');
         if(chosenFiles.length>8)throw new Error('Añade hasta ocho archivos cada vez.');
-        for(const file of chosenFiles){if(!/\.(pdf|md|txt)$/i.test(file.name))throw new Error('Solo se admiten PDF, Markdown y TXT.');if(file.size>300*1024*1024)throw new Error(file.name+' supera los 300 MB.');}
+        for(const file of chosenFiles){if(!/\.(pdf|docx|md|txt)$/i.test(file.name))throw new Error('Solo se admiten PDF, DOCX, Markdown y TXT.');if(file.size>300*1024*1024)throw new Error(file.name+' supera los 300 MB.');}
         let uploaded=0;
         for(const file of chosenFiles){button.textContent=`Añadiendo ${++uploaded} de ${chosenFiles.length}…`;const response=await fetch('/api/upload?name='+encodeURIComponent(file.name),{method:'POST',headers:{'X-Docente-Token':token},body:file});const stored=await response.json();if(!response.ok)throw new Error(stored.error);await queue('/import',{...data,path:stored.path});}
         dialog.close();toast('Archivos añadidos. Revisa cada fuente para permitir su uso.');break;
@@ -2681,8 +2722,8 @@ document.addEventListener('submit',async event=>{
       case 'inbox':await queue('/import',{...data,path:form.dataset.path,document_id:form.dataset.documentId||undefined});form.innerHTML='<p class="inbox-status">'+icon('check')+' En proceso. Aparecerá en la biblioteca para su revisión.</p>';break;
       case 'authorize':await queue('/documents/'+form.dataset.id+'/authorize',{accept_warnings:!!data.accept_warnings});dialog.close();break;
       case 'metadata':await api('/documents/'+form.dataset.id+'/metadata',{...data,authors:data.authors.split(';').map(a=>a.trim()).filter(Boolean),year:data.year?Number(data.year):null});await refresh();await showDocument(form.dataset.id);toast('Metadatos actualizados.');break;
-      case 'ask':await queue('/generate',{...data,mode:'ask'});toast('Consulta en marcha. Puedes seguir navegando.');break;
-      case 'proposal':await queue('/generate',{...data,mode:'pedagogy',duration:Number(data.duration)});dialog.close();toast('Preparando el borrador con tus fuentes.');break;
+      case 'ask':if(!await ensureRemoteConsent('ask'))break;await queue('/generate',{...data,mode:'ask'});toast('Consulta en marcha. Puedes seguir navegando.');break;
+      case 'proposal':if(!await ensureRemoteConsent('pedagogy'))break;await queue('/generate',{...data,mode:'pedagogy',duration:Number(data.duration)});dialog.close();toast('Preparando el borrador con tus fuentes.');break;
       case 'reject':{const result=await api('/runs/'+encodeURIComponent(form.dataset.id)+'/review',{action:'rejected',notes:data.notes||''});if(currentRun&&currentRun.id===form.dataset.id)currentRun={...currentRun,...result};dialog.close();render();toast('Propuesta rechazada y anotada.');break;}
       case 'record':{const payload={...data,duration_minutes:Number(data.duration_minutes),run_id:form.dataset.run||undefined};const result=await api('/records',payload);dialog.close();toast(`Clase registrada: ${result.id}. El asistente tendrá en cuenta esta sesión en las próximas propuestas.`);break;}
       case 'feedback':{const result=form.dataset.record?await api('/records/'+encodeURIComponent(form.dataset.record)+'/feedback',data):await api('/records',{...data,duration_minutes:Number(data.duration_minutes)});dialog.close();await refresh();toast(`Feedback guardado en el diario de ${result.session_date}.`);break;}

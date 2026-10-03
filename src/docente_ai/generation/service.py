@@ -13,6 +13,8 @@ from uuid import uuid4
 from docente_ai import __version__
 from docente_ai.generation.prompt import PROMPT_VERSION, build_prompt
 from docente_ai.generation.validation import validate_response
+from docente_ai.generation.errors import SourceChangedError
+from docente_ai.generation.repair import generate_validated
 from docente_ai.library.service import now, read_connection
 from docente_ai.llm.generation import OllamaGenerator
 from docente_ai.rag.ollama import OllamaEmbedder
@@ -35,14 +37,17 @@ def check_evidence(connection, db, evidence, request):
     for source in evidence:
         version = current.get(source['version_id'])
         if version is None or version['document_id'] != source['document_id'] or version['category'] != source['category']:
-            raise ValueError('Una fuente ha sido excluida, reasignada o sustituida. Repite la consulta con el corpus actual.')
+            raise SourceChangedError('Una fuente ha sido excluida, reasignada o sustituida. Repite la consulta con el corpus actual.')
         if json.loads(version['metadata']) != source['metadata']:
-            raise ValueError('Los metadatos de una fuente han cambiado durante la consulta.')
+            raise SourceChangedError('Los metadatos de una fuente han cambiado durante la consulta.')
         chunk = connection.execute('SELECT text,locator,version_id,profile_id FROM rag_chunks WHERE id=?', (source['chunk_id'],)).fetchone()
         if not chunk or chunk['version_id'] != source['version_id'] or chunk['text'] != source['text'] or json.loads(chunk['locator']) != source['locator']:
-            raise ValueError('La evidencia recuperada ya no coincide con el índice.')
+            raise SourceChangedError('La evidencia recuperada ya no coincide con el índice.')
         if source['version_id'] not in checked:
-            verify_original(db, version)
+            try:
+                verify_original(db, version)
+            except (ValueError, OSError) as exc:
+                raise SourceChangedError('El original de una fuente ha cambiado o ya no está disponible.') from exc
             checked.add(source['version_id'])
 
 
@@ -65,6 +70,7 @@ def finish(db, run_id, *, status, result=None, raw=None, metrics=None, error=Non
 def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         category='documental', document_ids=None, top_k=12, max_distance=None,
         embedder_factory=OllamaEmbedder, generator_factory=OllamaGenerator, pedagogy_context=None, progress=None):
+    settings.require_consent()
     if not isinstance(question, str) or not question.strip() or len(question) > 4000:
         raise ValueError('Escribe una pregunta de entre 1 y 4000 caracteres.')
     if not subject:
@@ -79,7 +85,8 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
     programming_sources = [source for source in sources
                            if json.loads(source['metadata']).get('document_type') == 'programacion_didactica']
     generation_request = asdict(settings)
-    generation_request['api_key_configured'] = bool(generation_request.pop('api_key', ''))
+    from docente_ai.secrets import secret_configured
+    generation_request['api_key_configured'] = settings.is_remote and secret_configured(settings.secret_name)
     request = {'app_version': __version__, 'question': question, 'subject': subject, 'category': category,
                'document_ids': document_ids, 'top_k': top_k, 'max_distance': max_distance,
                'generation': generation_request, 'rag': asdict(rag_settings)}
@@ -98,11 +105,11 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         prompt_version = pedagogy.PROMPT_VERSION
     run_id = 'run-' + uuid4().hex
     # Seleccionar generador según el proveedor configurado.
-    is_local = settings.provider == 'ollama'
+    is_local = not settings.is_remote
     if default_generator:
         if not is_local:
-            from docente_ai.llm.deepseek import DeepSeekGenerator
-            generator_factory = DeepSeekGenerator
+            from docente_ai.llm.openai_compatible import OpenAICompatibleGenerator
+            generator_factory = OpenAICompatibleGenerator
         elif pedagogy_context is not None:
             generator_factory = pedagogy.PedagogicalGenerator
     enhanced_retrieval = default_generator
@@ -185,20 +192,25 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             model_id = getattr(generator, 'model', settings.model)
             digest = getattr(generator, 'digest', None)
             record_prompt(db, run_id, bundle, model_id, digest)
-            with closing(read_connection(db)) as connection:
-                check_evidence(connection, db, bundle['evidence'], request)
-            response = generator.generate(bundle['messages'])
-        raw = response['content']
-        metrics = {**metrics, **response['metrics'], 'estimated_input_bytes': bundle['estimated_input'], 'omitted_count': len(bundle['omitted'])}
-        result = (validate_response(raw, bundle['evidence']) if pedagogy_context is None else
-                  pedagogy.validate(raw, bundle['evidence'], pedagogy_context))
+            def check():
+                with closing(read_connection(db)) as connection:
+                    check_evidence(connection, db, bundle['evidence'], request)
+            validator = (lambda content: validate_response(content, bundle['evidence'])) if pedagogy_context is None else (
+                lambda content: pedagogy.validate(content, bundle['evidence'], pedagogy_context))
+            result, raw = generate_validated(generator, bundle['messages'], validator, metrics,
+                                            check=check, report=report, sanitize_response=not is_local,
+                                            on_dialogue=lambda dialogue: record_prompt(db, run_id, {**bundle, 'messages': dialogue}, model_id, digest))
+        metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         finish(db, run_id, status='draft' if result['status'] == 'answered' else 'abstained',
                result=result, raw=raw, metrics=metrics, evidence=bundle['evidence'], request=request)
         return get_run(db, run_id)
     except KeyboardInterrupt:
+        metrics['error_type'] = 'cancelled'
         finish(db, run_id, status='cancelled', error='Cancelado por el usuario.', raw=raw, metrics=metrics)
         raise KeyboardInterrupt(f'Operación cancelada. Registro: {run_id}') from None
     except Exception as exc:
+        raw = getattr(exc, 'content', raw)
+        metrics['error_type'] = getattr(exc, 'error_type', 'internal')
         finish(db, run_id, status='failed', error=str(exc), raw=raw, metrics=metrics)
         raise GenerationFailure(f'Consulta fallida; registro {run_id}: {exc}') from exc
 
@@ -232,6 +244,32 @@ def list_runs(db: Path, limit=20):
             return []
         return [dict(row) for row in connection.execute(
             'SELECT id,created_at,status,model,error FROM generation_runs ORDER BY created_at DESC LIMIT ?', (limit,))]
+
+
+def run_stats(db: Path, limit=100):
+    """Resumen acotado sin recuperar preguntas, fuentes ni respuestas crudas."""
+    if type(limit) is not int or not 1 <= limit <= 10000:
+        raise ValueError('El límite de estadísticas debe estar entre 1 y 10000.')
+    with closing(read_connection(db)) as connection:
+        if connection.execute('PRAGMA user_version').fetchone()[0] < 4:
+            rows = []
+        else:
+            rows = connection.execute('SELECT status,metrics_json,error FROM generation_runs ORDER BY created_at DESC,id DESC LIMIT ?', (limit,)).fetchall()
+    counts = dict.fromkeys(('draft', 'failed', 'abstained', 'cancelled', 'running'), 0)
+    errors = {}
+    repaired = 0
+    for row in rows:
+        counts[row['status']] += 1
+        metrics = json.loads(row['metrics_json'])
+        if row['status'] == 'draft' and len(metrics.get('attempts', [])) > 1:
+            repaired += 1
+        if row['status'] == 'failed':
+            error_type = metrics.get('error_type') or 'legacy_untyped'
+            errors[error_type] = errors.get(error_type, 0) + 1
+    total = len(rows)
+    return {'limit': limit, 'total': total, 'counts': counts,
+            'rates': {key: round(value * 100 / total, 2) if total else 0.0 for key, value in counts.items()},
+            'errors': dict(sorted(errors.items())), 'repaired_drafts': repaired}
 
 
 def review_run(db: Path, run_id: str, *, action: str, notes: str = '') -> dict:

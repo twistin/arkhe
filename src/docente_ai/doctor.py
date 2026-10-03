@@ -11,6 +11,7 @@ from typing import Literal
 from urllib.parse import urlsplit
 
 import httpx
+from docente_ai.library.ocr import find_ocr, OCR_INSTALL_HELP
 
 DEFAULT_HOST = "http://127.0.0.1:11434"
 
@@ -146,6 +147,9 @@ def diagnose(
               f"{platform.python_version()} · {sys.executable}; proyecto validado en Python 3.12."),
         Check("system", "ok", f"{platform.system()} {platform.release()} · {platform.machine()}"),
         *check_sqlite(),
+        Check('ocrmypdf', 'ok' if find_ocr() else 'warning',
+              'OCR opcional disponible en PATH; no se ejecuta ni se validan sus idiomas durante el diagnóstico.'
+              if find_ocr() else 'OCR opcional no disponible. ' + OCR_INSTALL_HELP),
     ]
     if offline:
         checks.append(Check("ollama", "skipped", "Modo offline: no se realizan peticiones HTTP."))

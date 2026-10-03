@@ -6,12 +6,12 @@ import json
 import re
 
 from docente_ai.generation import prompt as grounded
-from docente_ai.generation.validation import validate_response, unique_object, fail
+from docente_ai.generation.validation import validate_response, unique_object, fail, JsonFormatError, ExtraFieldsError
 from docente_ai.llm.generation import OllamaGenerator
 from docente_ai.storage import read_config
 from docente_ai.teaching.curriculum import show_curriculum
 
-PROMPT_VERSION = 'pedagogy:5'
+PROMPT_VERSION = 'pedagogy:6'
 SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON y usa solo los pasajes enviados. Cada fuente incluye su autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y las actividades, pero no son evidencia factual. Las fuentes con role="programming" son la programación didáctica de la materia: sus pasajes determinan objetivos, contenidos, secuencia, temporalización y evaluación de la propuesta. Las demás fuentes documentan el contenido técnico o académico. Si ambos papeles entran en conflicto, indícalo en observations. Si un autor, obra o técnica solicitada no aparece en absoluto en las fuentes disponibles, indícalo en observations y no inventes contenido no respaldado.
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[]).
@@ -89,6 +89,8 @@ def context_for(db, group_id, duration, *, unit_id=None, criteria='', session_da
 
 
 def build_prompt(question, candidates, settings, context):
+    if settings.is_remote:
+        context = remote_context(context)
     def messages(sources):
         return [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': grounded.compact({
             'topic': question, 'context': context,
@@ -103,7 +105,8 @@ def build_prompt(question, candidates, settings, context):
                 for s in sources
             ]})}]
     def size(sources):
-        return grounded.estimate_input(messages(sources), RESPONSE_SCHEMA)
+        dialogue = messages(sources)
+        return grounded.estimate_input(dialogue, grounded.response_schema(dialogue, RESPONSE_SCHEMA))
     if size([]) > settings.input_budget:
         raise ValueError('El contexto pedagógico no cabe; reduce criterios o amplía num_ctx.')
     selected, omitted, seen = [], [], set()
@@ -118,6 +121,16 @@ def build_prompt(question, candidates, settings, context):
     if not selected:
         raise ValueError('Ningún fragmento completo cabe en el contexto pedagógico.')
     return {'messages': messages(selected), 'evidence': selected, 'omitted': omitted, 'estimated_input': size(selected)}
+
+
+def remote_context(context):
+    """Lista permitida: ningún registro, feedback, calendario o identificador personal."""
+    group = context.get('group') or {}
+    unit = context.get('unit')
+    return {'group': {key: group[key] for key in ('level', 'language') if key in group},
+            'duration_minutes': context.get('duration_minutes'),
+            'teacher_criteria': context.get('teacher_criteria', ''),
+            'unit': {key: unit[key] for key in ('title', 'objectives', 'contents', 'competencies', 'criteria') if key in unit} if isinstance(unit, dict) else None}
 
 
 def normalize_claims(claims):
@@ -144,15 +157,13 @@ def validate(content, evidence, context):
     try:
         data = json.loads(content, object_pairs_hook=unique_object, parse_constant=lambda _: fail('Constante JSON inválida.'))
     except (json.JSONDecodeError, RecursionError):
-        fail('La propuesta no es JSON válido.')
+        raise JsonFormatError('La propuesta no es JSON válido; devuelve un objeto JSON completo.') from None
     if not isinstance(data, dict) or not {'status', 'claims', 'plan'}.issubset(set(data)):
         fail('La propuesta requiere status, claims y plan.')
     top_level_obs = data.pop('observations', None) or data.pop('reason', None) or data.pop('notes', None)
     for k in list(data.keys()):
         if k not in {'status', 'claims', 'plan', 'visualizations'}:
             data.pop(k, None)
-    if data['status'] in ('ok', 'success', 'complete', 'completed'):
-        data['status'] = 'answered'
     if 'claims' in data:
         data['claims'] = normalize_claims(data['claims'])
     grounding_payload = {k: data[k] for k in ('status', 'claims')}
@@ -198,6 +209,8 @@ def validate(content, evidence, context):
     # JSON generado por algunos proveedores numera arrays desde 0 pese a la
     # instrucción. Se corrige solo si todo el plan es inequívocamente 0-based.
     for activity in activities:
+        if not isinstance(activity, dict) or not isinstance(activity.get('claim_ids'), list):
+            fail('Cada actividad necesita claim_ids como lista de índices enteros desde 1.')
         if isinstance(activity, dict) and isinstance(activity.get('claim_ids'), list):
             clean_ids = []
             for cid in activity['claim_ids']:

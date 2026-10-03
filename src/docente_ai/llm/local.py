@@ -1,10 +1,10 @@
 """Transporte y verificación de identidad compartidos por Ollama."""
 
 import httpx
+from docente_ai.generation.errors import ProviderError, NetworkError, AuthorizationError
 
 
-class LocalModelError(ValueError):
-    pass
+LocalModelError = ProviderError
 
 
 class LocalOllama:
@@ -39,10 +39,12 @@ class LocalOllama:
                 raise ValueError
             return data
         except httpx.HTTPStatusError as exc:
+            if exc.response.status_code in (401, 403):
+                raise AuthorizationError('Ollama rechazó la autorización.') from None
             hint = self.context_error_hint if exc.response.status_code == 400 else ''
             raise LocalModelError(f'Ollama respondió HTTP {exc.response.status_code}.{hint}') from exc
         except httpx.RequestError as exc:
-            raise LocalModelError('Ollama no responde o agotó el tiempo de espera; no se usa ningún servicio alternativo.') from exc
+            raise NetworkError('Ollama no responde o agotó el tiempo de espera; no se usa ningún servicio alternativo.') from exc
         except (ValueError, UnicodeError) as exc:
             raise LocalModelError('Respuesta JSON de Ollama inválida.') from exc
 

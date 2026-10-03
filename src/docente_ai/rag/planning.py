@@ -9,11 +9,7 @@ class QueryPlanner(OllamaGenerator):
 
 def structured_factory(generator_factory, schema):
     """Use constrained decoding when the provider supports it."""
-    try:
-        local = issubclass(generator_factory, OllamaGenerator)
-    except TypeError:
-        local = False
-    if local:
+    if isinstance(generator_factory, type):
         return type('StructuredRetrievalGenerator', (generator_factory,), {'response_schema': schema})
     return generator_factory
 

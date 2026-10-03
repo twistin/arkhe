@@ -2,7 +2,7 @@
 
 Fecha: 18 de septiembre de 2026. Arquitectura aprobada por el profesor al autorizar la fase 1.
 
-Estado actual: fase 6 implementada, incluido un rol pedagógico que propone objetivos, actividades y tiempos con base documental, consultas con Ollama y recuperación semántica local. La biblioteca documental ya importa y versiona PDF textual, TXT y Markdown. La CLI, el diagnóstico, la configuración docente, el calendario y la programación están disponibles; el resto de este documento describe el diseño incremental previsto.
+Estado actual: fase 6 implementada, incluido un rol pedagógico que propone objetivos, actividades y tiempos con base documental, consultas con Ollama y recuperación semántica local. La biblioteca documental ya importa y versiona PDF, DOCX, TXT y Markdown, con OCR local opcional. La CLI, el diagnóstico, la configuración docente, el calendario y la programación están disponibles; el resto de este documento describe el diseño incremental previsto.
 
 Este documento recoge el análisis original de fase 0 y el diseño aprobado. La inspección de la sección 1 es una instantánea previa a la implementación; el estado operativo actual se documenta en README.md. La primera entrega será una CLI local para preparar una clase con fuentes verificables y guardar un borrador revisable.
 
@@ -116,11 +116,19 @@ FTS5 será una mejora posterior para nombres, fechas y términos exactos, combin
 
 ### Ingesta
 
-MVP: TXT UTF-8, Markdown y PDF con capa de texto. PDF mediante pypdf; originales inmutables copiados al almacén y identificados con SHA-256. DOCX y EPUB quedan para iteraciones posteriores mediante adaptadores; no son necesarios para aceptar el MVP.
+Ingesta actual: TXT UTF-8, Markdown, DOCX mediante python-docx y PDF mediante pypdf, con OCRmyPDF opcional para páginas escaneadas. Los originales son inmutables y se identifican con SHA-256. EPUB continúa pendiente.
 
 Pasos: registrar origen y categoría → validar archivo → calcular hash → extraer por página o sección → mostrar resumen de extracción → autorizar → fragmentar → generar embeddings → activar versión del índice. Una importación fallida queda visible como fallida, nunca como documento listo.
 
-PDF escaneado, cifrado, vacío o con extracción pobre: informar y no producir falsa evidencia. OCR y reconocimiento de partituras quedan fuera. Los comentarios del profesor sobre una partitura sí pueden incorporarse como material propio, debidamente etiquetado.
+PDF cifrado o ilegible: informar y no producir falsa evidencia. Para páginas con menos de 20 caracteres alfanuméricos (también páginas blancas o portadas), utilizar OCRmyPDF únicamente si está en PATH; en su ausencia rechazar con instrucciones de instalación. El reconocimiento de partituras queda fuera. Los comentarios del profesor sobre una partitura pueden incorporarse como material propio.
+
+DOCX se recorre por bloques del cuerpo principal en orden, conservando encabezados, listas de viñetas/numeradas y tablas como Markdown. Localizadores `docx_paragraph` con `paragraph_index` (párrafos vacíos incluidos) y `docx_table` con `table_index`, ambos con `section` y offsets. No se extraen imágenes, cuadros de texto, notas ni encabezados/pies de página. Una tabla sin fila de encabezado marcada recibe un encabezado Markdown vacío, sin convertir datos en títulos.
+
+OCR se ejecuta en un directorio temporal privado, sin shell y sin registrar stdout/stderr, con `--force-ocr --pages … --output-type pdf --optimize 0 --jobs 2`, idiomas `spa+eng` (variable `DOCENTE_AI_OCR_LANGUAGES`) y timeout de 900 segundos. El diagnóstico solo comprueba PATH. No es una dependencia Python obligatoria ni se instala automáticamente. No se cambia el original. Tras validar la extracción y el número de páginas, se almacena otro `document_versions` con hash propio y extractor marcado `ocrmypdf:1`. Su `metadata_snapshot.extraction` contiene `text_origin: texto OCR`, `derived_from_version_id`, `original_sha256` y `tool`; el evento `derive_ocr` registra el vínculo. No requiere modificar el esquema SQLite. Solo la derivada se activa, inicialmente sin autorización y con revisión obligatoria. Al reimportar después de instalar OCR se reutiliza la versión original fallida. Las descargas diferencian original y derivada.
+
+Los localizadores conservan `ocr_document` y, para páginas reconocidas, `text_origin: texto OCR`. Estos campos sobreviven a la fragmentación y acompañan citas en interfaz, CLI y anexos Markdown con aviso de posible error de reconocimiento. El validador de citas no cambia: coteja subcadenas exactas del texto almacenado autorizado. Un OCR inválido o que cambia el número de páginas falla; las páginas aún escasas requieren aceptación explícita de avisos.
+
+La autorización, indexación, búsqueda y comprobaciones posteriores a la generación verifican el hash de la derivada y del original al que apunta su procedencia; un original ausente o alterado bloquea el uso de la fuente OCR.
 
 Fragmentación inicial por párrafos dentro de una página, con tamaño y solapamiento configurables. Conservar texto extraído, offsets y versión del extractor. Respetar el límite real del modelo de embeddings, dividir al superar el límite y evitar truncamiento silencioso.
 
@@ -140,7 +148,7 @@ Un umbral universal no garantiza relevancia. Calibrarlo con consultas respondibl
 
 El modelo devuelve IDs de fragmentos, no construye bibliografía libre. El código resuelve autores, fecha, título, localizadores y DOI desde el catálogo. Metadatos desconocidos permanecen vacíos; usar «sin autor identificado» o «s. f.» cuando corresponda.
 
-Distinguir `pdf_page_index` (posición física, base 1), `page_label` (etiqueta del PDF) y `printed_page` (numeración impresa verificada). Solo esta última autoriza «Autor, año, p. XX». Si no está verificada: «Autor, año, página 12 del archivo PDF». Una etiqueta automática no prueba la numeración impresa. TXT/Markdown utilizan sección y líneas; nunca páginas ficticias.
+Distinguir `pdf_page_index` (posición física, base 1), `page_label` (etiqueta del PDF) y `printed_page` (numeración impresa verificada). Solo esta última autoriza «Autor, año, p. XX». Si no está verificada: «Autor, año, página 12 del archivo PDF». Una etiqueta automática no prueba la numeración impresa. TXT/Markdown utilizan sección y líneas; DOCX utiliza párrafos o tablas y encabezados; nunca páginas ficticias.
 
 Toda cita textual debe coincidir con el fragmento almacenado, salvo normalización controlada de espacios. IDs desconocidos o citas que no coinciden bloquean una salida válida. Las paráfrasis se etiquetan como síntesis/inferencia y las actividades como propuestas de IA. Una referencia existente no demuestra que la afirmación esté sustentada: la interfaz debe permitir revisar el extracto y el profesor debe validar el contenido.
 
@@ -274,7 +282,14 @@ Obsidian: importar Markdown desde archivos o carpetas expresamente elegidos, con
 
 Solo loopback para Ollama por defecto, sin proxies heredados ni redirecciones a hosts externos. Verificar además que se usa un modelo local: un host localhost no basta para impedir que un servidor enrute hacia cloud. La documentación de Ollama permite desactivar funciones cloud con `OLLAMA_NO_CLOUD=1` o configuración equivalente; verificar soporte y estado durante la integración. No se ha cambiado esa configuración en esta fase. [Modo local de Ollama](https://docs.ollama.com/faq).
 
-La instalación inicial de paquetes y modelos puede requerir Internet, pero no documentos personales. El uso cotidiano deberá pasar una prueba con la red externa deshabilitada. No telemetría añadida, subida de documentos ni acceso automático a URLs bibliográficas. Logs sin textos completos por defecto; evidencias necesarias almacenadas localmente de manera explícita.
+La instalación inicial de paquetes y modelos puede requerir Internet. La biblioteca,
+extracción, índice, embeddings (bge-m3 como referencia) y diario se almacenan y
+procesan localmente. Los modelos de embeddings configurados deben acreditar pesos
+locales; no se sustituye Ollama por una API remota para embeddings. El modo Ollama
+puede funcionar sin red externa; los presets remotos requieren conexión y confirmación.
+No hay telemetría añadida ni acceso automático a URLs bibliográficas. Los proveedores
+remotos reciben los datos enumerados en el contrato de privacidad al final de este
+documento; ya no se afirma que toda generación permanece en el equipo.
 
 Originales, SQLite y propuestas forman la copia de seguridad. Copia consistente mediante API de backup SQLite y manifiesto de hashes; no copiar solo el archivo principal mientras hay transacciones/WAL pendientes. Probar restauración. El índice puede reconstruirse, pero las versiones de originales y evidencia histórica no deben perderse.
 
@@ -296,7 +311,7 @@ CLI prevista: `docente-ai doctor`, `config validate`, `config import`, `calendar
 
 ### Fuera del MVP
 
-Preparación semanal automática, memoria adaptativa, agentes paralelos, integración viva con Zotero, OCR, DOCX/EPUB, interfaz gráfica, exportaciones PDF/DOCX/PowerPoint, generación LilyPond/MIDI/SuperCollider, Whisper y análisis de audio. La arquitectura permite añadirlos sin convertirlos en requisitos iniciales.
+Preparación semanal automática, memoria adaptativa, agentes paralelos, integración viva con Zotero, EPUB, interfaz gráfica, exportaciones PDF/DOCX/PowerPoint, generación LilyPond/MIDI/SuperCollider, Whisper y análisis de audio. La arquitectura permite añadirlos sin convertirlos en requisitos iniciales.
 
 ### Pruebas y criterios de aceptación
 
@@ -321,7 +336,7 @@ Estos son criterios de aceptación del MVP completo, todavía pendiente. Las fas
 |---|---|
 | Alucinación con citas reales | Referencias ensambladas por código, afirmaciones ligadas a extractos y revisión humana; no garantía automática de verdad |
 | Corpus insuficiente o sesgado | Abstención, lagunas visibles y control de selección por el profesor |
-| Extracción defectuosa, tablas o partituras | Vista de extractos y bloqueo de documentos ilegibles; OCR/multimodal fuera del MVP |
+| Extracción defectuosa, tablas o partituras | Vista de extractos y bloqueo de documentos ilegibles; OCR opcional con revisión; reconocimiento multimodal pendiente |
 | Agotar 16 GiB con 14B y contexto amplio | Inferencia secuencial, modelo menor evaluado y contexto acotado |
 | Extensión joven o incompatibilidad ARM64 | Prueba temprana, versión fijada y alternativa documentada |
 | Pérdida de procedencia al editar o reindexar | Versiones, snapshots de evidencia y aprobaciones ligadas a hashes |
@@ -414,11 +429,11 @@ MVP completo.
 
 ### Concreción de fase 5
 
-`ask` recupera evidencias, limita el contexto y realiza una llamada de generación
+En la implementación inicial de fase 5, `ask` recuperaba evidencias y realizaba una llamada de generación
 local; no prepara clases todavía. `llm/local.py` comparte transporte y validación
 de identidad con embeddings. El adaptador generativo usa `/api/chat` con JSON
 estructurado, salida limitada, sin herramientas, sin streaming de texto no
-validado y sin reintentos automáticos. El modelo de prueba qwen3:14b se selecciona
+validado. El contrato actual de reparación se describe al final de este documento. El modelo de prueba qwen3:14b se selecciona
 en YAML y no está fijado en código. No se descargaron modelos nuevos en esta fase.
 
 La salida distingue síntesis/inferencia de IA y evidencia documental/material del
@@ -465,7 +480,7 @@ de sesión desde el calendario y el comando `prepare class` pertenecen a fase 7.
 
 El presupuesto pedagógico se configura por separado en YAML; el ejemplo usa 6144
 de contexto y 1536 tokens de salida para el modelo local actual. Un límite excedido
-rechaza la respuesta completa y conserva el error; no hay reintentos ocultos.
+rechaza la respuesta completa y conserva el error; los reintentos actuales quedan auditados según el contrato de reparación.
 
 La prueba con contexto 8192 reveló falta de memoria Metal al encadenar consultas.
 La configuración de ejemplo se redujo a 6144 y se añadió `num_batch` validado
@@ -496,7 +511,7 @@ es inmediata y una tarea de indexación pendiente no puede volver a autorizarlas
 Conocimiento separa entrada, referencias y material docente por asignatura. El
 escaneo detecta cambios mediante hash; las copias originales y su trazabilidad se
 conservan en la biblioteca existente. La importación no autoriza automáticamente.
-Las subidas no sobrescriben archivos existentes y se limitan a PDF, TXT y Markdown.
+Las subidas no sobrescriben archivos existentes y se limitan a PDF, DOCX, TXT y Markdown.
 
 El lanzador macOS Enjambre.app usa el entorno Python del proyecto y abre la interfaz
 en el navegador. Reconoce una instancia del mismo espacio de trabajo para evitar
@@ -547,3 +562,107 @@ con keep_alive=5m y el último lote lo libera; el resto conserva keep_alive=0.
 Contrato documentado en https://docs.ollama.com/api/chat. Si un lote falla, no se
 presenta silenciosamente una respuesta sin revisión; el modelo retenido expira
 como máximo tras ese plazo. Este flujo prioriza calidad y añade latencia local.
+# Credenciales de proveedores
+
+`docente_ai.secrets` resuelve credenciales desde el entorno y después desde el
+Llavero de macOS mediante `security`, sin dependencias adicionales. Los ajustes
+generativos no contienen `api_key`; el adaptador DeepSeek la resuelve al abrir
+su cliente. La migración de YAML antiguos guarda primero la credencial y elimina
+el campo mediante sustitución atómica. Ajustes solo recibe claves para escritura,
+expone un booleano y permite borrar la entrada del Llavero. La instantánea de
+generación en SQLite contiene únicamente ese booleano. Un filtro global protege
+handlers existentes y futuros y enmascara también el texto de las excepciones.
+
+## Contrato de reparación: grounded-answer:6 y pedagogy:6
+
+Ambos flujos pasan por `service.ask` y `generation.repair.generate_validated`.
+Hay una llamada inicial y hasta dos reintentos de contenido. La decisión usa
+excepciones tipadas, nunca comparaciones de mensajes:
+
+| Tipo | Acción |
+|---|---|
+| `json_format`, `contract`, `extra_fields`, `invalid_enum`, `quote_unresolved` | Añadir respuesta anterior como assistant e instrucción determinista como user; validar el nuevo JSON completo |
+| `length` | Igual, pero exigir un máximo de cinco claims breves sin subir tokens; ajustar vínculos del plan a los claims nuevos |
+| `network`, `authorization`, `source_changed`, cancelación | Detener el flujo; no reparar contenido |
+| `context_budget`, identidad del modelo, otros fallos de proveedor | Detener; nunca recortar fuentes ni aceptar respuestas parciales |
+
+Se conserva el corpus seleccionado y se comprueba su autorización, versión,
+metadatos y original antes y después de cada generación y dentro de la transacción
+final. Una respuesta inválida no se convierte en draft. Al agotar las reparaciones,
+la ejecución queda failed; get_run sigue ocultando la respuesta cruda. La cancelación
+conserva cancelled. Una abstención válida finaliza como abstained.
+
+Cada intento añade a `metrics_json.attempts` su `error_type` (null si tiene éxito),
+`tokens.input` y `tokens.output` (null si el proveedor no los proporciona), y los
+campos retirados por saneado en `sanitized_fields`. El error final se guarda también
+en `metrics_json.error_type`. El diálogo de reparación se audita en messages_json.
+Se mantiene el presupuesto de contexto y salida: si el diálogo de reparación no
+cabe en Ollama, se detiene con context_budget en lugar de perder evidencia.
+
+DeepSeek recibe siempre la palabra literal JSON en system y el esquema compacto
+de response_schema, incluidas las combinaciones de source_id y quote_XXX autorizadas.
+La selección pedagógica incluye plan; los esquemas de reformulación y ranking
+conservan sus propios contratos. Los reintentos mantienen esas restricciones aunque
+el último mensaje sea una instrucción de reparación. La respuesta pasa por un
+saneado que solo elimina claves desconocidas dentro de evidence y visualizations
+(incluidos sus items). No altera el texto de claims ni las citas, no completa campos
+obligatorios y no reconstruye esquemas. La validación posterior sigue siendo
+obligatoria. Las citas solo permiten normalización de espacios; cambios de
+puntuación, elipsis, traducciones y aproximaciones se rechazan.
+
+El transporte DeepSeek admite un único reintento por petición ante HTTP 429,
+5xx o timeout, con backoff fijo de 0.5 segundos. No repite 401/403, otros 4xx ni
+errores de conexión distintos de timeout. Este mecanismo es independiente de la
+reparación de contenido: como máximo seis peticiones para tres intentos, sin contar
+las llamadas separadas de recuperación. `transport_retries` registra las repeticiones
+HTTP realizadas por el cliente generativo.
+
+`docente-ai runs stats --limit N` y el bloque de Ajustes consultan las últimas N
+ejecuciones (1–10000, por defecto 100), con porcentajes sobre el total, tipos de
+fallo y borradores reparados. Los registros históricos sin clasificación permanecen
+en legacy_untyped. No se cambia el esquema SQLite ni se necesitan dependencias nuevas.
+
+## Proveedores y contrato de privacidad remoto
+
+`llm/presets.py` declara nombres, transporte, endpoint, residencia, nombre del
+secreto y capacidades por modelo. Ollama utiliza su adaptador local;
+DeepSeek, Mistral y custom utilizan `OpenAICompatibleGenerator`. `deepseek.py`
+solo conserva aliases de importación para compatibilidad. El endpoint de Mistral
+es regional europeo (`https://api.eu.mistral.ai/v1`), según su
+[documentación regional](https://docs.mistral.ai/inference/regional-inference).
+Custom exige HTTPS y declara residencia desconocida; los presets fijos no permiten
+cambiar el endpoint y conservar su etiqueta de residencia. Las URLs no pueden
+contener credenciales ni parámetros. No se heredan proxies ni se siguen redirecciones.
+
+`GenerationSettings` guarda `base_url`, `data_residency`, `response_format` y
+`remote_consent`, nunca la clave. La capacidad explícita determina si se envía
+json_schema, json_object o ninguna de las dos. Sigue enviándose el contrato compacto
+en system y siguen siendo obligatorias las validaciones de citas y fuentes.
+Las credenciales se resuelven en secrets mediante entorno y Llavero por proveedor.
+
+El consentimiento es un hash de la versión del contrato, preset, endpoint, modelo,
+residencia y capacidad. Solo la acción explícita de la interfaz lo guarda; se exige
+antes de encolar consultas, antes de recuperar/generar en service.ask y al abrir el
+cliente remoto. Cambiar destino o configuración invalida la confirmación. Si los
+ajustes de respuestas y propuestas difieren, la cabecera muestra ambos indicadores
+y cada flujo confirma su propio destino. Las configuraciones antiguas sin consentimiento
+no pueden enviar contenido remoto.
+
+La pregunta, criterios explícitos del profesor y los fragmentos autorizados con
+título, autores, año, categoría y referencias de cita salen del equipo. Reformulación
+y ranking también usan el proveedor elegido. Para propuestas, `remote_context`
+construye una lista permitida: group.level, group.language, duration_minutes,
+teacher_criteria y unit.title/objectives/contents/competencies/criteria. No serializa
+prior_experience, session, nombres o identificadores del grupo ni ningún campo de
+session_records o session_feedback. La memoria local y las instantáneas auditables
+pueden conservar el contexto completo, pero el contexto enviado al proveedor se
+construye aparte. Las pruebas insertan registros y feedback ficticios y verifican
+su ausencia en los mensajes remotos de los tres presets. En Ollama la memoria previa
+permanece disponible. No se adjuntan originales; si el usuario copia datos privados
+en la pregunta, criterios o fuentes, estos pasan a formar parte del contenido elegido.
+
+La cabecera muestra siempre «Generación local» o «Fragmentos enviados a proveedor
+(residencia)». El indicador declara la ruta de generación, no certifica políticas
+contractuales de retención o subprocesamiento. Biblioteca, SQLite, diario e índice
+siguen locales; bge-m3 es el modelo de embeddings de referencia, con otros modelos
+locales configurables. No hay fallback automático entre proveedores.

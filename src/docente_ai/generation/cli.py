@@ -4,12 +4,18 @@ import json
 from pathlib import Path
 
 from docente_ai.generation.render import render
-from docente_ai.generation.service import ask, edit_run, get_run, list_runs, review_run
+from docente_ai.generation.service import ask, edit_run, get_run, list_runs, review_run, run_stats
 from docente_ai.generation.settings import load_settings
 from docente_ai.rag.settings import load_settings as load_rag_settings
 
 
 def add_commands(commands):
+    runs = commands.add_parser('runs', help='Estadísticas de ejecuciones generativas.')
+    sub = runs.add_subparsers(dest='action', required=True)
+    stats = sub.add_parser('stats', help='Tasas y tipos de error de las últimas ejecuciones.')
+    stats.add_argument('--db', type=Path, default=Path('data/docente.sqlite3'))
+    stats.add_argument('--limit', '--last', type=int, default=100, help='Últimas N ejecuciones (1–10000).')
+    stats.add_argument('--json', action='store_true', dest='as_json')
     command = commands.add_parser('ask', help='Generar un borrador documentado con Ollama local.')
     command.add_argument('question')
     command.add_argument('--subject', required=True)
@@ -57,6 +63,18 @@ def validate_output(path, db):
 
 
 def run(args):
+    if args.command == 'runs':
+        stats = run_stats(args.db, args.limit)
+        if args.as_json:
+            print(json.dumps(stats, ensure_ascii=False, indent=2))
+        else:
+            print(f"Últimas {stats['total']} ejecuciones (límite {stats['limit']}).")
+            for status in ('draft', 'failed', 'abstained', 'cancelled', 'running'):
+                print(f"{status}: {stats['counts'][status]} · {stats['rates'][status]:.2f}%")
+            for error, count in stats['errors'].items():
+                print(f'Error {error}: {count}')
+            print(f"Borradores reparados: {stats['repaired_drafts']}")
+        return 0
     if args.command == 'generation' and args.action == 'list':
         result = list_runs(args.db)
         if args.as_json:

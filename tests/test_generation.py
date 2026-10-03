@@ -104,7 +104,7 @@ def test_ask_draft_persisted_and_sequential(corpus):
     assert result['model'] == 'gen:1'
     assert result['digest'] == 'generation-digest'
     assert result['evidence'][0]['text'] == TEXT
-    assert result['prompt_version'] == 'grounded-answer:5'
+    assert result['prompt_version'] == 'grounded-answer:6'
     assert get_run(corpus[0], result['id']) == result
     assert list_runs(corpus[0])[0]['status'] == 'draft'
     markdown = render(result)
@@ -606,23 +606,26 @@ def test_visualization_rejects_ungrounded_or_executable_markup():
 
 
 def test_generation_settings_deepseek_validation():
-    s = GenerationSettings(model='deepseek-chat', provider='deepseek', api_key='sk-test-123')
+    s = GenerationSettings(model='deepseek-chat', provider='deepseek')
     assert s.provider == 'deepseek'
     assert s.model == 'deepseek-chat'
-    assert s.api_key == 'sk-test-123'
+    assert not hasattr(s, 'api_key')
     assert s.input_budget > 0
 
-    # api_key vacía es válida en settings (permite cargar config para mostrar en UI)
-    s_empty = GenerationSettings(model='deepseek-chat', provider='deepseek', api_key='')
-    assert s_empty.api_key == ''
+    # La configuración es independiente de la presencia de credenciales.
+    s_empty = GenerationSettings(model='deepseek-chat', provider='deepseek')
+    assert not hasattr(s_empty, 'api_key')
 
     with pytest.raises(ValueError, match='provider'):
-        GenerationSettings(model='deepseek-chat', provider='invalid', api_key='sk-test')
+        GenerationSettings(model='deepseek-chat', provider='invalid')
 
 
 def test_generation_run_never_persists_provider_secret(corpus):
     db, _, rag, _ = corpus
-    settings = GenerationSettings(model='deepseek-chat', provider='deepseek', api_key='sk-private-test')
+    from docente_ai.secrets import set_secret
+    set_secret('deepseek_api_key', 'sk-private-test')
+    settings = GenerationSettings(model='deepseek-chat', provider='deepseek')
+    settings = replace(settings, remote_consent=settings.consent_scope)
     result = ask(db, rag, settings, '¿Qué es el pulso?', subject='historia-i',
                  embedder_factory=FakeEmbedder, generator_factory=FakeGenerator)
     assert 'api_key' not in result['request']['generation']
@@ -634,14 +637,17 @@ def test_generation_run_never_persists_provider_secret(corpus):
 
 def test_deepseek_generator_mock(monkeypatch):
     from docente_ai.llm.deepseek import DeepSeekGenerator
-    settings = GenerationSettings(model='deepseek-chat', provider='deepseek', api_key='sk-test-key')
+    from docente_ai.secrets import set_secret
+    set_secret('deepseek_api_key', 'sk-test-key')
+    settings = GenerationSettings(model='deepseek-chat', provider='deepseek')
+    settings = replace(settings, remote_consent=settings.consent_scope)
     gen = DeepSeekGenerator(settings)
 
     # Mock _request
     def fake_request(method, path, body=None):
         if path == '/models':
             return {'data': [{'id': 'deepseek-chat'}]}
-        if path == '/chat/completions':
+        if path == 'chat/completions':
             return {
                 'choices': [{
                     'finish_reason': 'stop',
@@ -698,4 +704,3 @@ def test_render_egypt_listening_guide():
     assert 'Michael Levy' in pedagogy_md
     assert 'https://www.youtube.com/watch?v=599YEae4DYA' in pedagogy_md
     assert 'https://www.bbc.co.uk/programmes/b010dp0s' in pedagogy_md
-

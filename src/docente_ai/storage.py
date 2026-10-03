@@ -82,7 +82,7 @@ def migrate(connection: sqlite3.Connection) -> None:
         connection.execute('PRAGMA user_version = 6')
         version = 6
     if version == 6 and SCHEMA_VERSION >= 7:
-        # Las credenciales pertenecen al archivo de configuración, nunca al
+        # Las credenciales pertenecen al Llavero o al entorno, nunca al
         # historial auditable de una consulta.
         connection.execute('''UPDATE generation_runs
             SET request_json=json_set(

@@ -1,6 +1,8 @@
 # ENJAMBRE IA DOCENTE LOCAL
 
-Asistente docente local basado en fuentes controladas por el profesor.
+Asistente docente con biblioteca local y fuentes controladas por el profesor.
+Los embeddings siempre se ejecutan en Ollama local (bge-m3 como modelo de referencia);
+la generación puede ser local o remota según el proveedor elegido y confirmado.
 Biblioteca de conocimiento y aplicación gráfica local para consultar fuentes y preparar
 propuestas de clase con Ollama. El desarrollo por fases queda aparcado para priorizar
 el espacio de trabajo del profesor.
@@ -28,8 +30,9 @@ La carpeta **Conocimiento**, en la raíz del proyecto, contiene:
 - **02 Material docente/<asignatura>**: materiales propios del profesor.
 
 Puedes añadir documentos desde la interfaz o copiarlos con Finder y pulsar
-**Revisar carpeta**. Se admiten PDF con texto, TXT y Markdown; la subida admite
-hasta 8 archivos de 100 MiB cada uno. No se incorpora OCR ni lectura de DOCX.
+**Revisar carpeta**. Se admiten PDF, DOCX, TXT y Markdown; la subida admite
+hasta 8 archivos de 100 MiB cada uno. Los PDF escaneados requieren OCRmyPDF
+opcional instalado en PATH y revisión explícita del texto reconocido.
 Revisa el documento, su asignatura y sus datos antes de permitir su uso.
 **Permitir y preparar** autoriza la fuente y crea su índice con Ollama.
 Solo las fuentes autorizadas y preparadas se usan para responder.
@@ -43,11 +46,12 @@ La carpeta empieza sin documentos de ejemplo. Las seis asignaturas iniciales
 proceden del proyecto; crea tus grupos reales en **Ajustes** antes de preparar clases.
 
 En **Asistente**, pregunta por tus documentos y abre las citas de cada respuesta.
-La consulta combina búsqueda semántica y por términos, reformulación local al inglés
+La consulta combina búsqueda semántica y por términos, reformulación al inglés
 y revisión de relevancia de hasta 24 pasajes completos. Después ordena definición,
 funcionamiento y ejemplos según la pregunta. La interfaz indica la etapa y el lote
 que está revisando. En libros extensos, este proceso puede tardar varios minutos
-con el modelo local actual. No requiere volver a preparar tus fuentes.
+con el modelo local. La reformulación y la revisión de pasajes usan el proveedor
+generativo elegido, por lo que también pueden ser remotas. No requiere volver a preparar tus fuentes.
 
 En **Propuestas**, elige grupo, tema y duración; revisa el resultado y expórtalo
 como Markdown. Las respuestas inválidas se registran como fallidas y no se
@@ -56,8 +60,49 @@ presentan como propuestas válidas. La revisión pedagógica sigue siendo del pr
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes
 con el modelo seleccionado. La interfaz sirve sus recursos localmente, sin fuentes
-tipográficas, scripts ni servicios externos. Ollama debe estar disponible para
-preparar documentos y generar respuestas.
+tipográficas ni scripts externos. Ollama debe estar disponible para preparar
+documentos y calcular embeddings; también genera respuestas si eliges el preset local.
+
+Los presets son **Ollama**, **DeepSeek**, **Mistral** y **Endpoint personalizado**.
+El adaptador remoto común usa `base_url`, `model` y la capacidad declarada
+`response_format`: `none`, `json_object` o `json_schema`. Los presets y capacidades
+por modelo son datos de `llm/presets.py`; no se instalan SDK adicionales.
+Mistral utiliza `https://api.eu.mistral.ai/v1`, su [endpoint regional europeo](https://docs.mistral.ai/inference/regional-inference).
+El indicador permanente muestra la generación local o el proveedor y su residencia
+declarada: UE, fuera de la UE o desconocida. Esta etiqueta identifica el destino
+de inferencia; no certifica todas las condiciones de retención o subprocesamiento.
+
+Antes de la primera consulta remota, la interfaz pide una confirmación explícita.
+Se guarda en los ajustes para ese proveedor, endpoint, modelo y capacidad de
+salida; cambiar cualquiera de ellos exige confirmarla de nuevo. El servidor, la
+CLI y el adaptador bloquean el envío sin confirmación. Configuraciones antiguas
+de DeepSeek tampoco quedan autorizadas automáticamente.
+
+**Qué sale del equipo:** pregunta o tema, fragmentos recuperados de fuentes
+autorizadas y sus títulos, autores, año, tipo y referencias de cita. El proveedor
+también puede recibir consultas de búsqueda y pasajes para ordenar su relevancia.
+En propuestas se envían nivel, idioma, duración, criterios escritos para esa
+consulta y los campos de título, objetivos, contenidos, competencias y criterios
+de la unidad seleccionada. Las reparaciones reenvían el diálogo de generación.
+No se adjuntan archivos originales ni se extraen datos de `session_records` o
+`session_feedback` para el prompt remoto; quedan excluidos experiencias previas,
+notas del diario, feedback, identificadores personales y calendario del contexto.
+Si pegas esos datos expresamente en la pregunta, criterios o fuentes autorizadas,
+forman parte del contenido que has seleccionado para enviar.
+
+Para proveedores remotos, Ajustes permite introducir o borrar la clave de API. El campo solo
+escribe: la API devuelve únicamente `api_key_configured`, nunca la credencial.
+Se guarda en el Llavero de macOS, servicio `docente-ai`, cuentas `deepseek_api_key`,
+`mistral_api_key` o `custom_api_key`. Las variables `DOCENTE_AI_DEEPSEEK_API_KEY`,
+`DOCENTE_AI_MISTRAL_API_KEY` y `DOCENTE_AI_CUSTOM_API_KEY` tienen prioridad; en otras plataformas es
+la forma de configurarla. Borrar en Ajustes elimina la entrada del Llavero, pero
+no elimina una variable de entorno: si existe, seguirá figurando como configurada.
+Los YAML antiguos se migran al cargarse: primero se guarda la clave en el Llavero
+y después se reescribe la configuración sin ella. Si el Llavero falla, la migración
+se detiene sin borrar la clave original. No se guardan credenciales en YAML ni
+en los registros de generación de SQLite. Los handlers de logging enmascaran
+patrones de clave `sk-` seguidos de al menos 16 caracteres alfanuméricos, también
+en excepciones. El filtro protege las nuevas entradas, no modifica logs históricos.
 
 ## Instalación
 
@@ -242,7 +287,7 @@ ficticios y bases temporales, sin Ollama ni acceso a Internet.
 
 ## Biblioteca documental (fase 3)
 
-Importación local de PDF con capa de texto, TXT UTF-8 y Markdown UTF-8.
+Importación local de PDF, DOCX, TXT UTF-8 y Markdown UTF-8.
 Elige la categoría explícitamente: `documental` para bibliografía y `profesor`
 para tus notas o materiales propios. No se admite contenido IA como fuente.
 
@@ -305,21 +350,53 @@ representarse por separado como documento y como material del profesor; nunca
 se mezclan sus categorías, aunque la copia física se comparta.
 
 Estados: `ready`, `needs_review` y `failed`. Un documento cifrado, ilegible o sin
-texto queda registrado como fallido y no puede autorizarse. Un PDF parcialmente
-extraíble muestra las páginas sin texto; después de revisarlo se puede autorizar
-con `library authorize DOCUMENT_ID --accept-warnings`. Puede tratarse de páginas
-blancas o imágenes: la aplicación no puede distinguirlas con certeza. Aun sin
-avisos automáticos, el profesor debe revisar orden de lectura y calidad.
+texto queda registrado como fallido y no puede autorizarse. En PDF se detectan
+páginas con menos de 20 caracteres alfanuméricos, incluidas páginas vacías:
+pueden ser imágenes, portadas o páginas blancas. Si falta OCRmyPDF, la importación
+se rechaza explicando cómo instalarlo; nunca se autoriza silenciosamente una
+extracción parcial. Aun sin avisos, revisa orden de lectura y calidad.
 
 PDF conserva página física (base 1) y etiqueta del archivo, pero nunca infiere
 numeración impresa. TXT y Markdown conservan el texto, rangos de líneas y offsets;
-no se les asignan páginas. Las extracciones son unidades por página PDF o por
-archivo de texto; fragmentación e índice semántico se describen en fase 4.
+no se les asignan páginas. DOCX conserva encabezados, listas y tablas en Markdown,
+en el orden del cuerpo principal. Se cita por párrafo (incluidos los vacíos en la
+numeración) o tabla, y por el encabezado precedente; no se inventan páginas Word.
+Las imágenes, cuadros de texto, notas y encabezados/pies de página no forman parte
+de esta extracción. Las tablas sin encabezado explícito reciben una fila Markdown
+vacía, conservando todas las filas originales como datos.
+
+### OCR opcional y procedencia
+
+Instalación externa opcional en macOS: `brew install ocrmypdf tesseract-lang`.
+En Debian/Ubuntu: `sudo apt install ocrmypdf tesseract-ocr-spa tesseract-ocr-eng`.
+Consulta la [instalación oficial de OCRmyPDF](https://ocrmypdf.readthedocs.io/en/stable/installation.html).
+`uv` no instala OCRmyPDF. `docente-ai doctor --offline` comprueba su presencia
+en PATH sin ejecutar OCR ni comprobar los idiomas o todas sus dependencias.
+
+Al importar, OCRmyPDF procesa localmente las páginas detectadas como escasas,
+con idiomas `spa+eng` por defecto (configurables mediante
+`DOCENTE_AI_OCR_LANGUAGES`, por ejemplo `spa+gal+eng` si están instalados).
+El proceso se limita a dos trabajos simultáneos y 15 minutos por documento.
+El original permanece inmutable: una versión derivada PDF con SHA-256 propio
+guarda la procedencia **texto OCR**, el ID y hash de su versión de origen y la
+herramienta utilizada. La ficha permite descargar ambas copias por separado.
+Una importación fallida se puede reimportar después de instalar OCR, conservando
+su historial. La derivada requiere revisión y `--accept-warnings` para autorizarla.
+La autorización y la recuperación comprueban la integridad tanto de la derivada
+como de su original previo al OCR.
+
+Las citas y el anexo documental avisan de posibles errores de reconocimiento.
+La coincidencia exacta se valida contra el texto almacenado de la versión
+autorizada: el OCR no permite aproximar ni corregir las citas automáticamente.
+Si quedan páginas vacías o escasas tras OCR, sus avisos requieren revisión; si
+no queda texto utilizable o cambia el número de páginas, la importación falla.
 
 Límite inicial de archivo: 100 MiB, configurable con `--max-mb` (1–1024).
 Ese límite no garantiza un tope de RAM: un PDF comprimido puede requerir más
-memoria al extraerse. OCR, documentos escaneados, DOCX, EPUB y reconocimiento
-musical todavía no están implementados. Los errores de lectura del archivo
+memoria al extraerse. EPUB y reconocimiento musical todavía no están implementados.
+`python-docx` es la dependencia de lectura DOCX: interpreta los estilos de párrafo,
+la numeración y las tablas del contenedor Word; incluye `lxml` como dependencia
+transitiva. No se ejecuta contenido de los documentos. Los errores de lectura del archivo
 antes de obtener sus bytes no crean una importación; los fallos de extracción sí.
 
 Todos los comandos de biblioteca aceptan `--db` y `--json`. Las importaciones
@@ -532,7 +609,17 @@ cualquier plantilla/modelo arbitrario conserve íntegro el prompt: el presupuest
 conservador y las comprobaciones reducen ese riesgo y deben reevaluarse al cambiar
 modelo. Los cambios de identidad del modelo durante la llamada también se rechazan.
 
-Se usa una llamada generativa, sin reparaciones o reintentos automáticos. Un
+Se permite una llamada inicial y hasta dos reparaciones de errores recuperables
+de JSON, contrato, campos extra, valores no permitidos, citas no resolubles o
+salida truncada. Cada reparación añade la respuesta anterior y una instrucción
+determinista con el error del validador; se conservan las fuentes originales.
+Si se alcanza el límite de salida, se solicitan como máximo cinco claims breves
+sin aumentar tokens. Nunca se publica un borrador sin superar de nuevo todas las
+validaciones y comprobar la vigencia de las fuentes. Red, autorización, cambio de
+fuentes y cancelación no activan reparaciones de contenido. DeepSeek puede repetir
+una petición HTTP una sola vez, con espera de 0.5 s, ante 429, 5xx o timeout;
+401 y 403 se detienen inmediatamente. Los intentos y sus tokens quedan en la
+auditoría `metrics.attempts`; la interfaz indica cuándo repara la respuesta. Un
 error de conexión, timeout, JSON inválido o cita incorrecta deja un registro
 `failed`; repetir `ask` crea otro registro. Ctrl-C deja `cancelled` cuando el
 proceso puede manejar la interrupción. Un cierre forzado puede dejar `running`,
@@ -542,7 +629,9 @@ no garantiza cancelar inmediatamente el trabajo que Ollama ya recibió.
 Embeddings y generación se ejecutan secuencialmente; el proveedor recibe
 `keep_alive: 0`. No se altera la configuración global del servidor ni se arranca
 otro servicio. El adaptador de transporte/identidad local se comparte con la fase
-4. Se mantiene loopback, sin proxies, redirecciones, herramientas ni fallback cloud.
+4. Ollama mantiene loopback y pesos locales verificados. El adaptador remoto usa
+HTTPS hacia el destino confirmado, sin proxies heredados, redirecciones,
+herramientas ni cambio automático de proveedor.
 
 La discrepancia de versiones observada se ha identificado: Homebrew proporciona
 el cliente CLI 0.15.4 y la aplicación Ollama proporciona el servidor 0.33.3,
@@ -662,6 +751,23 @@ instantánea de aquella ejecución. Para modificar criterios, duración o unidad
 ejecuta de nuevo el comando; cada intento queda separado. La exportación Markdown
 no sobrescribe archivos existentes ni escribe en la biblioteca de fuentes.
 
+### Estadísticas de generación
+
+En **Ajustes → Calidad de generación**, elige cuántas ejecuciones recientes
+consultar. Se muestran los porcentajes de borradores, fallos y abstenciones sobre
+el total seleccionado, los borradores recuperados con reparación y los errores
+agrupados por tipo. Canceladas y en curso también forman parte del total.
+Los fallos anteriores que no tienen un tipo registrado se agrupan como
+`legacy_untyped`; no se deduce su categoría comparando mensajes de error.
+
+```sh
+uv run --locked docente-ai runs stats --limit 100
+uv run --locked docente-ai runs stats --limit 50 --json
+```
+
+Las estadísticas leen únicamente estados y métricas; no necesitan prompts ni
+fuentes. La API equivalente es `GET /api/runs/stats?limit=100`.
+
 Prueba manual aislada con Ollama, usando exclusivamente texto sintético:
 
 ```sh
@@ -686,3 +792,27 @@ en 53.2 s, abstención en 13.1 s y abstención sin llamada generativa al excluir
 fuente. Son mediciones sobre texto sintético, no una garantía para todo corpus ni
 para cualquier carga de memoria. Resultado local: `data/verification/pedagogy-smoke.json`;
 ejemplo legible: `data/verification/pedagogy-example.md`.
+
+### Smoke y referencias visuales de la interfaz
+
+La comprobación opcional usa Playwright (navegador real) y Pillow (diferencia
+exacta de píxeles), exclusivamente en el grupo de desarrollo `ui`:
+
+```bash
+uv sync --locked --group ui
+uv run --locked --group ui playwright install chromium
+uv run --locked --group ui python scripts/check_ui_local.py --output tmp/ui-smoke
+```
+
+`tests/test_ui_smoke.py` se salta si faltan las herramientas o Chromium. Recorre
+las cinco vistas, fuentes, respuestas, pestañas de Egipto y la impresión, en
+escritorio y móvil. Todas las peticiones se interceptan y se sirven con el cliente
+ASGI en memoria sobre fixtures temporales: no abre sockets ni consulta servicios
+o datos personales. Mantiene el bloqueo de red de `conftest.py`.
+
+Las doce capturas originales están en `tests/ui_baseline/`, con reloj, idioma,
+zona horaria y viewport fijos. La comparación es exacta en el mismo sistema y
+versión de Chromium; en otros entornos el smoke sigue activo y el informe indica
+que la comparación visual no es aplicable. Los informes y diferencias PNG se
+guardan en el directorio indicado. Solo `--update-baseline` permite renovar
+explícitamente las referencias; no usarlo para ocultar regresiones.

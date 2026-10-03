@@ -23,9 +23,11 @@ import yaml
 from docente_ai.agents.pedagogy import context_for
 from docente_ai.config import SCHEMAS, load
 from docente_ai.llm.generation import OllamaGenerator
-from docente_ai.generation.service import ask, edit_run as _edit_run, get_run as _get_run, list_runs, review_run as _review_run
+from docente_ai.generation.service import ask, edit_run as _edit_run, get_run as _get_run, list_runs, run_stats, review_run as _review_run
 from docente_ai.generation.render import render, render_sources, render_student
 from docente_ai.generation.settings import load_settings as generation_settings
+from docente_ai.secrets import set_secret, delete_secret, secret_configured
+from docente_ai.llm.presets import PRESETS
 from docente_ai.library.service import import_document, list_documents, show_document, authorize_document, update_document, read_connection
 from docente_ai.rag.ollama import OllamaEmbedder
 from docente_ai.rag.service import index_library, representation
@@ -53,7 +55,7 @@ SUBJECT_PERIOD_FOLDERS = {
         '04 Seculo XX e Contemporanea',
     ],
 }
-SUFFIXES = {'.pdf', '.txt', '.md'}
+SUFFIXES = {'.pdf', '.docx', '.txt', '.md'}
 MAX_BYTES = 300 * 1024 * 1024
 
 
@@ -124,7 +126,7 @@ class Workspace:
 03 Diario docente: materiales y feedback de cada sesión, ordenados por fecha.
 
 Las subcarpetas corresponden al identificador de cada materia.
-Puedes copiar PDF con texto, TXT o Markdown. Máximo 100 MiB por archivo.
+Puedes copiar PDF, DOCX, TXT o Markdown. Los PDF escaneados requieren OCRmyPDF opcional en PATH y revisión del texto OCR. Máximo 100 MiB por archivo.
 En la aplicación, pulsa «Revisar carpeta» para incorporar esos archivos.
 Revisa la extracción y pulsa «Permitir al asistente» para autorizarlos e indexarlos.
 Copiar un archivo aquí no lo autoriza automáticamente.
@@ -262,9 +264,15 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             gen_cfg = generation_settings(self.root / 'config/generation.yaml')
             gen_provider = gen_cfg.provider
             gen_model = gen_cfg.model
+            provider_info = self.provider_info(gen_cfg)
         except Exception:
             gen_provider, gen_model = 'ollama', ''
+            provider_info = {'indicator': 'Proveedor sin configurar', 'is_remote': False, 'remote_confirmed': False}
         config = read_config(self.db)
+        try:
+            pedagogy_info = self.provider_info(generation_settings(self.root / 'config/pedagogy.yaml'))
+        except (ValueError, OSError):
+            pedagogy_info = provider_info
         records = []
         for group in config['groups']:
             records.extend(self._record_with_archive(_get_record(self.db, item['id']))
@@ -275,15 +283,20 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 'agenda': daily_agenda(config),
                 'records': records,
                 'knowledge_path': str(self.knowledge), 'jobs': self.job_list(),
-                'generation_provider': gen_provider, 'generation_model': gen_model}
+                'generation_provider': gen_provider, 'generation_model': gen_model,
+                'api_key_configured': secret_configured(gen_cfg.secret_name) if gen_provider in PRESETS and provider_info['is_remote'] else False,
+                'provider_info': provider_info, 'pedagogy_provider_info': pedagogy_info, 'provider_presets': PRESETS,
+                'run_stats': run_stats(self.db, 100)}
 
     def model_status(self):
         status = {'connected': False, 'models': [], 'ollama_models': [], 'embedding_models': [],
-                  'generation': None, 'embeddings': None, 'provider': 'ollama', 'message': ''}
+                  'generation': None, 'embeddings': None, 'provider': 'ollama', 'message': '',
+                  'api_key_configured': False}
         try:
             generation = generation_settings(self.root / 'config/generation.yaml')
             rag = rag_settings(self.root / 'config/rag.yaml')
-            status.update(generation=generation.model, embeddings=rag.model, provider=generation.provider)
+            status.update(generation=generation.model, embeddings=rag.model, provider=generation.provider,
+                          api_key_configured=secret_configured(generation.secret_name) if generation.is_remote else False)
 
             # Consultar modelos de Ollama para embeddings y generación local
             local_models = []
@@ -303,11 +316,11 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 embed_list = ['bge-m3']
             status['embedding_models'] = embed_list
 
-            if generation.provider == 'deepseek':
-                status['models'] = ['deepseek-chat', 'deepseek-reasoner']
-                status['connected'] = bool(generation.api_key)
-                if not generation.api_key:
-                    status['message'] = 'Introduce tu clave de API de DeepSeek para activar el generador.'
+            if generation.is_remote:
+                status['models'] = list(PRESETS[generation.provider]['models']) or [generation.model]
+                status['connected'] = status['api_key_configured']
+                if not status['api_key_configured']:
+                    status['message'] = 'Introduce la clave del proveedor para activar el generador.'
             else:
                 gen_list = list(local_models)
                 if generation.model and generation.model not in gen_list:
@@ -374,6 +387,9 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             import_config(self.db, config, replace=True)
         return group
 
+    def require_provider_consent(self, mode):
+        generation_settings(self.root / 'config' / ('pedagogy.yaml' if mode == 'pedagogy' else 'generation.yaml')).require_consent()
+
     def generate(self, data):
         question = label(data.get('question'), 'Tema o pregunta', 4000)
         category = data.get('category', 'all')
@@ -386,6 +402,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         if mode not in ('ask', 'pedagogy'):
             raise ValueError('Tipo de consulta inválido.')
         config_name = 'generation.yaml'
+        selected_settings = generation_settings(self.root / 'config' / ('pedagogy.yaml' if mode == 'pedagogy' else config_name))
+        selected_settings.require_consent()
         if mode == 'pedagogy':
             session_date = None
             if data.get('session_date'):
@@ -514,6 +532,40 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         return [self._record_with_archive(_get_record(self.db, item['id']))
                 for item in _list_records(self.db, group_id, limit=limit)]
 
+    def provider_info(self, settings):
+        return {'name': PRESETS[settings.provider]['name'], 'provider': settings.provider,
+                'indicator': settings.indicator, 'is_remote': settings.is_remote,
+                'data_residency': settings.data_residency, 'base_url': settings.base_url,
+                'response_format': settings.response_format, 'model': settings.model,
+                'remote_confirmed': settings.remote_confirmed, 'consent_scope': settings.consent_scope}
+
+    def confirm_provider(self, data):
+        with self.lock:
+            configs = {name: generation_settings(self.root / 'config' / name) for name in ('generation.yaml', 'pedagogy.yaml')}
+            current = configs['pedagogy.yaml' if data.get('mode') == 'pedagogy' else 'generation.yaml']
+            if data.get('consent_scope') != current.consent_scope or data.get('confirmed') is not True:
+                raise ValueError('La confirmación debe ser explícita y corresponder al proveedor actual.')
+            if not current.is_remote:
+                raise ValueError('La generación local no requiere confirmación de envío remoto.')
+            for name, settings in configs.items():
+                if settings.consent_scope == current.consent_scope:
+                    path = self.root / 'config' / name
+                    temporary = path.with_name('.' + name + '.' + uuid4().hex)
+                    try:
+                        temporary.write_text(yaml.safe_dump({'schema_version': 1, 'generation': asdict(replace(settings, remote_consent=current.consent_scope))}, allow_unicode=True, sort_keys=False))
+                        os.replace(temporary, path)
+                    finally:
+                        temporary.unlink(missing_ok=True)
+        return {'ok': True}
+
+    def delete_api_key(self):
+        with self.lock:
+            settings = generation_settings(self.root / 'config/generation.yaml')
+            if not settings.is_remote:
+                raise ValueError('Selecciona el proveedor remoto cuya clave deseas borrar.')
+            delete_secret(settings.secret_name)
+        return {'ok': True, 'api_key_configured': secret_configured(settings.secret_name)}
+
     def save_models(self, data):
         with self.lock:
             if any(j['status'] in ('queued', 'running') for j in self.jobs.values()):
@@ -525,25 +577,29 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
             provider = data.get('provider', gen_current.provider)
             gen_model = data.get('generation') or gen_current.model
-            api_key = data.get('api_key') if 'api_key' in data else gen_current.api_key
+            api_key = data.get('api_key', '')
+            if not isinstance(api_key, str):
+                raise ValueError('La clave debe ser texto.')
             rag_model = data.get('embeddings') or rag_current.model
 
-            if provider == 'deepseek':
-                from docente_ai.llm.deepseek import DeepSeekGenerator
-                generation = replace(gen_current, provider='deepseek', model=gen_model, api_key=api_key or '', num_ctx=65536)
-                pedagogy = replace(ped_current, provider='deepseek', model=gen_model, api_key=api_key or '', num_ctx=65536)
-                if api_key:
-                    with DeepSeekGenerator(generation):
-                        pass
-            else:
-                generation = replace(gen_current, provider='ollama', model=gen_model, api_key='')
-                pedagogy = replace(ped_current, provider='ollama', model=gen_model, api_key='')
+            changes = {'provider': provider, 'model': gen_model, 'base_url': data.get('base_url', '') if provider == 'custom' else '',
+                       'data_residency': '', 'response_format': data.get('response_format', ''),
+                       'num_ctx': 65536 if PRESETS.get(provider, {}).get('transport') == 'openai' else 6144}
+            generation = replace(gen_current, **changes)
+            pedagogy = replace(ped_current, **changes)
+            if not generation.is_remote:
                 with OllamaGenerator(generation):
                     pass
 
             rag = replace(rag_current, model=rag_model)
             with self.embedder_factory(rag):
                 pass
+            if data.get('delete_api_key'):
+                delete_secret(generation.secret_name)
+            elif api_key.strip():
+                if not generation.is_remote:
+                    raise ValueError('Las claves solo se guardan para proveedores remotos.')
+                set_secret(generation.secret_name, api_key)
             files = {'generation.yaml': {'schema_version': 1, 'generation': asdict(generation)},
                      'pedagogy.yaml': {'schema_version': 1, 'generation': asdict(pedagogy)},
                      'rag.yaml': {'schema_version': 1, 'embeddings': asdict(rag)}}

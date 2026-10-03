@@ -125,8 +125,8 @@ def import_document(
     if type(max_mb) is not int or not 1 <= max_mb <= 1024:
         raise ValueError('El límite de archivo debe estar entre 1 y 1024 MiB.')
     suffix = source.suffix.lower()
-    if suffix not in {'.pdf', '.txt', '.md'}:
-        raise ValueError('Formato no admitido. Utiliza .pdf, .txt o .md.')
+    if suffix not in {'.pdf', '.docx', '.txt', '.md'}:
+        raise ValueError('Formato no admitido. Utiliza .pdf, .docx, .txt o .md.')
     if not source.is_file() or source.resolve() == db.resolve():
         raise ValueError('Selecciona un archivo existente distinto de la base de datos.')
     with source.open('rb') as stream:
@@ -136,6 +136,7 @@ def import_document(
     digest = hashlib.sha256(content).hexdigest()
     values = values or {}
     parsed = extract(content, suffix)
+    reused_original_id = None
     with closing(connect(db)) as connection, connection:
         connection.row_factory = sqlite3.Row
         connection.execute('BEGIN IMMEDIATE')
@@ -161,8 +162,20 @@ def import_document(
                 stored = original_file(db, previous['original_path'])
                 if not stored.is_file() or hashlib.sha256(stored.read_bytes()).hexdigest() != previous['sha256']:
                     raise ValueError('El original almacenado falta o ha cambiado; no se considera una importación íntegra.')
-                return {'document_id': document_id, 'version_id': duplicate['id'], 'status': duplicate['status'], 'changed': False,
-                        'error': duplicate['error'], 'message': 'Versión ya importada; no se cambia la versión activa ni su autorización.'}
+                derived = connection.execute('''SELECT * FROM document_versions WHERE document_id=?
+                    AND json_extract(metadata_snapshot, '$.extraction.derived_from_version_id')=?
+                    ORDER BY rowid DESC LIMIT 1''', (document_id, duplicate['id'])).fetchone()
+                if derived:
+                    stored = original_file(db, derived['original_path'])
+                    if not stored.is_file() or hashlib.sha256(stored.read_bytes()).hexdigest() != derived['sha256']:
+                        raise ValueError('La versión OCR almacenada falta o ha cambiado.')
+                if parsed.derived_content is not None and not derived:
+                    # Permitir recuperar una importación fallida tras instalar OCR.
+                    reused_original_id = duplicate['id']
+                else:
+                    chosen = derived or duplicate
+                    return {'document_id': document_id, 'version_id': chosen['id'], 'status': chosen['status'], 'changed': False,
+                            'error': chosen['error'], 'message': 'Versión ya importada; no se cambia la versión activa ni su autorización.'}
         else:
             meta = metadata(values, defaults={'title': source.stem, 'origin': 'archivo local'})
             subjects = list(dict.fromkeys(subjects or []))
@@ -171,16 +184,29 @@ def import_document(
             connection.execute('INSERT INTO documents(id,category,metadata,shared,created_at) VALUES (?,?,?,?,?)',
                                (document_id, category, json.dumps(meta, ensure_ascii=False), bool(shared), now()))
             connection.executemany('INSERT INTO document_subjects VALUES (?,?)', [(document_id, subject) for subject in subjects])
-        relative = preserve_original(db, content, digest, suffix)
-        version_id = f'ver-{uuid4().hex}'
-        connection.execute('''INSERT INTO document_versions
-            (id,document_id,sha256,original_path,source_path,format,imported_at,extractor,metadata_snapshot,status,page_count,warnings,error)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
-            (version_id, document_id, digest, relative, str(source.resolve()), suffix[1:], now(), parsed.extractor,
-             json.dumps(meta, ensure_ascii=False), parsed.status, parsed.page_count, json.dumps(parsed.warnings, ensure_ascii=False), parsed.error))
-        for ordinal, segment in enumerate(parsed.segments, 1):
-            connection.execute('INSERT INTO document_segments(id,version_id,ordinal,text,locator) VALUES (?,?,?,?,?)',
-                               (f'{version_id}:{ordinal}', version_id, ordinal, segment['text'], json.dumps(segment['locator'], ensure_ascii=False)))
+        def store_version(payload, extraction, snapshot):
+            sha = hashlib.sha256(payload).hexdigest()
+            relative = preserve_original(db, payload, sha, suffix)
+            identifier = f'ver-{uuid4().hex}'
+            connection.execute('''INSERT INTO document_versions
+                (id,document_id,sha256,original_path,source_path,format,imported_at,extractor,metadata_snapshot,status,page_count,warnings,error)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (identifier, document_id, sha, relative, str(source.resolve()), suffix[1:], now(), extraction.extractor,
+                 json.dumps(snapshot, ensure_ascii=False), extraction.status, extraction.page_count,
+                 json.dumps(extraction.warnings, ensure_ascii=False), extraction.error))
+            for ordinal, segment in enumerate(extraction.segments, 1):
+                connection.execute('INSERT INTO document_segments(id,version_id,ordinal,text,locator) VALUES (?,?,?,?,?)',
+                                   (f'{identifier}:{ordinal}', identifier, ordinal, segment['text'], json.dumps(segment['locator'], ensure_ascii=False)))
+            return identifier
+
+        version_id = reused_original_id or store_version(content, parsed.original or parsed, meta)
+        if parsed.derived_content is not None:
+            if hashlib.sha256(parsed.derived_content).hexdigest() == digest:
+                raise ValueError('OCRmyPDF devolvió el original sin una versión derivada distinta.')
+            provenance = {'text_origin': 'texto OCR', 'derived_from_version_id': version_id,
+                          'original_sha256': digest, 'tool': 'ocrmypdf'}
+            version_id = store_version(parsed.derived_content, parsed, {**meta, 'extraction': provenance})
+            event(connection, document_id, 'derive_ocr', {'version_id': version_id, **provenance})
         if parsed.status != 'failed':
             connection.execute('UPDATE documents SET current_version_id=?,enabled=0 WHERE id=?', (version_id, document_id))
         event(connection, document_id, 'import', {'version_id': version_id, 'status': parsed.status, 'sha256': digest})
@@ -238,6 +264,9 @@ def show_document(db: Path, document_id: str, *, text: bool = False, version_id:
             version = dict(row)
             for key in ('warnings', 'metadata_snapshot'):
                 version[key] = json.loads(version[key])
+            provenance = version['metadata_snapshot'].get('extraction', {})
+            version['text_origin'] = provenance.get('text_origin', 'texto original')
+            version['derived_from_version_id'] = provenance.get('derived_from_version_id')
             document['versions'].append(version)
         chosen = version_id or document['current_version_id'] or (document['versions'][-1]['id'] if document['versions'] else None)
         if chosen and chosen not in {item['id'] for item in document['versions']}:
@@ -294,6 +323,16 @@ def authorize_document(db: Path, document_id: str, *, enabled: bool, accept_warn
             original = original_file(db, version['original_path'])
             if not original.is_file() or hashlib.sha256(original.read_bytes()).hexdigest() != version['sha256']:
                 raise ValueError('El original falta o ha cambiado; no se puede autorizar.')
+            provenance = json.loads(version['metadata_snapshot']).get('extraction', {})
+            parent_id = provenance.get('derived_from_version_id')
+            if parent_id:
+                parent = connection.execute('SELECT original_path,sha256 FROM document_versions WHERE id=? AND document_id=?',
+                                            (parent_id, document_id)).fetchone()
+                if not parent or parent['sha256'] != provenance.get('original_sha256'):
+                    raise ValueError('La procedencia OCR no coincide con la versión original.')
+                original = original_file(db, parent['original_path'])
+                if not original.is_file() or hashlib.sha256(original.read_bytes()).hexdigest() != parent['sha256']:
+                    raise ValueError('El original previo al OCR falta o ha cambiado; no se puede autorizar.')
         connection.execute('UPDATE documents SET enabled=? WHERE id=?', (enabled, document_id))
         event(connection, document_id, 'authorize' if enabled else 'exclude',
               {'version_id': document['current_version_id'], 'accept_warnings': accept_warnings})

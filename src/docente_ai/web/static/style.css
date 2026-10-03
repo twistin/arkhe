@@ -3563,3 +3563,5 @@ details.metadata form {
   .sidebar { height: auto; padding: 12px 18px; }
   main { padding: 24px 18px; }
 }
+#generation-indicator{font-size:12px;line-height:1.4;color:var(--ink);max-width:460px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);}
+@media(max-width:700px){.topbar{flex-wrap:wrap;height:auto;gap:8px;padding-block:12px;}#generation-indicator{order:3;width:100%;max-width:none;}}

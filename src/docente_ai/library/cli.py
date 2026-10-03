@@ -109,7 +109,8 @@ def run(args):
                 print(f'Aviso: {warning}')
         for segment in result.get('segments', []):
             locator = segment['locator']
-            location = f"Página {locator['pdf_page_index']} del archivo PDF" if locator['kind'] == 'pdf_page' else f"Líneas {locator['line_start']}–{locator['line_end']}"
+            from docente_ai.rag.service import citation
+            location = citation(result['metadata'], locator)
             print(f"\n[{segment['id']}] {location}\n{segment['text']}")
     else:
         print(result['message'])

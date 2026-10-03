@@ -65,7 +65,7 @@ def test_utf8_text_exact_and_line_provenance(suffix):
 
 
 def test_pdf_physical_pages_and_unknown_printed_numbers():
-    result = extract(pdf_bytes('Page one synthetic', 'Page two synthetic'), '.pdf')
+    result = extract(pdf_bytes('Page one synthetic with sufficient text', 'Page two synthetic with sufficient text'), '.pdf')
     assert result.status == 'ready'
     assert result.page_count == 2
     assert [s['locator']['pdf_page_index'] for s in result.segments] == [1, 2]
@@ -86,10 +86,11 @@ def test_blank_and_encrypted_pdf_fail():
     assert extract(pdf_bytes('Text', encrypted=True), '.pdf').status == 'failed'
 
 
-def test_partial_pdf_requires_review():
+def test_partial_pdf_requires_ocr_before_authorization():
     result = extract(pdf_bytes('Known text', None), '.pdf')
-    assert result.status == 'needs_review'
-    assert len(result.warnings) == 1
+    assert result.status == 'failed'
+    assert len(result.warnings) == 2
+    assert 'brew install ocrmypdf' in result.error
     assert result.page_count == 2
     assert len(result.segments) == 1
 
@@ -162,7 +163,8 @@ def test_failed_first_import_is_recorded_and_cannot_be_authorized(library):
         authorize_document(db, result['document_id'], enabled=True)
 
 
-def test_warning_acceptance_is_explicit(library):
+def test_warning_acceptance_is_explicit(library, monkeypatch):
+    monkeypatch.setattr('docente_ai.library.ocr.recognize', lambda content, pages: pdf_bytes('Texto reconocido suficiente para revisar', None))
     db, source = library
     source = source.with_suffix('.pdf')
     source.write_bytes(pdf_bytes('Some text', None))
