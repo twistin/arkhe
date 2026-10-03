@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "docente-ai"
+version = "0.8.0"
+description = "Asistente docente local basado en fuentes controladas por el profesor"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "httpx>=0.28,<0.29",
+    "pypdf>=6,<7",
+    "pyyaml>=6,<7",
+    "sqlite-vec>=0.1.6,<0.2",
+    "starlette>=1.6.0,<2",
+    "uvicorn>=0.53.0,<0.54",
+]
+
+[project.scripts]
+docente-ai = "docente_ai.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

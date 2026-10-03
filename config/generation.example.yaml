@@ -1,0 +1,11 @@
+schema_version: 1
+generation:
+  # Modelo disponible utilizado para la prueba; se puede cambiar sin tocar código.
+  model: qwen3:14b
+  host: http://127.0.0.1:11434
+  timeout_seconds: 180
+  temperature: 0.0
+  num_ctx: 4096
+  max_output_tokens: 512
+  context_margin: 256
+  think: false

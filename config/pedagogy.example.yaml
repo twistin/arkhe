@@ -1,0 +1,12 @@
+# Copiar a pedagogy.yaml; elegir un modelo generativo local instalado.
+schema_version: 1
+generation:
+  model: qwen3:14b
+  host: http://127.0.0.1:11434
+  timeout_seconds: 240
+  temperature: 0.0
+  num_ctx: 6144
+  max_output_tokens: 1536
+  context_margin: 256
+  think: false
+  num_batch: 128

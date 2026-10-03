@@ -1,0 +1,74 @@
+# Datos ficticios. Copiar a config/teaching.yaml y adaptar antes de importar.
+schema_version: 1
+timezone: Europe/Madrid
+centers:
+  - id: centro-demo
+    name: Conservatorio de ejemplo
+teachers:
+  - id: docente-demo
+    name: Profesor de ejemplo
+academic_years:
+  - id: curso-2026
+    name: 2026-2027
+    start_date: '2026-09-01'
+    end_date: '2027-06-30'
+subjects:
+  - id: historia-i
+    name: Historia de la Música I
+    description: Asignatura de ejemplo, editable.
+groups:
+  - id: historia-3gp
+    name: Grupo A
+    subject_id: historia-i
+    center_id: centro-demo
+    academic_year_id: curso-2026
+    teacher_id: docente-demo
+    level: 3º GP
+    language: gl
+schedule_rules:
+  - id: historia-lunes
+    group_id: historia-3gp
+    weekday: 1
+    start_time: '17:00'
+    duration_minutes: 60
+    room: Aula 1
+    valid_from: '2026-09-01'
+    valid_to: '2027-06-30'
+calendar_exceptions:
+  - id: festivo-octubre
+    schedule_rule_id: historia-lunes
+    date: '2026-10-12'
+    cancelled: true
+  - id: cambio-aula
+    schedule_rule_id: historia-lunes
+    date: '2026-10-19'
+    start_time: '18:00'
+    room: Aula 2
+curricula:
+  - id: historia-programa
+    subject_id: historia-i
+    academic_year_id: curso-2026
+    version: 1
+    name: Programación de ejemplo, pendiente de adaptar
+curriculum_units:
+  - id: unidad-1
+    curriculum_id: historia-programa
+    order: 1
+    title: Escucha y contexto histórico
+    objectives:
+      - Relacionar la escucha con preguntas sobre su contexto.
+    contents:
+      - Vocabulario inicial de análisis auditivo.
+    competencies: []
+    assessment_criteria:
+      - Explicar las observaciones utilizando el vocabulario trabajado.
+    activities:
+      - Escucha guiada y puesta en común.
+    repertoire: []
+    resources: []
+    start_date: '2026-09-01'
+    end_date: '2026-10-31'
+group_curricula:
+  - id: programa-grupo
+    group_id: historia-3gp
+    curriculum_id: historia-programa

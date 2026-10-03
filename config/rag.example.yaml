@@ -1,0 +1,11 @@
+schema_version: 1
+embeddings:
+  # Modelo seleccionado por el profesor; no hay un modelo fijado en el código.
+  model: qwen3-embedding:0.6b
+  host: http://127.0.0.1:11434
+  timeout_seconds: 60
+  chunk_chars: 1200
+  overlap_chars: 150
+  batch_size: 8
+  document_prefix: ''
+  query_prefix: "Instruct: Retrieve music teaching passages relevant to the query.\nQuery: "
