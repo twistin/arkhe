@@ -1,5 +1,6 @@
 """Transporte y verificación de identidad compartidos por Ollama."""
 
+from docente_ai.generation.live import live_transport, transport_extensions
 import httpx
 from docente_ai.generation.errors import ProviderError, NetworkError, AuthorizationError
 
@@ -32,7 +33,8 @@ class LocalOllama:
 
     def request(self, method, path, **kwargs):
         try:
-            response = self.client.request(method, path, **kwargs)
+            with live_transport(self.client):
+                response = self.client.request(method, path, extensions=transport_extensions(), **kwargs)
             response.raise_for_status()
             data = response.json()
             if not isinstance(data, dict):

@@ -1,9 +1,12 @@
 """Adaptador genérico de chat para APIs compatibles con OpenAI."""
 
+import json
+from docente_ai.generation.live import live_transport, current_execution, transport_extensions
 import httpx
 import time
 from copy import deepcopy
 from docente_ai.secrets import get_secret
+from docente_ai.llm.presets import PRESETS
 from docente_ai.generation.errors import ProviderError, NetworkError, AuthorizationError, GenerationLengthError
 from docente_ai.generation.prompt import response_schema, compact
 
@@ -18,6 +21,7 @@ class OpenAICompatibleGenerator:
         self.settings = settings
         self.client = None
         self.transport_retries = 0
+        self.supports_streaming = PRESETS[settings.provider]['streaming']
 
     def __enter__(self):
         self.settings.require_consent()
@@ -46,7 +50,8 @@ class OpenAICompatibleGenerator:
             raise ProviderError('Generador remoto no inicializado.')
         for attempt in range(2):
             try:
-                resp = self.client.request(method, path, json=body)
+                with live_transport(self.client):
+                    resp = self.client.request(method, path, json=body, extensions=transport_extensions())
                 if resp.status_code in (401, 403):
                     raise AuthorizationError(f'Error de autorización con el proveedor ({resp.status_code}). Comprueba tu clave API y saldo en Ajustes.')
                 transient = resp.status_code == 429 or 500 <= resp.status_code <= 599
@@ -76,7 +81,7 @@ class OpenAICompatibleGenerator:
             except ValueError:
                 raise ProviderError('El proveedor devolvió una respuesta HTTP que no es JSON válido.') from None
 
-    def generate(self, messages) -> dict:
+    def _payload(self, messages) -> dict:
         """Genera una respuesta JSON usando el proveedor.
 
         La capacidad declarada del preset determina el formato solicitado.
@@ -106,8 +111,69 @@ class OpenAICompatibleGenerator:
         if self.settings.response_format == 'json_schema':
             body['response_format'] = {'type': 'json_schema', 'json_schema': {'name': 'docente_response', 'strict': True, 'schema': schema}}
 
-        data = self._request('POST', 'chat/completions', body)
+        return body
 
+    def generate(self, messages):
+        return self._validate(self._request('POST', 'chat/completions', self._payload(messages)))
+
+    def generate_stream(self, messages, on_chunk):
+        body = self._payload(messages)
+        body['stream'] = True
+        for attempt in range(2):
+            chunks, size, usage, finish = [], 0, {}, None
+            try:
+                with live_transport(self.client), self.client.stream('POST', 'chat/completions', json=body,
+                                                                           extensions=transport_extensions()) as response:
+                    if response.status_code in (401, 403):
+                        raise AuthorizationError('El proveedor rechazó la autorización.')
+                    if response.status_code == 429 or 500 <= response.status_code <= 599:
+                        raise NetworkError('El proveedor no está disponible temporalmente.')
+                    response.raise_for_status()
+                    with live_transport(response):
+                        for line in response.iter_lines():
+                            if current_execution(): current_execution().check()
+                            if not line.startswith('data:'): continue
+                            value = line[5:].strip()
+                            if value == '[DONE]': break
+                            event = json.loads(value)
+                            if not isinstance(event, dict): raise ProviderError('Evento remoto inválido.')
+                            if isinstance(event.get('usage'), dict): usage = event['usage']
+                            choices = event.get('choices', [])
+                            if not choices: continue
+                            choice = choices[0]
+                            delta = choice.get('delta', {})
+                            if not isinstance(delta, dict) or delta.get('tool_calls'):
+                                raise ProviderError('Mensaje remoto inválido o petición de herramientas.')
+                            text = delta.get('content') or ''
+                            if not isinstance(text, str): raise ProviderError('Texto remoto inválido.')
+                            size += len(text.encode('utf-8'))
+                            if size > 100_000: raise ProviderError('Respuesta remota demasiado grande.')
+                            if text:
+                                chunks.append(text)
+                                on_chunk(text)
+                            if choice.get('finish_reason') is not None: finish = choice['finish_reason']
+                return self._validate({'usage': usage, 'choices': [{
+                    'finish_reason': finish, 'message': {'content': ''.join(chunks)}}]})
+            except (httpx.TimeoutException, NetworkError) as exc:
+                # Repetir transporte solo antes de mostrar texto; no concatenar salidas de dos peticiones.
+                if current_execution(): current_execution().check()
+                if attempt == 0 and not chunks:
+                    self.transport_retries += 1
+                    execution = current_execution()
+                    if execution:
+                        if execution.cancelled.wait(0.5): execution.check()
+                    else: time.sleep(0.5)
+                    continue
+                raise NetworkError('Conexión generativa remota interrumpida.') from exc
+            except httpx.HTTPStatusError as exc:
+                raise ProviderError(f'Error de API del proveedor ({exc.response.status_code}).') from None
+            except httpx.RequestError as exc:
+                raise NetworkError('Conexión generativa remota interrumpida.') from exc
+            except (ValueError, UnicodeError) as exc:
+                if isinstance(exc, ProviderError): raise
+                raise ProviderError('Evento JSON remoto inválido.') from exc
+
+    def _validate(self, data):
         choices = data.get('choices', [])
         if not choices:
             raise ProviderError('El proveedor no devolvió ninguna opción de respuesta.')
@@ -115,9 +181,9 @@ class OpenAICompatibleGenerator:
         finish = choice.get('finish_reason')
         usage = data.get('usage', {})
         metrics = {
-            'prompt_eval_count': usage.get('prompt_tokens', 0),
-            'eval_count': usage.get('completion_tokens', 0),
-            'provider': self.settings.provider, 'model': model,
+            'prompt_eval_count': usage.get('prompt_tokens'),
+            'eval_count': usage.get('completion_tokens'),
+            'provider': self.settings.provider, 'model': self.settings.model,
             'transport_retries': self.transport_retries,
         }
         if finish == 'length':

@@ -10,6 +10,7 @@ import sqlite3
 import time
 from uuid import uuid4
 
+from docente_ai.generation.live import current_execution, emit_live, GenerationCancelled
 from docente_ai import __version__
 from docente_ai.generation.prompt import PROMPT_VERSION, build_prompt
 from docente_ai.generation.validation import validate_response
@@ -70,6 +71,9 @@ def finish(db, run_id, *, status, result=None, raw=None, metrics=None, error=Non
 def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         category='documental', document_ids=None, top_k=12, max_distance=None,
         embedder_factory=OllamaEmbedder, generator_factory=OllamaGenerator, pedagogy_context=None, progress=None):
+    execution = current_execution()
+    if execution:
+        execution.check()
     settings.require_consent()
     if not isinstance(question, str) or not question.strip() or len(question) > 4000:
         raise ValueError('Escribe una pregunta de entre 1 y 4000 caracteres.')
@@ -120,7 +124,17 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         connection.execute('BEGIN IMMEDIATE')
         connection.execute('INSERT INTO generation_runs(id,created_at,status,request_json,prompt_version) VALUES (?,?,?,?,?)',
                            (run_id, now(), 'running', dump(request), prompt_version))
+    if execution:
+        execution.run_id = run_id
+    emit_live('run', run_id=run_id)
     raw, metrics = None, {}
+    def complete(**kwargs):
+        operation = lambda: finish(db, run_id, **kwargs)
+        if execution:
+            execution.complete(operation)
+        else:
+            operation()
+
     try:
         retrieval_started = time.monotonic()
         report = progress or (lambda message: None)
@@ -182,7 +196,7 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             result = {'status': 'insufficient_sources', 'claims': [], 'visualizations': []}
             if pedagogy_context is not None:
                 result['plan'] = None
-            finish(db, run_id, status='abstained', result=result, metrics=metrics)
+            complete(status='abstained', result=result, metrics=metrics)
             return get_run(db, run_id)
         bundle = (build_prompt(question, retrieved['results'], settings) if pedagogy_context is None else
                   pedagogy.build_prompt(question, retrieved['results'], settings, pedagogy_context))
@@ -193,6 +207,8 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             digest = getattr(generator, 'digest', None)
             record_prompt(db, run_id, bundle, model_id, digest)
             def check():
+                if execution:
+                    execution.check()
                 with closing(read_connection(db)) as connection:
                     check_evidence(connection, db, bundle['evidence'], request)
             validator = (lambda content: validate_response(content, bundle['evidence'])) if pedagogy_context is None else (
@@ -201,14 +217,22 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                                             check=check, report=report, sanitize_response=not is_local,
                                             on_dialogue=lambda dialogue: record_prompt(db, run_id, {**bundle, 'messages': dialogue}, model_id, digest))
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
-        finish(db, run_id, status='draft' if result['status'] == 'answered' else 'abstained',
+        complete(status='draft' if result['status'] == 'answered' else 'abstained',
                result=result, raw=raw, metrics=metrics, evidence=bundle['evidence'], request=request)
         return get_run(db, run_id)
+    except GenerationCancelled:
+        metrics['error_type'] = 'cancelled'
+        finish(db, run_id, status='cancelled', error='Cancelado por el usuario.', metrics=metrics)
+        raise
     except KeyboardInterrupt:
         metrics['error_type'] = 'cancelled'
         finish(db, run_id, status='cancelled', error='Cancelado por el usuario.', raw=raw, metrics=metrics)
         raise KeyboardInterrupt(f'Operación cancelada. Registro: {run_id}') from None
     except Exception as exc:
+        if execution and execution.cancelled.is_set():
+            metrics['error_type'] = 'cancelled'
+            finish(db, run_id, status='cancelled', error='Cancelado por el usuario.', metrics=metrics)
+            raise GenerationCancelled('Consulta cancelada por el usuario.') from None
         raw = getattr(exc, 'content', raw)
         metrics['error_type'] = getattr(exc, 'error_type', 'internal')
         finish(db, run_id, status='failed', error=str(exc), raw=raw, metrics=metrics)

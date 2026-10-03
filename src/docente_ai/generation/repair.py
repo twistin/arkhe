@@ -1,5 +1,6 @@
 """Reparación acotada; nunca sustituye la validación documental."""
 
+from docente_ai.generation.live import generate_live, emit_live
 from copy import deepcopy
 import json
 
@@ -55,10 +56,14 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
             check()
             if on_dialogue:
                 on_dialogue(dialogue)
-            response = generator.generate(dialogue)
+            emit_live('attempt', attempt=attempt + 1, total=3)
+            response = generate_live(generator, dialogue,
+                                     lambda text: emit_live('token', text=text, attempt=attempt + 1))
+            emit_live('usage', attempt=attempt + 1, tokens=response['metrics'].get('eval_count'))
             raw, response_metrics = response['content'], response['metrics']
             check()
             candidate, removed = sanitize(raw) if sanitize_response else (raw, [])
+            report('Comprobando el contrato y las citas exactas')
             result = validator(candidate)
             if reduced and len(result['claims']) > 5:
                 raise ResponseValidationError('La reparación exige un máximo de cinco claims; ajusta también los vínculos del plan.')
@@ -74,6 +79,7 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
             if attempt == 2:
                 raise
             check()
+            emit_live('repair', attempt=attempt + 2, total=3, error_type=exc.error_type)
             report(f'Reparando respuesta · intento {attempt + 2} de 3')
             instruction = {'repair': True, 'error_type': exc.error_type,
                            'instruction': 'Corrige el error: ' + str(exc) + ' Devuelve de nuevo el objeto JSON completo. Usa solo las fuentes y quote_XXX originales; no inventes citas.'}

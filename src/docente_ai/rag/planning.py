@@ -1,4 +1,5 @@
 """Reformulación local para recuperar fuentes; nunca aporta hechos a la respuesta."""
+from docente_ai.generation.live import current_execution, emit_live
 from dataclasses import replace
 import json
 from docente_ai.llm.generation import OllamaGenerator
@@ -69,6 +70,8 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
         for number, batch in enumerate(batches, 1):
             if isinstance(model, OllamaGenerator):
                 model.keep_alive = '5m' if number < len(batches) else 0
+            emit_live('relevance', batch=number, total=len(batches), phase='started')
+            if current_execution(): current_execution().check()
             if progress: progress(f'Revisando relevancia · lote {number} de {len(batches)}')
             payload=json.loads(model.generate(messages(batch))['content'])
             data=payload.get('scores') if isinstance(payload,dict) else None
@@ -83,6 +86,8 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
                 if type(i) is not int or i not in allowed or i in seen or type(score) is not int or not 0<=score<=3:
                     raise ValueError('Evaluación de relevancia inválida.')
                 seen.add(i);scores[i]=score
+            emit_live('relevance', batch=number, total=len(batches), phase='completed',
+                      evaluated=len(seen), relevant=sum(item['score'] >= 2 for item in data))
     shortlist=sorted((i for i in scores if scores[i]>=2),key=lambda i:(-scores[i],i))[:12]
     if not shortlist:
         shortlist=sorted((i for i in scores if scores[i]>=1),key=lambda i:(-scores[i],i))[:limit]

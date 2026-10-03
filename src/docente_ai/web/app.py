@@ -1,6 +1,7 @@
 """Servidor ASGI local: recursos propios, token por proceso y tareas secuenciales."""
 
 from contextlib import asynccontextmanager
+import asyncio
 import json
 import hashlib
 from pathlib import Path
@@ -11,7 +12,7 @@ from starlette.applications import Starlette
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 
@@ -117,6 +118,40 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
     async def jobs(request):
         return JSONResponse(ws.job_list())
 
+    async def job_events(request):
+        identifier = request.path_params['id']
+        try:
+            cursor = int(request.headers.get('last-event-id', request.query_params.get('after', '0')))
+            if cursor < 0: raise ValueError
+        except ValueError:
+            return JSONResponse({'error': 'Cursor de eventos inválido.'}, status_code=400)
+        if ws.job_events(identifier, cursor) is None:
+            return JSONResponse({'error': 'Tarea inexistente.'}, status_code=404)
+        async def stream():
+            nonlocal cursor
+            ticks = 0
+            while not await request.is_disconnected():
+                events = ws.job_events(identifier, cursor)
+                if events is None: return
+                for item in events:
+                    cursor = item['id']
+                    data = json.dumps(item['data'], ensure_ascii=False)
+                    yield f"id: {cursor}\nevent: {item['event']}\ndata: {data}\n\n"
+                    if item['event'] == 'terminal' or (item['event'] == 'snapshot' and
+                            item['data']['status'] in ('done', 'failed', 'cancelled')):
+                        return
+                ticks += 1
+                if ticks % 40 == 0: yield ': latido\n\n'
+                await asyncio.sleep(0.25)
+        return StreamingResponse(stream(), media_type='text/event-stream', headers={
+            'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no',
+        })
+
+    async def cancel_job(request):
+        await body(request)
+        result = await run_in_threadpool(ws.cancel_job, request.path_params['id'])
+        return JSONResponse(result or {'error': 'Tarea inexistente.'}, status_code=202 if result else 404)
+
     async def upload(request):
         name = request.query_params.get('name', '')
         if not name or Path(name).name != name or '\\' in name or any(ord(c) < 32 for c in name) or Path(name).suffix.lower() not in SUFFIXES:
@@ -203,7 +238,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
     async def generation(request):
         data = await body(request)
         await run_in_threadpool(ws.require_provider_consent, data.get('mode'))
-        return JSONResponse(ws.submit('Preparando propuesta' if data.get('mode') == 'pedagogy' else 'Consultando tus fuentes', lambda: ws.generate(data)), status_code=202)
+        return JSONResponse(ws.submit('Preparando propuesta' if data.get('mode') == 'pedagogy' else 'Consultando tus fuentes', lambda: ws.generate(data), cancellable=True), status_code=202)
 
     async def run(request):
         result = await run_in_threadpool(get_run, ws.db, request.path_params['id'])
@@ -297,7 +332,9 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None):
         return JSONResponse({'error': str(exc)}, status_code=400)
 
     routes = [Route('/', index), Route('/api/state', state), Route('/api/status', status), Route('/api/inbox', inbox),
-              Route('/api/jobs', jobs), Route('/api/upload', upload, methods=['POST']),
+              Route('/api/jobs', jobs),
+              Route('/api/jobs/{id}/events', job_events),
+              Route('/api/jobs/{id}/cancel', cancel_job, methods=['POST']), Route('/api/upload', upload, methods=['POST']),
               Route('/api/import', importing, methods=['POST']), Route('/api/documents/{id}', document),
               Route('/api/documents/{id}/authorize', authorize, methods=['POST']),
               Route('/api/documents/{id}/exclude', exclude, methods=['POST']),

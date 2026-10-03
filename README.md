@@ -875,3 +875,23 @@ reutilizar el servidor correcto. El paquete Python, comando, servicio del
 Llavero, rutas de datos y esquema SQLite permanecen intactos. También se
 conservan las claves internas de localStorage, eventos JS y UID del calendario
 para mantener preferencias y evitar duplicar sesiones ya importadas.
+
+
+### Progreso en directo y cancelación
+
+Las consultas del Asistente y las propuestas muestran etapas, lotes de relevancia
+revisados e intentos de reparación. Ollama, DeepSeek y Mistral entregan también
+texto progresivo en el panel **Borrador sin verificar**. Se muestra únicamente como
+texto: no es una respuesta validada, no tiene citas comprobadas y no se incluye
+al imprimir ni exportar. Al reparar se descarta el texto del intento anterior;
+al terminar se sustituye por la respuesta documentada o por el aviso de error.
+
+El contador muestra caracteres mientras llega texto y tokens cuando el proveedor
+informa del consumo real; no estima ni inventa tokens. El endpoint personalizado
+conserva la entrega completa al terminar, con progreso de etapas, porque su
+capacidad de streaming no está acreditada en el preset. No se cambia de proveedor
+si falla el transporte. El botón **Cancelar consulta** interrumpe la petición
+HTTP activa y registra `cancelled`, sin publicar el texto provisional. Una tarea
+cancelada mientras espera en cola no llama al modelo ni crea un registro generativo.
+Recargar o cerrar el canal de progreso no cancela una consulta: se recupera su
+estado al volver a abrir la aplicación.

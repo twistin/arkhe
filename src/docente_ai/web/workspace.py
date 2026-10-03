@@ -1,5 +1,7 @@
 """Carpeta de conocimiento y servicios de la interfaz local."""
 
+from collections import deque
+from docente_ai.generation.live import LiveExecution, current_execution, GenerationCancelled
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
@@ -77,6 +79,7 @@ class Workspace:
         self.ask_function = ask_function
         self.lock = RLock()
         self.jobs = {}
+        self.live_jobs = {}
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='docente-local')
         if not self.db.exists():
             config = self.root / 'config/teaching.yaml'
@@ -386,9 +389,10 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         question = label(data.get('question'), 'Tema o pregunta', 4000)
         category = data.get('category', 'all')
         def progress(message):
-            with self.lock:
-                for job in self.jobs.values():
-                    if job['status']=='running': job['title']=message
+            execution = current_execution()
+            if execution:
+                execution.check()
+                execution.emit('stage', message=message)
         kwargs = {'subject': data.get('subject'), 'category': category, 'progress': progress}
         mode = data.get('mode')
         if mode not in ('ask', 'pedagogy'):
@@ -613,7 +617,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 raise
         return {'ok': True}
 
-    def submit(self, title, operation, *, key=None):
+    def submit(self, title, operation, *, key=None, cancellable=False):
         with self.lock:
             if key:
                 for job in self.jobs.values():
@@ -622,23 +626,96 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             if sum(j['status'] in ('queued', 'running') for j in self.jobs.values()) >= 8:
                 raise ValueError('Ya hay varias tareas pendientes. Espera a que termine una.')
             # Keep a bounded, refresh-safe set of job notifications; the result lives in SQLite.
-            completed = [k for k, j in self.jobs.items() if j['status'] in ('done', 'failed')]
-            for key in completed[:-40]:
-                del self.jobs[key]
+            completed = [k for k, j in self.jobs.items() if j['status'] in ('done', 'failed', 'cancelled')]
+            for old_id in completed[:-40]:
+                del self.jobs[old_id]
+                self.live_jobs.pop(old_id, None)
             identifier = uuid4().hex
-            self.jobs[identifier] = {'id': identifier, 'key': key, 'title': title, 'status': 'queued', 'result': None, 'error': None}
+            self.jobs[identifier] = {'id': identifier, 'key': key, 'title': title, 'status': 'queued',
+                                     'result': None, 'error': None, 'cancellable': cancellable}
+            live = {'events': deque(maxlen=1024), 'sequence': 0, 'text': '', 'attempt': 0}
+            live['control'] = LiveExecution(lambda event, **data: self.publish_job(identifier, event, data))
+            self.live_jobs[identifier] = live
+        self.publish_job(identifier, 'stage', {'message': title})
         def work():
-            with self.lock:
-                self.jobs[identifier]['status'] = 'running'
+            execution = live['control']
             try:
-                result = operation()
+                with execution.activate():
+                    with self.lock:
+                        self.jobs[identifier]['status'] = 'running'
+                    result = operation()
+                    execution.check()
+                    with self.lock:
+                        self.jobs[identifier].update(status='done', result=result)
+            except GenerationCancelled:
                 with self.lock:
-                    self.jobs[identifier].update(status='done', result=result)
+                    self.jobs[identifier].update(status='cancelled', error='Consulta cancelada.',
+                        result={'run_id': execution.run_id, 'status': 'cancelled'})
             except Exception as exc:
                 with self.lock:
                     self.jobs[identifier].update(status='failed', error=str(exc))
-        self.pool.submit(work)
+            finally:
+                with execution.lock:
+                    execution.finished = True
+                    execution.aborters.clear()
+                with self.lock:
+                    terminal = deepcopy(self.jobs[identifier])
+                self.publish_job(identifier, 'terminal', terminal)
+        future = self.pool.submit(work)
+        with self.lock:
+            live['future'] = future
         return {'job_id': identifier}
+
+    def publish_job(self, identifier, event, data):
+        with self.lock:
+            live = self.live_jobs[identifier]
+            if event != 'terminal' and self.jobs[identifier]['status'] in ('done', 'failed', 'cancelled'):
+                return
+            if event == 'stage':
+                self.jobs[identifier]['title'] = data['message']
+            if event == 'attempt':
+                live['text'], live['attempt'] = '', data['attempt']
+            if event == 'token':
+                # Solo RAM: jamás se presenta como resultado validado ni se escribe en SQLite.
+                live['text'] = (live['text'] + data['text'])[:100_000]
+            if event == 'terminal': live['text'] = ''
+            live['sequence'] += 1
+            live['events'].append({'id': live['sequence'], 'event': event, 'data': deepcopy(data)})
+
+    def job_events(self, identifier, after=0):
+        with self.lock:
+            if identifier not in self.jobs:
+                return None
+            live, job = self.live_jobs[identifier], self.jobs[identifier]
+            if after > live['sequence'] or (live['events'] and after < live['events'][0]['id'] - 1):
+                return [{'id': live['sequence'], 'event': 'snapshot', 'data': {
+                    **deepcopy(job), 'text': live['text'], 'attempt': live['attempt']}}]
+            events = [deepcopy(item) for item in live['events'] if item['id'] > after]
+            if not events and job['status'] in ('done', 'failed', 'cancelled'):
+                return [{'id': live['sequence'], 'event': 'terminal', 'data': deepcopy(job)}]
+            return events
+
+    def cancel_job(self, identifier):
+        with self.lock:
+            job = self.jobs.get(identifier)
+            if job is None: return None
+            if not job['cancellable']:
+                raise ValueError('Esta tarea no admite cancelación.')
+            control = self.live_jobs[identifier]['control']
+        accepted = control.cancel()
+        if accepted:
+            future = self.live_jobs[identifier].get('future')
+            if future and future.cancel():
+                with control.lock:
+                    control.finished = True
+                with self.lock:
+                    job.update(status='cancelled', error='Consulta cancelada.',
+                               result={'run_id': None, 'status': 'cancelled'})
+                    terminal = deepcopy(job)
+                self.publish_job(identifier, 'terminal', terminal)
+            else:
+                self.publish_job(identifier, 'stage', {'message': 'Cancelando consulta…'})
+        return {'accepted': accepted, 'status': 'cancelling' if accepted else job['status']}
 
     def job_list(self):
         with self.lock:

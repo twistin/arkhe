@@ -434,8 +434,8 @@ MVP completo.
 En la implementación inicial de fase 5, `ask` recuperaba evidencias y realizaba una llamada de generación
 local; no prepara clases todavía. `llm/local.py` comparte transporte y validación
 de identidad con embeddings. El adaptador generativo usa `/api/chat` con JSON
-estructurado, salida limitada, sin herramientas, sin streaming de texto no
-validado. El contrato actual de reparación se describe al final de este documento. El modelo de prueba qwen3:14b se selecciona
+estructurado, salida limitada, sin herramientas, streaming efímero de texto marcado expresamente como no verificado;
+ningún resultado se publica antes de su validación. El contrato actual de reparación se describe al final de este documento. El modelo de prueba qwen3:14b se selecciona
 en YAML y no está fijado en código. No se descargaron modelos nuevos en esta fase.
 
 La salida distingue síntesis/inferencia de IA y evidencia documental/material del
@@ -747,3 +747,48 @@ reutilizar el servidor correcto. El paquete Python, comando, servicio del
 Llavero, rutas de datos y esquema SQLite permanecen intactos. También se
 conservan las claves internas de localStorage, eventos JS y UID del calendario
 para mantener preferencias y evitar duplicar sesiones ya importadas.
+
+
+## Progreso SSE y cancelación por ejecución
+
+`GET /api/jobs/{id}/events` entrega eventos SSE autenticados con la misma cabecera
+`X-Docente-Token` que el resto de la API. La interfaz usa fetch y ReadableStream;
+no introduce credenciales en URLs. Cada evento tiene un ID secuencial por trabajo:
+`stage` (mensaje), `relevance` (lote/total y fase started/completed; conteos al
+completar), `run` (registro), `attempt` (número/total), `streaming` (capacidad),
+`token` (delta de texto/ intento), `usage` (tokens reales, o null si no hay dato),
+`repair` (nuevo intento y tipo de error), y `terminal` (estado/resultado/error).
+Los deltas del proveedor pueden agrupar varios tokens; su longitud no se presenta
+como consumo de tokens. No se retransmite el razonamiento interno del modelo.
+
+Cada trabajo conserva en RAM un diario circular de 1024 eventos y un borrador
+acotado a 100000 caracteres (los adaptadores limitan la respuesta a 100000 bytes).
+`Last-Event-ID` permite reconectar sin repetir deltas; un cursor fuera del diario
+recibe `snapshot` con el estado actual, texto y número de intento. El canal acaba
+con terminal/snapshot final y envía comentarios de mantenimiento mientras espera.
+Los avisos terminados se retienen de forma acotada; este diario no se escribe en
+SQLite ni en logs. El borrador actual se borra al reparar y al terminar.
+
+El bucle común de reparación usa `generate_stream` solo dentro de una ejecución
+con progreso y cuando la capacidad está declarada: presets Ollama/DeepSeek/Mistral
+habilitados; personalizado deshabilitado. El CLI mantiene llamadas completas.
+El generador ensambla los deltas y exige el mismo motivo de finalización antes de
+la validación documental completa. La UI extrae texto provisional de claims y
+usa textContent, nunca HTML/Markdown. Impresión y exportaciones usan exclusivamente
+resultados almacenados después de validar. El sondeo sigue como respaldo si SSE
+se desconecta, sin lanzar otra generación.
+
+`POST /api/jobs/{id}/cancel` activa una señal exclusiva de ese trabajo y cierra
+clientes/respuestas y sockets activos (también durante la espera de cabeceras,
+mediante el trace de transporte HTTP). Las comprobaciones cooperativas interrumpen
+recuperación, lotes, generación y reparación. El proveedor puede tardar en liberar
+sus recursos internos tras cerrar la conexión; Arkhé deja de consumir su respuesta.
+Las tareas en cola se retiran sin invocar al proveedor. Una ejecución ya iniciada
+se guarda como cancelled, con resultado nulo. La publicación validada y la
+cancelación comparten un bloqueo: una respuesta ya publicada no se reclasifica
+como cancelada. Desconectar SSE no cancela automáticamente el trabajo.
+
+Las pruebas usan corpus temporales y generadores/transportes simulados: envío SSE
+antes del resultado final, reconexión, reparación, citas alteradas rechazadas,
+cancelación y cierre de petición, NDJSON de Ollama, SSE remoto, y panel provisional
+sin ejecución de HTML. No abren red ni acceden a fuentes reales.
