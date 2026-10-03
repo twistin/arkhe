@@ -828,3 +828,10 @@ Conocimiento: data/library contiene los originales verificados. El archivo inclu
 ambos y configuración no secreta, manifest SHA256 y permisos 0600. Restaurar rechaza
 symlinks, rutas fuera de raíz, duplicados y corrupción; integrity_check carga
 sqlite-vec del programa. Auth y claves quedan fuera; se administran por separado.
+
+
+`/privacy` no requiere sesión y nunca consulta el workspace; los únicos valores
+configurables proceden del entorno y se escapan como texto. Su descripción separa
+ubicación prevista del droplet y alcance UE/AELC del proveedor, sin inventar ZDR.
+Los prompts remotos siguen excluyendo session_records/session_feedback; incluyen
+el contexto pedagógico no privado y las reparaciones ya documentadas.

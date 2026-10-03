@@ -928,3 +928,10 @@ archivan Conocimiento, originales internos y configuraciones sin credenciales.
 Timer diario UTC y rotación de catorce días. La restauración valida checksums,
 rutas y SQLite y solo admite un destino nuevo vacío; no pisa el volumen activo.
 Se añade sqlite3 como herramienta del sistema en la imagen, sin dependencia Python.
+
+
+El piloto publica `/privacy` antes del acceso. Describe almacenamiento en la región
+UE elegida, retención de copias, envío a Mistral, prohibición de datos del alumnado
+ y contacto de borrado. Completa responsable, región y correo antes de publicarlo.
+Mistral declara región europea UE/AELC: confirmar contractualmente UE estricta si
+es requisito; el dominio europeo no demuestra por sí solo todas las ubicaciones.

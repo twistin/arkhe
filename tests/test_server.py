@@ -101,3 +101,15 @@ def test_servidor_rechaza_claves_y_proveedores_fuera_ue(server):
     for data in ({'api_key': 'sk-prueba-nunca-guardar'}, {'provider': 'deepseek'}, {'embeddings': 'otro'}):
         assert client.post('/api/models', json=data).status_code == 400
     assert client.delete('/api/secrets/provider').status_code == 403
+
+
+def test_privacidad_publica_y_valores_escapados(server, monkeypatch):
+    client, _ = server
+    client.cookies.clear()
+    monkeypatch.setenv('ARKHE_PRIVACY_RESPONSIBLE', '<script>alert(1)</script>')
+    response = client.get('/privacy')
+    assert response.status_code == 200
+    assert 'Está prohibido' in response.text and '14 días' in response.text
+    assert '<script>alert(1)</script>' not in response.text
+    assert '&lt;script&gt;' in response.text
+    assert 'docente-token' not in response.text

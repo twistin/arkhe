@@ -394,6 +394,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         from docente_ai.web.auth import AuthStore, routes as access_routes
         auth = AuthStore(server.auth_file)
         login, logout = access_routes(auth, server.public_host)
+        from docente_ai.web.privacy import privacy
+        routes.append(Route('/privacy', privacy))
         routes.extend([Route('/login', login, methods=['GET', 'POST']), Route('/api/logout', logout, methods=['POST'])])
     app = Starlette(routes=routes, lifespan=lifespan, exception_handlers={ValueError: error, OSError: error, sqlite3.Error: error})
     if server:
