@@ -170,6 +170,7 @@ HTML_SEGURO = frozenset(
         "botonPeriodo",
         "entradaDiario",
         "tarjetaPropuesta",
+        "filaEventoCentro",
         "runStatsPanel",
         "providerSettingsPanel",
         "schedulePanel",

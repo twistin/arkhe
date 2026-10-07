@@ -40,6 +40,7 @@ from docente_ai.record.service import (
 )
 from docente_ai.storage import import_config, read_config, connect, migrate
 from docente_ai.teaching.calendar import sessions as calendar_sessions
+from docente_ai.teaching.eventos_centro import cargar_eventos
 
 CATEGORIES = {'documental': '01 Fuentes', 'profesor': '02 Material docente'}
 SUFFIXES = {'.pdf', '.docx', '.txt', '.md'}
@@ -269,6 +270,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         return {'config': config, 'documents': self.documents(), 'runs': runs,
                 'subject_periods': {s['id']: [p['id'] for p in s.get('periods', [])] for s in config['subjects']},
                 'agenda': daily_agenda(config),
+                'eventos_centro': cargar_eventos(self.root),
                 'records': records,
                 'knowledge_path': str(self.knowledge), 'jobs': self.job_list(),
                 'generation_provider': gen_provider, 'generation_model': gen_model,

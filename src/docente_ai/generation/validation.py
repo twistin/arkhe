@@ -26,6 +26,10 @@ class QuoteResolutionError(ResponseValidationError):
     error_type = 'quote_unresolved'
 
 
+class EvidenceCardinalityError(ResponseValidationError):
+    error_type = 'evidence_count'
+
+
 def fail(message):
     raise ResponseValidationError(message)
 
@@ -88,7 +92,10 @@ def quote_matches(excerpt, source_text):
 def validate_evidence(value, known, *, owner):
     quotes = normalize_evidence(value, known)
     if not isinstance(quotes, list) or not 1 <= len(quotes) <= 30:
-        fail(f'{owner} necesita entre una y treinta evidencias.')
+        raise EvidenceCardinalityError(
+            f'No se pudo verificar el respaldo documental de {owner}: '
+            'cada bloque necesita entre una y treinta evidencias.'
+        )
     for index, quote in enumerate(quotes):
         if not isinstance(quote, dict):
             fail('Evidencia con estructura inválida.')

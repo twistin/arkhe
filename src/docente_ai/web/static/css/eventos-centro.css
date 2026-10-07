@@ -1,0 +1,15 @@
+.eventos-centro { margin-bottom: 1.5rem; border-left: 4px solid var(--accent, #117b73); }
+.evento-destacado h2 { margin: .4rem 0; }
+.evento-destacado p { margin: 0 0 1rem; }
+.eventos-centro summary { cursor: pointer; padding: .65rem 0; font-weight: 600; }
+.eventos-centro-lista { list-style: none; padding: 0; max-height: 24rem; overflow: auto; }
+.evento-centro { display: flex; gap: 1rem; justify-content: space-between; padding: .8rem;
+  border-bottom: 1px solid #dce5ef; }
+.evento-centro div { display: grid; gap: .25rem; }
+.evento-prioritario { background: #edf8f5; border-left: 3px solid #117b73; }
+.eventos-centro .dialog-actions { flex-wrap: wrap; }
+.evento-centro strong { overflow-wrap: anywhere; }
+@media (max-width: 650px) {
+  .evento-centro { flex-direction: column; gap: .3rem; }
+  .eventos-centro .dialog-actions .button { width: 100%; white-space: normal; }
+}

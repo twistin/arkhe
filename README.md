@@ -25,6 +25,18 @@ Abrirlo de nuevo reutiliza el servidor existente. Para detenerlo, utiliza
 
 ## Tu carpeta de conocimiento
 
+### Audiciones y conciertos del centro
+
+El calendario opcional `config/eventos-centro.json` guarda eventos independientes
+de las clases, con `id`, `titulo`, `inicio` ISO con zona horaria, `lugar`,
+`prioritario` y `fuente`. No se utiliza como evidencia del asistente.
+La interfaz muestra la próxima audición prioritaria y permite desplegar el
+calendario completo, con las prioritarias destacadas. Sin eventos no muestra panel.
+Los botones permiten descargar todas las fechas o solo las prioritarias en ICS,
+con avisos un día y una hora antes. Para recibir avisos con Arkhé cerrada,
+importa el archivo en tu calendario y activa sus notificaciones. El PDF no indica
+duraciones: el calendario conserva únicamente la hora de inicio.
+
 La carpeta **Conocimiento**, en la raíz del proyecto, contiene:
 
 - **00 Entrada**: archivos pendientes de clasificar.
@@ -878,6 +890,11 @@ para mantener preferencias y evitar duplicar sesiones ya importadas.
 
 
 ### Progreso en directo y cancelación
+
+Si una ampliación contiene bloques sin evidencias, la reparación pide citas
+verificables o retirar esos bloques y actualizar los vínculos de las actividades.
+No se asignan citas automáticamente. Tras tres intentos inválidos, la ejecución
+queda fallida y no publica un borrador sin respaldo.
 
 Las consultas del Asistente y las propuestas muestran etapas, lotes de relevancia
 revisados e intentos de reparación. Ollama, DeepSeek y Mistral entregan también

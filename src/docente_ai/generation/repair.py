@@ -6,7 +6,7 @@ import json
 
 from docente_ai.generation.errors import RecoverableGenerationError, GenerationLengthError
 from docente_ai.generation.prompt import compact
-from docente_ai.generation.validation import unique_object, fail, ResponseValidationError
+from docente_ai.generation.validation import unique_object, fail, ResponseValidationError, EvidenceCardinalityError
 
 
 def sanitize(content):
@@ -83,6 +83,17 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
             report(f'Reparando respuesta · intento {attempt + 2} de 3')
             instruction = {'repair': True, 'error_type': exc.error_type,
                            'instruction': 'Corrige el error: ' + str(exc) + ' Devuelve de nuevo el objeto JSON completo. Usa solo las fuentes y quote_XXX originales; no inventes citas.'}
+            if isinstance(exc, EvidenceCardinalityError):
+                instruction['instruction'] += (
+                    ' Revisa evidence en todos los claims y esquemas: debe ser una lista de 1 a 30 objetos'
+                    ' {"source_id":"S1","quote":"quote_001"} con respaldo real para el texto.'
+                    ' Si un bloque no tiene respaldo, elimínalo; no le asignes citas de otro bloque por defecto.'
+                    ' Si hay plan, actualiza todos los claim_ids tras eliminar bloques, usando índices desde 1,'
+                    ' y conserva la duración solicitada. Las actividades propuestas van en plan.activities;'
+                    ' los claims contienen únicamente contenido documental sustentado.'
+                    ' Si no queda contenido sustentado, devuelve status="insufficient_sources", claims=[],'
+                    ' visualizations=[] y, si hay plan, plan=null.'
+                )
             if reduced:
                 instruction['max_claims'] = 5
                 instruction['instruction'] += ' Máximo cinco claims breves; no aumentes tokens. Conserva el contrato y, si hay plan, la duración solicitada.'

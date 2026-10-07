@@ -34,7 +34,7 @@ def perform(corpus, **kwargs):
 def test_pedagogical_draft_roundtrip_and_history(corpus):
     result = perform(corpus)
     assert result['status'] == 'draft'
-    assert result['prompt_version'] == 'pedagogy:6'
+    assert result['prompt_version'] == 'pedagogy:7'
     assert result['request']['pedagogy']['group']['level'] == '3º GP'
     assert result['request']['pedagogy']['unit']['id'] == 'unidad-1'
     assert result['result']['plan'] == proposal()['plan']

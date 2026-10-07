@@ -350,6 +350,14 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         content = await run_in_threadpool(ws.calendar_ics, group_id=group_id, reminder_minutes=reminder)
         return Response(content, media_type='text/calendar', headers={'Content-Disposition': 'attachment; filename="horario-docente.ics"'})
 
+    async def exportar_eventos(request):
+        from docente_ai.teaching.eventos_centro import cargar_eventos, calendario_eventos
+        eventos = await run_in_threadpool(cargar_eventos, ws.root)
+        contenido = calendario_eventos(eventos, solo_prioritarios=request.query_params.get('prioritarios') == '1')
+        return Response(contenido, media_type='text/calendar', headers={
+            'Content-Disposition': 'attachment; filename="audiciones-centro.ics"',
+        })
+
     async def shutdown(request):
         if any(j['status'] in ('queued', 'running') for j in ws.job_list()):
             raise ValueError('Espera a que terminen las tareas antes de cerrar Arkhé.')
@@ -382,6 +390,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/records/{id}/download', record_download), Route('/api/records/{id}/reveal', record_reveal, methods=['POST']),
               Route('/api/groups/{id}/records', group_records),
               Route('/api/calendar.ics', export_calendar),
+              Route('/api/eventos-centro.ics', exportar_eventos),
               Route('/api/subjects', subject, methods=['POST']), Route('/api/groups', group, methods=['POST']),
               Route('/api/shutdown', shutdown, methods=['POST']), Route('/api/models', models, methods=['POST']), Route('/api/reveal', reveal, methods=['POST']), Route('/api/reveal-diary', reveal_diary, methods=['POST']), Mount('/assets', StaticFiles(directory=STATIC), name='assets')]
 

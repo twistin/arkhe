@@ -56,14 +56,23 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
     rank_settings=replace(settings,num_ctx=6144,max_output_tokens=1024)
     def messages(items):
         return [{'role':'system','content':instruction},{'role':'user','content':json.dumps({'question':question,'passages':items},ensure_ascii=False)}]
-    batches=[];batch=[]
-    for i,candidate in enumerate(candidates):
-        item={'id':i,'text':candidate['text']}
-        if estimate_input(messages([*batch,item]),rank_schema)>rank_settings.input_budget:
-            if not batch:raise ValueError('Un pasaje excede el contexto de revisión de relevancia.')
-            batches.append(batch);batch=[]
+    batches = []
+    batch = []
+    for i, candidate in enumerate(candidates):
+        text = candidate['text']
+        item = {'id': i, 'text': text}
+        if estimate_input(messages([item]), rank_schema) > rank_settings.input_budget:
+            max_len = len(text)
+            while max_len > 200 and estimate_input(messages([{'id': i, 'text': text[:max_len]}]), rank_schema) > rank_settings.input_budget:
+                max_len -= 500
+            item = {'id': i, 'text': text[:max_len]}
+        if estimate_input(messages([*batch, item]), rank_schema) > rank_settings.input_budget:
+            if batch:
+                batches.append(batch)
+                batch = []
         batch.append(item)
-    if batch:batches.append(batch)
+    if batch:
+        batches.append(batch)
     scores={}
     rank_factory = structured_factory(generator_factory, rank_schema)
     with rank_factory(rank_settings) as model:

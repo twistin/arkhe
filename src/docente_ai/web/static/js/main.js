@@ -10,6 +10,7 @@ import * as asistente from './vistas/asistente.js';
 import * as propuestas from './vistas/propuestas.js';
 import * as consentimiento from './componentes/consentimiento.js';
 import * as agenda from './componentes/agenda.js';
+import * as eventosCentro from './componentes/eventos-centro.js';
 import * as documentos from './componentes/documentos.js';
 import * as configuracion from './componentes/configuracion.js';
 import * as trabajos from './componentes/trabajos.js';
@@ -25,6 +26,7 @@ const modules = [
   propuestas,
   consentimiento,
   agenda,
+  eventosCentro,
   documentos,
   configuracion,
   trabajos,
@@ -81,7 +83,7 @@ export function renderPage() {
   })[active];
   document.title = `Arkhé · ${$('#section-name').textContent}`;
   main.className = 'content-enter';
-  main.innerHTML = dailyAgenda() + ({
+  main.innerHTML = dailyAgenda() + eventosCentro.panelEventosCentro() + ({
     biblioteca: library,
     asistente: assistant,
     propuestas: proposals,

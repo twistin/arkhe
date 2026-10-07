@@ -248,6 +248,23 @@ def _is_ancient_egypt_topic(run: dict[str, Any]) -> bool:
     ))
 
 
+def _is_ntam_topic(run: dict[str, Any]) -> bool:
+    req = run.get('request') or {}
+    ped = req.get('pedagogy') or {}
+    group = ped.get('group') or {}
+    unit = ped.get('unit') or {}
+    subj = req.get('subject') or group.get('subject_id') or ''
+    text = (
+        str(subj) + ' ' +
+        str(req.get('question', '')) + ' ' +
+        str(ped.get('teacher_criteria', '')) + ' ' +
+        str(group.get('name', '')) + ' ' +
+        str(unit.get('id', '')) + ' ' +
+        str(ped.get('unit_id', ''))
+    ).lower()
+    return 'ntam' in text or 'novas tecnoloxías' in text or 'nuevas tecnologías' in text
+
+
 def render_student(run: dict[str, Any]) -> str:
     context = (run.get('request') or {}).get('pedagogy') or {}
     result = run.get('result') or {}
@@ -257,6 +274,7 @@ def render_student(run: dict[str, Any]) -> str:
     session = context.get('session') or {}
     topic_raw = str((run.get('request') or {}).get('question', '')).strip()
     topic = plain(topic_raw[:1].upper() + topic_raw[1:])
+    is_ntam = _is_ntam_topic(run)
     is_polyphony = _is_15th_century_topic(run)
     is_egypt = _is_ancient_egypt_topic(run)
 
@@ -423,49 +441,51 @@ def render_student(run: dict[str, Any]) -> str:
         )
 
     # --- SECCIÓN 04: RELACIÓN DE 4 AUDICIONES COMENTADAS ---
-    lines += ['', '## 04 · Relación de 4 audiciones comentadas', '']
-    if is_polyphony:
-        for item in POLYPHONY_15TH_CENTURY_LISTENINGS:
-            lines += [
-                f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
-                f"- **Tipo / Contexto:** {item['subtitle']}.",
-                f"- **Grabación e intérpretes:** {item['performer']}.",
-                f"- **Enlaces YouTube:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']),
-                f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
-                f"- **Fuente / Antología:** {item['anthology']}.",
-                f"- **Guía de escucha activa:** " + ' '.join(item['points']),
-                ''
-            ]
-    elif is_egypt:
-        for item in ANCIENT_EGYPT_LISTENINGS:
-            lines += [
-                f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
-                f"- **Tipo / Contexto:** {item['subtitle']}.",
-                f"- **Grabación e intérpretes:** {item['performer']}.",
-            ]
-            if item['links']:
-                lines.append(f"- **Enlaces YouTube / Referencias:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']))
-            lines += [
-                f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
-                f"- **Fuente / Antología:** {item['anthology']}.",
-                f"- **Guía de escucha activa:** " + ' '.join(item['points']),
-                ''
-            ]
-    else:
-        activities = plan.get('activities', [])
-        for i in range(1, 5):
-            act = activities[i - 1] if i - 1 < len(activities) else {}
-            title = act.get('title') or f"Obra representativa {i} de la sesión"
-            lines += [
-                f"### Audición {i}: {plain(title)}",
-                f"- **Tipo / Género:** Ejemplo práctico de análisis formal y auditivo para {plain(topic)}.",
-                f"- **Guía de escucha activa:** Prestar atención a la textura principal, articulación de frases y elementos temáticos desarrollados en clase.",
-                f"- **Fuente / Partitura:** Materiales de consulta autorizados de la materia.",
-                ''
-            ]
+    if not is_ntam:
+        lines += ['', '## 04 · Relación de 4 audiciones comentadas', '']
+        if is_polyphony:
+            for item in POLYPHONY_15TH_CENTURY_LISTENINGS:
+                lines += [
+                    f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
+                    f"- **Tipo / Contexto:** {item['subtitle']}.",
+                    f"- **Grabación e intérpretes:** {item['performer']}.",
+                    f"- **Enlaces YouTube:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']),
+                    f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
+                    f"- **Fuente / Antología:** {item['anthology']}.",
+                    f"- **Guía de escucha activa:** " + ' '.join(item['points']),
+                    ''
+                ]
+        elif is_egypt:
+            for item in ANCIENT_EGYPT_LISTENINGS:
+                lines += [
+                    f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
+                    f"- **Tipo / Contexto:** {item['subtitle']}.",
+                    f"- **Grabación e intérpretes:** {item['performer']}.",
+                ]
+                if item['links']:
+                    lines.append(f"- **Enlaces YouTube / Referencias:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']))
+                lines += [
+                    f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
+                    f"- **Fuente / Antología:** {item['anthology']}.",
+                    f"- **Guía de escucha activa:** " + ' '.join(item['points']),
+                    ''
+                ]
+        else:
+            activities = plan.get('activities', [])
+            for i in range(1, 5):
+                act = activities[i - 1] if i - 1 < len(activities) else {}
+                title = act.get('title') or f"Obra representativa {i} de la sesión"
+                lines += [
+                    f"### Audición {i}: {plain(title)}",
+                    f"- **Tipo / Género:** Ejemplo práctico de análisis formal y auditivo para {plain(topic)}.",
+                    f"- **Guía de escucha activa:** Prestar atención a la textura principal, articulación de frases y elementos temáticos desarrollados en clase.",
+                    f"- **Fuente / Partitura:** Materiales de consulta autorizados de la materia.",
+                    ''
+                ]
 
-    # --- SECCIÓN 05: TRABAJOS PARA EL ALUMNADO ---
-    lines += ['## 05 · Trabajos para el alumnado', '']
+    # --- SECCIÓN DE TRABAJOS PARA EL ALUMNADO ---
+    assignment_section_num = '04' if is_ntam else '05'
+    lines += [f'## {assignment_section_num} · Trabajos para el alumnado', '']
     if is_polyphony:
         lines += [
             '### Trabajo 1: Rastreo auditivo y analítico del Cantus Firmus en partitura',

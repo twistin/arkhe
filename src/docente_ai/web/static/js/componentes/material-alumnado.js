@@ -7,6 +7,7 @@ import {
   getRunListenings,
   is15thCenturyPolyphony,
   isAncientEgypt,
+  isNTAMSubject,
   renderEgyptListeningsHTML,
   renderListeningCardItem,
   renderStudentDiscographySection,
@@ -23,6 +24,7 @@ export function studentDocumentHTML(run) {
   const title = (run.request?.question || '').charAt(0).toLocaleUpperCase('es') + (run.request?.question ||
     '').slice(1);
   const visuals = run.result?.visualizations || [];
+  const isNTAM = isNTAMSubject(run);
   const isPolyphony = is15thCenturyPolyphony(run);
   const isEgypt = isAncientEgypt(run);
   const listenings = isPolyphony ? POLYPHONY_LISTENINGS : getRunListenings(run);
@@ -258,16 +260,16 @@ export function studentDocumentHTML(run) {
         )
       }`
     ].join(''),
-    `\n      </div>\n    </section>\n\n    <!-- SECCIÓN 04: RELACIÓN DE 4 AUDICIONES `,
-    `COMENTADAS -->\n    <section class="student-section section-listenings">\n      `,
-    `<div class="student-section-header">\n        <span `,
-    `class="student-section-number">04</span>\n        <div>\n          <h2>Relación `,
-    `de 4 audiciones comentadas</h2>\n          <p class="student-section-intro">`,
-    `Obras maestras y repertorio de audición activa con análisis formal y antologías `,
-    [
-      `de referencia.</p>\n        </div>\n      </div>\n      <div class="listening-grid">\n        `
-    ].join(''),
-    [
+    `\n      </div>\n    </section>\n\n`,
+    `${isNTAM ? '' : [
+      `<!-- SECCIÓN 04: RELACIÓN DE 4 AUDICIONES COMENTADAS -->\n`,
+      `    <section class="student-section section-listenings">\n`,
+      `      <div class="student-section-header">\n`,
+      `        <span class="student-section-number">04</span>\n`,
+      `        <div>\n          <h2>Relación `,
+      `de 4 audiciones comentadas</h2>\n          <p class="student-section-intro">`,
+      `Obras maestras y repertorio de audición activa con análisis formal y antologías `,
+      `de referencia.</p>\n        </div>\n      </div>\n      <div class="listening-grid">\n        `,
       `${
         isEgypt ? renderEgyptListeningsHTML(false) : isPolyphony ? POLYPHONY_LISTENINGS.map(l =>
           renderListeningCardItem(l, false)).join('') : (listenings?.length ? listenings.map(l =>
@@ -283,14 +285,10 @@ export function studentDocumentHTML(run) {
               `</small>\n                  </div>\n                </div>\n                <div `,
               `class="listening-anthology">📚 Antología de partituras y fuentes de la `,
               `materia</div>\n                <div class="listening-points">\n                  `,
-              [
-                `<strong>Puntos clave de escucha activa:</strong>\n                  <ul>\n                    <li>`
-              ].join(''),
-              [
-                `${
-        e(act.instructions || 'Identificar la textura predominante y la articulación formal de las frases.')
-        }`
-              ].join(''),
+              `<strong>Puntos clave de escucha activa:</strong>\n                  <ul>\n                    <li>`,
+              `${
+                e(act.instructions || 'Identificar la textura predominante y la articulación formal de las frases.')
+              }`,
               `</li>\n                    <li>Seguir la conducción melódica y los puntos de `,
               `tensión y reposo cadencial.</li>\n                    <li>Relacionar los `,
               `procedimientos técnicos escuchados con el marco histórico de la sesión.</li>\n   `,
@@ -298,12 +296,14 @@ export function studentDocumentHTML(run) {
             ].join('');
           }).join('')
         ))
-      }`
-    ].join(''),
-    `\n      </div>\n    </section>\n\n    <!-- SECCIÓN 05: TRABAJOS PARA EL ALUMNADO `,
-    `-->\n    <section class="student-section section-assignments">\n      <div `,
-    `class="student-section-header">\n        <span class="student-section-number">`,
-    `05</span>\n        <div>\n          <h2>Trabajos para el alumnado</h2>\n         `,
+      }`,
+      `\n      </div>\n    </section>\n\n`
+    ].join('')}`,
+    `<!-- SECCIÓN ${isNTAM ? '04' : '05'}: TRABAJOS PARA EL ALUMNADO -->\n`,
+    `    <section class="student-section section-assignments">\n`,
+    `      <div class="student-section-header">\n`,
+    `        <span class="student-section-number">`,
+    `${isNTAM ? '04' : '05'}</span>\n        <div>\n          <h2>Trabajos para el alumnado</h2>\n         `,
     ` <p class="student-section-intro">Tareas prácticas individuales y en grupo de `,
     `análisis sobre partituras, audición y comparación formal.</p>\n        </div>\n  `,
     `    </div>\n\n      <div class="assignment-grid">\n        `,

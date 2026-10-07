@@ -841,3 +841,23 @@ está descrita en docs/despliegue-digitalocean.md: dominio/proceso/volumen/red/h
 por docente, con Caddy frontal único o un droplet por docente. No se implementa
 provisión ni registro masivo. Cambiar de volumen por restauración se declara mediante
 COMPOSE_FILE en el entorno administrativo para mantener copias y arranques coherentes.
+# Reparación de evidencias en propuestas
+
+## Eventos del centro
+
+`teaching/eventos_centro.py` valida el calendario local opcional
+`config/eventos-centro.json`, excluido de Git, y ordena sus eventos por inicio.
+`/api/state` los entrega en `eventos_centro`, sin mezclarlos con sesiones, grupos
+ni recuperación documental. El componente común `eventos-centro.js` presenta la
+próxima fecha prioritaria y el listado completo en las cinco vistas.
+`/api/eventos-centro.ics`, protegido por la sesión habitual, exporta todos o
+`?prioritarios=1`, con UID estable, fechas UTC y dos VALARM (1440 y 60 minutos).
+No inventa duración. El cliente de calendario externo gestiona las notificaciones;
+la aplicación no instala servicios ni programa avisos del sistema.
+
+El contrato pedagógico `pedagogy:7` exige explícitamente de 1 a 30 evidencias
+por bloque documental y separa las actividades originales en el plan.
+La validación clasifica listas ausentes, vacías o excesivas como `evidence_count`.
+La reparación acotada pide eliminar bloques sin respaldo y reajustar `claim_ids`
+y duración; nunca añade citas por código ni relaja su resolución exacta.
+Los tres intentos siguen sujetos a la validación completa antes de publicar.

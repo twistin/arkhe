@@ -150,6 +150,37 @@ def test_reparacion_pedagogica_mantiene_plan_y_fuentes(corpus):
     assert schema['properties']['claims']['items']['properties']['evidence']['items']['anyOf']
 
 
+@pytest.mark.parametrize('evidencias', [[], None, {}, [{'source_id': 'S1', 'quote': 'quote_001'}] * 31])
+def test_ampliacion_sin_evidencias_se_repara_sin_inventar_citas(corpus, evidencias):
+    invalida = proposal()
+    invalida['claims'] += [deepcopy(invalida['claims'][0]), {
+        'kind': 'summary', 'text': 'Contenido adicional sin respaldo.', 'evidence': evidencias,
+    }]
+    invalida['plan']['activities'][1]['claim_ids'] = [3]
+    generator = SequenceGenerator([invalida, proposal()])
+    result = perform(corpus, generator_factory=lambda _: generator)
+    assert result['status'] == 'draft'
+    assert result['result']['plan'] == proposal()['plan']
+    assert len(result['result']['claims']) == 1
+    assert [a['error_type'] for a in result['metrics']['attempts']] == ['evidence_count', None]
+    instruccion = json.loads(generator.dialogues[1][-1]['content'])['instruction']
+    assert 'actualiza todos los claim_ids' in instruccion
+    assert 'no le asignes citas de otro bloque por defecto' in instruccion
+    assert result['result']['claims'][0]['evidence'][0]['quote'] in TEXT
+
+
+def test_ampliacion_sin_respaldo_persistente_no_publica_borrador(corpus):
+    invalida = proposal()
+    invalida['claims'][0]['evidence'] = []
+    generator = SequenceGenerator([invalida])
+    with pytest.raises(GenerationFailure):
+        perform(corpus, generator_factory=lambda _: generator)
+    run = get_run(corpus[0], list_runs(corpus[0])[0]['id'])
+    assert run['status'] == 'failed' and run['result'] is None
+    assert run['metrics']['error_type'] == 'evidence_count'
+    assert len(generator.dialogues) == 3
+
+
 def test_saneado_no_toca_textos_y_se_audita(corpus):
     data = valid()
     data['claims'][0]['evidence'][0]['page'] = 123

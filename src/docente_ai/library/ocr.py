@@ -27,7 +27,7 @@ def recognize(content: bytes, pages: list[int]) -> bytes:
         source = Path(directory) / 'original.pdf'
         target = Path(directory) / 'texto-ocr.pdf'
         source.write_bytes(content)
-        command = [executable, '--force-ocr', '--pages', ','.join(map(str, pages)),
+        command = [executable, '--force-ocr', '--invalidate-digital-signatures', '--pages', ','.join(map(str, pages)),
                    '--output-type', 'pdf', '--optimize', '0', '--jobs', '2',
                    '-l', os.environ.get('DOCENTE_AI_OCR_LANGUAGES', 'spa+eng'),
                    str(source), str(target)]
@@ -39,6 +39,18 @@ def recognize(content: bytes, pages: list[int]) -> bytes:
             raise ValueError('OCR detenido tras 15 minutos; el original se conserva sin cambios.') from None
         except OSError:
             raise ValueError('No se pudo ejecutar OCRmyPDF. ' + OCR_INSTALL_HELP) from None
+
+        if result.returncode != 0 or not target.is_file():
+            retry_command = [executable, '--redo-ocr', '--invalidate-digital-signatures', '--pages', ','.join(map(str, pages)),
+                             '--output-type', 'pdf', '--optimize', '0', '--jobs', '2',
+                             '-l', os.environ.get('DOCENTE_AI_OCR_LANGUAGES', 'spa+eng'),
+                             str(source), str(target)]
+            try:
+                result = subprocess.run(retry_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                        timeout=900, check=False)
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+
         if result.returncode != 0 or not target.is_file():
             raise ValueError(f'OCRmyPDF no produjo un PDF utilizable (código {result.returncode}). '
                              'Revisa sus dependencias y los idiomas spa+eng de Tesseract. ' + OCR_INSTALL_HELP)

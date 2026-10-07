@@ -21,6 +21,16 @@ export function isAncientEgypt(run) {
     .includes('antigüedad') || text.includes('antiga') || unitId === 'unit-h1-1';
 }
 
+export function isNTAMSubject(run) {
+  const subj = run.request?.subject || run.request?.pedagogy?.group?.subject_id || '';
+  const q = (run.request?.question || '').toLowerCase();
+  const criteria = (run.request?.pedagogy?.teacher_criteria || '').toLowerCase();
+  const groupName = (run.request?.pedagogy?.group?.name || '').toLowerCase();
+  const unitId = run.request?.pedagogy?.unit?.id || run.request?.pedagogy?.unit_id || '';
+  const text = `${subj} ${q} ${criteria} ${groupName} ${unitId}`.toLowerCase();
+  return text.includes('ntam') || text.includes('novas tecnoloxías') || text.includes('nuevas tecnologías');
+}
+
 export const POLYPHONY_LISTENINGS = [{
   index: 1,
   composer: 'Guillaume Du Fay',
