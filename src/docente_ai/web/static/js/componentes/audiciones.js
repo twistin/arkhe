@@ -1,34 +1,71 @@
 import { e } from '../ui.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
+const POLYPHONY_REGEX = new RegExp(
+  '\\b(?:(?:siglo\\s+)?xv|ockeghem|du\\s*fay|dufay|binchois|busnois|cantus\\s+firmus|' +
+  'formes\\s+fixes|paráfrasis|parafrasis|parodia|misa\\s+cíclica|misa\\s+ciclica)\\b',
+  'i'
+);
+
 export function is15thCenturyPolyphony(run) {
-  const text = ((run.request?.question || '') + ' ' + (run.request?.pedagogy?.teacher_criteria || '') + ' ' +
-    (run.result?.claims || []).map(c => c.text).join(' ')).toLowerCase();
-  return text.includes('xv') || text.includes('ockeghem') || text.includes('dufay') || text.includes(
-    'binchois') || text.includes('busnois') || text.includes('cantus firmus') || text.includes(
-    'formes fixes') || text.includes('chanson') || text.includes('misa');
+  const q = run.request?.question || '';
+  const criteria = run.request?.pedagogy?.teacher_criteria || '';
+  const text = `${q} ${criteria}`;
+  return POLYPHONY_REGEX.test(text);
 }
 
+const EGYPT_REGEX = new RegExp(
+  '\\b(?:egipto?|egipci[ao]s?|egipcia|nilo|hathor|sistro|sistros|sistrum|' +
+  'menat|nebamun|mesopotamia|antigüedad|antiguedad|antiga)\\b',
+  'i'
+);
+
+const NTAM_REGEX = new RegExp(
+  '\\b(?:ntam|novas\\s+tecnoloxías|nuevas\\s+tecnologías|nuevas\\s+tecnologias)\\b',
+  'i'
+);
+
 export function isAncientEgypt(run) {
-  const q = (run.request?.question || '').toLowerCase();
-  const criteria = (run.request?.pedagogy?.teacher_criteria || '').toLowerCase();
-  const claims = (run.result?.claims || []).map(c => c.text).join(' ').toLowerCase();
-  const unitTitle = (run.request?.pedagogy?.unit?.title || '').toLowerCase();
   const unitId = run.request?.pedagogy?.unit?.id || run.request?.pedagogy?.unit_id || '';
-  const text = `${q} ${criteria} ${claims} ${unitTitle}`;
-  return text.includes('egipt') || text.includes('nilo') || text.includes('hathor') || text.includes(
-      'sistro') || text.includes('menat') || text.includes('nebamun') || text.includes('mesopotamia') || text
-    .includes('antigüedad') || text.includes('antiga') || unitId === 'unit-h1-1';
+  if (unitId === 'unit-h1-1') return true;
+  const q = run.request?.question || '';
+  const criteria = run.request?.pedagogy?.teacher_criteria || '';
+  const unitTitle = run.request?.pedagogy?.unit?.title || '';
+  const text = `${q} ${criteria} ${unitTitle}`;
+  return EGYPT_REGEX.test(text);
 }
 
 export function isNTAMSubject(run) {
   const subj = run.request?.subject || run.request?.pedagogy?.group?.subject_id || '';
-  const q = (run.request?.question || '').toLowerCase();
-  const criteria = (run.request?.pedagogy?.teacher_criteria || '').toLowerCase();
-  const groupName = (run.request?.pedagogy?.group?.name || '').toLowerCase();
+  const q = run.request?.question || '';
+  const criteria = run.request?.pedagogy?.teacher_criteria || '';
+  const groupName = run.request?.pedagogy?.group?.name || '';
   const unitId = run.request?.pedagogy?.unit?.id || run.request?.pedagogy?.unit_id || '';
-  const text = `${subj} ${q} ${criteria} ${groupName} ${unitId}`.toLowerCase();
-  return text.includes('ntam') || text.includes('novas tecnoloxías') || text.includes('nuevas tecnologías');
+  const text = `${subj} ${q} ${criteria} ${groupName} ${unitId}`;
+  return NTAM_REGEX.test(text);
+}
+
+const TOPIC_TYPOS = [
+  [/\b(?:ockehem|okeghem|ockeghen)\b/gi, 'Johannes Ockeghem'],
+  [/\b(?:resse|rese|gustav reese)\b/gi, 'Gustave Reese'],
+  [/\b(?:dufay|guillaume dufay)\b/gi, 'Guillaume Du Fay'],
+  [/\b(?:binchois|gilles de binchois)\b/gi, 'Gilles Binchois'],
+  [/\b(?:busnois)\b/gi, 'Antoine Busnois'],
+  [/\b(?:josquin|josquin des pres|josquin desprez)\b/gi, 'Josquin des Prez'],
+  [/\b(?:epitafio de (?:seikilos|sikilos)|seikilos epitaph)\b/gi, 'Epitafio de Sícilo (Seikilos)'],
+  [/\bseikilos\b/gi, 'Seikilos'],
+  [/\b(?:tutankhamun|tutankamon)\b/gi, 'Tutankamón'],
+  [/\b(?:misa ciclica|misa cicilica)\b/gi, 'misa cíclica'],
+  [/\b(?:parafrasis)\b/gi, 'paráfrasis'],
+];
+
+export function normalizeTopic(text) {
+  if (!text || typeof text !== 'string') return text || '';
+  let res = text;
+  for (const [rx, repl] of TOPIC_TYPOS) {
+    res = res.replace(rx, repl);
+  }
+  return res;
 }
 
 export const POLYPHONY_LISTENINGS = [{

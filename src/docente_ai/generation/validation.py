@@ -171,9 +171,17 @@ def validate_response(content: str, evidence: list[dict]) -> dict:
     visuals = data['visualizations']
     if not isinstance(visuals, list) or len(visuals) > 3:
         fail('visualizations debe ser una lista con un máximo de tres esquemas.')
+    DATE_PREFIX_RX = re.compile(
+        r'^(?:c\.?\s*)?(?:\d{1,4}\s*(?:a\.?\s*C\.?|d\.?\s*C\.?|a\.?\s*n\.?\s*e\.?|n\.?\s*e\.?|B\.?C\.?|A\.?D\.?)|\d{3,4}(?:[-–/]\d{2,4})?|siglo\s+[ivxlcdm]+|hacia\s+\d{1,4}|ca\.?\s*\d{1,4})',
+        re.IGNORECASE
+    )
     for visual in visuals:
         if not isinstance(visual, dict) or set(visual) != {'type', 'title', 'items', 'caption', 'evidence'}:
             fail('Esquema con campos no permitidos.')
+        if visual.get('type') == 'relationship' and isinstance(visual.get('items'), list):
+            labels = [str(it.get('label', '')).strip() for it in visual['items'] if isinstance(it, dict)]
+            if labels and any(DATE_PREFIX_RX.match(lbl) for lbl in labels):
+                visual['type'] = 'sequence'
         if visual['type'] not in ('sequence', 'relationship', 'table'):
             raise InvalidEnumError('Tipo de esquema no permitido; usa sequence, relationship o table.')
         validate_generated_text(visual['title'], label='Título de esquema', maximum=140)

@@ -8,6 +8,7 @@ import {
   is15thCenturyPolyphony,
   isAncientEgypt,
   isNTAMSubject,
+  normalizeTopic,
   renderEgyptListeningsHTML,
   renderListeningCardItem,
   renderStudentDiscographySection,
@@ -21,8 +22,10 @@ export function studentDocumentHTML(run) {
     claims = run.result?.claims || [];
   const session = context.session;
   const sources = [...new Map((run.evidence || []).map(item => [item.document_id, item.metadata])).values()];
-  const title = (run.request?.question || '').charAt(0).toLocaleUpperCase('es') + (run.request?.question ||
-    '').slice(1);
+  const rawQuestion = (run.request?.question || '').trim();
+  const normalizedQuestion = normalizeTopic(rawQuestion);
+  const title = normalizedQuestion.charAt(0).toLocaleUpperCase('es') + normalizedQuestion.slice(1);
+  const hasDiffTopic = rawQuestion && normalizedQuestion.toLowerCase() !== rawQuestion.toLowerCase();
   const visuals = run.result?.visualizations || [];
   const isNTAM = isNTAMSubject(run);
   const isPolyphony = is15thCenturyPolyphony(run);
@@ -34,16 +37,14 @@ export function studentDocumentHTML(run) {
     `<article class="student-handout">\n    <header class="student-cover">\n      `,
     `<div class="student-brand">\n        <span class="student-pill">ARKHÉ · `,
     `MATERIAL DE CLASE</span>\n        <span class="student-topic-tag">CUADERNO `,
-    `DIDÁCTICO DEL ALUMNADO</span>\n      </div>\n      <h1>${e(title)}`,
-    [
-      `</h1>\n      <div class="student-meta">\n        <strong>${e(context.group?.name || 'Grupo')}`
-    ].join(''),
-    [
-      `</strong>\n        <span>${e(context.group?.level || 'Conservatorio')}</span>\n        <span>⏱ `
-    ].join(''),
-    `${e(context.duration_minutes || 60)} minutos</span>\n        `,
-    `${session ? `<span>📅 ${e(session.date)}</span>` : ''}`,
-    `\n      </div>\n    </header>\n\n    <!-- OBJETIVOS DIDÁCTICOS -->\n    <section `,
+    `DIDÁCTICO DEL ALUMNADO</span>\n      </div>\n      <h1>${e(title)}</h1>\n`,
+    `${hasDiffTopic ? `      <p class="student-topic-original"><em>Tema original propuesto: ` +
+      `${e(rawQuestion)}</em></p>\n` : ''}`,
+    `      <div class="student-meta">\n        <strong>${e(context.group?.name || 'Grupo')}</strong>\n` +
+    `        <span>${e(context.group?.level || 'Conservatorio')}</span>\n` +
+    `        <span>⏱ ${e(context.duration_minutes || 60)} minutos</span>\n` +
+    `        ${session ? `<span>📅 ${e(session.date)}</span>` : ''}\n      </div>\n    </header>\n\n`,
+    `    <!-- OBJETIVOS DIDÁCTICOS -->\n    <section `,
     `class="student-section section-intro">\n      <div `,
     `class="student-section-header">\n        <span class="student-section-number">`,
     `🎯</span>\n        <div>\n          <h2>Qué vamos a aprender</h2>\n          <p `,
@@ -70,7 +71,8 @@ export function studentDocumentHTML(run) {
           `\n          <div class="student-content theory-claim-card">\n            <span `,
           `class="claim-index-badge">${e(String(index + 1).padStart(2, '0'))}`,
           [
-            `</span>\n            <div class="claim-body">\n              ${formatMarkdown(claim.text)}`
+            `</span>\n            <div class="claim-body">\n              ` +
+            `${formatMarkdown(claim.student_summary || claim.text)}`
           ].join(''),
           `\n              `,
           [
@@ -470,11 +472,21 @@ export function studentDocumentHTML(run) {
           const mins = Number(activity.minutes) || 0;
           const start = elapsed;
           elapsed += mins;
+          const taskText = activity.student_task || activity.instructions || '';
+          const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
           return [
             `\n                    <div class="student-activity">\n                      <span>${start}–`,
             `${elapsed} min</span>\n                      <div>\n                        <h3>${e(index + 1)}. `,
-            `${e(activity.title)}</h3>\n                        <p>${e(activity.instructions)}`,
-            `</p>\n                      </div>\n                    </div>\n                  `
+            `${e(activity.title)}${groupTag}</h3>\n`,
+            taskText ? [
+              `                        <p class="activity-task"><strong>Tarea:</strong> `,
+              `${e(taskText)}</p>\n`
+            ].join('') : '',
+            activity.deliverable ? [
+              `                        <p class="activity-deliverable"><strong>Entregable:</strong> `,
+              `${e(activity.deliverable)}</p>\n`
+            ].join('') : '',
+            `                      </div>\n                    </div>\n                  `
           ].join('');
         }).join('')
       }`

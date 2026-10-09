@@ -1,0 +1,40 @@
+# Plantilla de audición verificada para el catálogo de Arkhé
+# Copia este bloque para añadir una nueva audición o cárgalo en data/audiciones.yaml.
+
+audiciones:
+  - id: "plantilla-audicion-ejemplo"
+    obra: "Título de la obra musical"
+    compositor: "Nombre del compositor o Tradicional / Desconocido"
+    movimiento: "Movimiento, número o sección (opcional)"
+    interprete: "Conjunto o intérpretes y director"
+    url: "https://www.youtube.com/watch?v=XXXXXXXXXXX"
+    bibliografia: "Edición, manuscrito de referencia o antología analítica"
+    puntos_escucha:
+      - "Primer elemento a percibir en la escucha activa."
+      - "Segundo elemento: textura, armonía o articulación formal."
+    comentario_docente: "Criterio metodológico del profesor para el trabajo en el aula."
+    temas_relacionados:
+      - "palabra_clave_1"
+      - "palabra_clave_2"
+    periodo: "antiguedad | renacimiento | barroco | clasicismo | contemporanea | ntam"
+    fecha_verificacion: "2026-10-08"
+
+  # Ejemplo de Grecia antigua con campos factuales pendientes de verificación:
+  - id: "grecia-epitafio-seikilos"
+    obra: "Epitafio de Sícilo (Seikilos)"
+    compositor: "Sícilo (Seikilos)"
+    movimiento: "Composición monódica lírica completa sobre estela funeraria"
+    interprete: "PENDIENTE DE VERIFICAR"
+    url: "PENDIENTE DE VERIFICAR"
+    bibliografia: "Estela de Tralles (Museo Nacional de Dinamarca, Copenhague) / PENDIENTE DE VERIFICAR"
+    puntos_escucha:
+      - "PENDIENTE DE VERIFICAR: Ámbito melódico de octava en el modo frigio (tono jonio) y saltos interválicos."
+      - "PENDIENTE DE VERIFICAR: Ritmo cuantitativo regido por el texto poético y los signos métricos de duración (stigmê)."
+    comentario_docente: "PENDIENTE DE VERIFICAR: Utilidad didáctica como único ejemplo completo conservado con música y texto de la Antigüedad griega."
+    temas_relacionados:
+      - "grecia"
+      - "seikilos"
+      - "epitafio"
+      - "antiguedad"
+    periodo: "antiguedad"
+    fecha_verificacion: "PENDIENTE DE VERIFICAR"
