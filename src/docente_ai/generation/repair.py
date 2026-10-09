@@ -15,7 +15,8 @@ def sanitize(content):
         data = json.loads(content, object_pairs_hook=unique_object,
                           parse_constant=lambda _: fail('Constante JSON inválida.'))
     except (ValueError, RecursionError):
-        return content, []
+        from docente_ai.generation.validation import JsonFormatError
+        raise JsonFormatError('La respuesta del modelo no es un JSON bien formado; devuelve un objeto JSON válido.') from None
     removed = []
 
     def clean(obj, allowed, path):
@@ -113,3 +114,37 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
                          'sanitized_fields': removed})
         metrics.update(response_metrics)
         return result, raw
+
+
+def repair_with_review(generator, dialogue_history, last_raw_response, review_issues, validator, metrics, *, check, report, sanitize_response=False):
+    """Ejecuta como máximo una ronda de reparación guiada por las incidencias del revisor."""
+    check()
+    report('Reparando propuesta según la revisión de rúbrica (ronda única)')
+    issues_summary = ' '.join(f"[{item.get('field', 'campo')}]: {item.get('issue', '')} -> {item.get('proposal', '')}" for item in review_issues)
+    instruction = {
+        'repair': True,
+        'reviewer_repair': True,
+        'instruction': (
+            'La revisión pedagógica detectó los siguientes problemas: ' + issues_summary +
+            ' Corrige estos aspectos y devuelve el objeto JSON completo conforme al contrato original. '
+            'Usa solo las fuentes y citas quote_XXX autorizadas; no inventes citas ni reescribas hechos ajenos a los pasajes.'
+        )
+    }
+    repair_dialogue = deepcopy(dialogue_history)
+    repair_dialogue.extend([
+        {'role': 'assistant', 'content': last_raw_response},
+        {'role': 'user', 'content': compact(instruction)}
+    ])
+    emit_live('attempt', attempt=1, total=1)
+    response = generate_live(generator, repair_dialogue, lambda text: emit_live('token', text=text, attempt=1))
+    raw, response_metrics = response['content'], response['metrics']
+    check()
+    candidate, removed = sanitize(raw) if sanitize_response else (raw, [])
+    report('Comprobando el contrato de la propuesta reparada')
+    result = validator(candidate)
+    metrics_attempts = metrics.setdefault('reviewer_repair_attempts', [])
+    metrics_attempts.append({
+        'tokens': {'input': response_metrics.get('prompt_eval_count'), 'output': response_metrics.get('eval_count')},
+        'sanitized_fields': removed
+    })
+    return result, raw

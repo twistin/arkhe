@@ -176,6 +176,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             return import_document(self.db, path, category=existing['category'], document_id=document_id)
         subject = data.get('subject')
         category = data.get('category')
+        origin = data.get('origin')
+        values = {'origin': origin} if origin else {}
         if not subject or not any(item['id'] == subject for item in read_config(self.db)['subjects']):
             raise ValueError('Elige una materia existente para esta fuente.')
         if category not in CATEGORIES:
@@ -193,7 +195,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             target.hardlink_to(path)
             moved = True
         try:
-            result = import_document(self.db, target, category=category, subjects=[subject])
+            result = import_document(self.db, target, category=category, values=values, subjects=[subject])
         except BaseException:
             if moved:
                 target.unlink(missing_ok=True)

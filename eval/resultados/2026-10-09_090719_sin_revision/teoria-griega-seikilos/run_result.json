@@ -1,0 +1,605 @@
+{
+  "id": "run-0f45ae7d0282461192a4bac03e33f197",
+  "created_at": "2026-10-09T07:07:20.657016+00:00",
+  "finished_at": "2026-10-09T07:07:48.445823+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "deepseek-chat",
+  "digest": null,
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Teoria musical griega, notacion y epitafio de seikilos",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "deepseek-chat",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 65536,
+      "max_output_tokens": 8192,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "data_residency": "fuera-ue",
+      "response_format": "json_object",
+      "remote_consent": "6987143b86819a667cd09efd950933da08e18b105ffe648c6b7e56770fb12091",
+      "enable_review": false,
+      "api_key_configured": true
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo.\n",
+      "prior_experience": null,
+      "session": null,
+      "topic": "Teoria musical griega, notacion y epitafio de seikilos",
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "Explicar el sistema musical griego antiguo: los tetracordos (géneros diatónico, cromático y enarmónico), la escala mayor o harmonia, el monocordio y las proporciones pitagóricas (octava 2:1, quinta 3:2, cuarta 4:3).",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Detallar la notación alfabética instrumental y vocal griega.",
+          "type": "contenido"
+        },
+        {
+          "id": "R3",
+          "description": "Analizar el Epitafio de Seikilos: soporte arqueológico (columna estela de mármol), modo frigio/jonio, texto y sentido filosófico.",
+          "type": "análisis de obra"
+        },
+        {
+          "id": "R4",
+          "description": "Incluir un esquema cronológico o línea temporal ordenada desde Pitágoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmisión tardoantigua en Boecio y San Agustín.",
+          "type": "línea temporal"
+        },
+        {
+          "id": "R5",
+          "description": "Diseñar actividades prácticas en el aula donde el alumnado aplique la teoría: transcripción rítmica, entonación guiada y debate colectivo.",
+          "type": "actividad"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "Explicar el sistema musical griego antiguo: los tetracordos (géneros diatónico, cromático y enarmónico), la escala mayor o harmonia, el monocordio y las proporciones pitagóricas (octava 2:1, quinta 3:2, cuarta 4:3).",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Detallar la notación alfabética instrumental y vocal griega.",
+        "type": "contenido"
+      },
+      {
+        "id": "R3",
+        "description": "Analizar el Epitafio de Seikilos: soporte arqueológico (columna estela de mármol), modo frigio/jonio, texto y sentido filosófico.",
+        "type": "análisis de obra"
+      },
+      {
+        "id": "R4",
+        "description": "Incluir un esquema cronológico o línea temporal ordenada desde Pitágoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmisión tardoantigua en Boecio y San Agustín.",
+        "type": "línea temporal"
+      },
+      {
+        "id": "R5",
+        "description": "Diseñar actividades prácticas en el aula donde el alumnado aplique la teoría: transcripción rítmica, entonación guiada y debate colectivo.",
+        "type": "actividad"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Cada claim de la propuesta debe estar vinculado al requisito correspondiente en coverage. Si un requisito está \"cubierto\", enlaza sus claims; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Teoria musical griega, notacion y epitafio de seikilos\",\"context\":{\"group\":{\"level\":\"3º GP\",\"language\":\"gl\"},\"duration_minutes\":60,\"teacher_criteria\":\"Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo.\\n\",\"requirements\":[{\"id\":\"R1\",\"description\":\"Explicar el sistema musical griego antiguo: los tetracordos (géneros diatónico, cromático y enarmónico), la escala mayor o harmonia, el monocordio y las proporciones pitagóricas (octava 2:1, quinta 3:2, cuarta 4:3).\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Detallar la notación alfabética instrumental y vocal griega.\",\"type\":\"contenido\"},{\"id\":\"R3\",\"description\":\"Analizar el Epitafio de Seikilos: soporte arqueológico (columna estela de mármol), modo frigio/jonio, texto y sentido filosófico.\",\"type\":\"análisis de obra\"},{\"id\":\"R4\",\"description\":\"Incluir un esquema cronológico o línea temporal ordenada desde Pitágoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmisión tardoantigua en Boecio y San Agustín.\",\"type\":\"línea temporal\"},{\"id\":\"R5\",\"description\":\"Diseñar actividades prácticas en el aula donde el alumnado aplique la teoría: transcripción rítmica, entonación guiada y debate colectivo.\",\"type\":\"actividad\"}],\"unit\":{\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[]}},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: teoria-griega-seikilos\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3).\"},{\"id\":\"quote_002\",\"text\":\" Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono).\"},{\"id\":\"quote_003\",\"text\":\" Pitágoras (c. 530 a.\"},{\"id\":\"quote_004\",\"text\":\" C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3).\"},{\"id\":\"quote_005\",\"text\":\" Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C.\"},{\"id\":\"quote_006\",\"text\":\" Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C.\"},{\"id\":\"quote_007\",\"text\":\" La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental.\"},{\"id\":\"quote_008\",\"text\":\" El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C.\"},{\"id\":\"quote_009\",\"text\":\" y el I d.\"},{\"id\":\"quote_010\",\"text\":\" C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva.\"},{\"id\":\"quote_011\",\"text\":\" Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis \"}]},{\"source_id\":\"S2\",\"title\":\"Fuente de evaluación: teoria-griega-seikilos\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"ua que se conserva.\"},{\"id\":\"quote_002\",\"text\":\" Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis y líneas para duraciones dobles o triples).\"},{\"id\":\"quote_003\",\"text\":\" San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-daafd29f98c64100b4df849fdb07575a",
+      "document_id": "doc-9aeef9b536c24831b13d28a25dcefdd5",
+      "version_id": "ver-4ca5d141971d4b08b3bdd9a4beae372c",
+      "segment_id": "ver-4ca5d141971d4b08b3bdd9a4beae372c:1",
+      "category": "documental",
+      "text": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3). Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono). Pitágoras (c. 530 a. C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3). Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C. Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C. La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental. El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C. y el I d. C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva. Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis ",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1199,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.18101459741592407,
+      "metadata": {
+        "origin": "bibliografia",
+        "publisher": null,
+        "doi": null,
+        "collections": [],
+        "document_type": null,
+        "tags": [],
+        "authors": [
+          "Musicología Académica"
+        ],
+        "url": null,
+        "title": "Fuente de evaluación: teoria-griega-seikilos",
+        "year": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: teoria-griega-seikilos",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    },
+    {
+      "chunk_id": "chunk-35d7f73e3a1d4a82af70c914c7c3579d",
+      "document_id": "doc-9aeef9b536c24831b13d28a25dcefdd5",
+      "version_id": "ver-4ca5d141971d4b08b3bdd9a4beae372c",
+      "segment_id": "ver-4ca5d141971d4b08b3bdd9a4beae372c:1",
+      "category": "documental",
+      "text": "ua que se conserva. Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis y líneas para duraciones dobles o triples). San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 1049,
+        "char_end": 1319,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.4452427327632904,
+      "metadata": {
+        "origin": "bibliografia",
+        "publisher": null,
+        "doi": null,
+        "collections": [],
+        "document_type": null,
+        "tags": [],
+        "authors": [
+          "Musicología Académica"
+        ],
+        "url": null,
+        "title": "Fuente de evaluación: teoria-griega-seikilos",
+        "year": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: teoria-griega-seikilos",
+      "requirement_id": "R1",
+      "source_id": "S2"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-daafd29f98c64100b4df849fdb07575a",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "El sistema musical griego antiguo se articula en torno al tetracordo, una estructura de cuatro sonidos que abarca una cuarta justa (proporción 4:3). Los géneros del tetracordo son el diatónico (semitono, tono, tono), el cromático (semitono, semitono, tono y medio) y el enarmónico (dos cuartos de tono o diesis y un ditono). La escala mayor o harmonia se construye a partir de la combinación de tetracordos.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono)."
+          }
+        ],
+        "student_summary": "El tetracordo es la base de la música griega: cuatro notas en el intervalo de cuarta. Hay tres tipos: diatónico, cromático y enarmónico, que se diferencian por cómo se reparten los intervalos dentro de esa cuarta."
+      },
+      {
+        "kind": "summary",
+        "text": "Pitágoras (c. 530 a. C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3). Estas proporciones fundamentan la afinación y la teoría armónica posterior.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Pitágoras (c. 530 a."
+          },
+          {
+            "source_id": "S1",
+            "quote": " C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3)."
+          }
+        ],
+        "student_summary": "Pitágoras descubrió que los intervalos musicales se corresponden con proporciones numéricas simples: la octava es 2:1, la quinta 3:2 y la cuarta 4:3. Lo comprobó con el monocordio, un instrumento de una sola cuerda."
+      },
+      {
+        "kind": "summary",
+        "text": "La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas, tanto en la notación vocal como en la instrumental. Además, el Epitafio de Seikilos combina notación alfabética con signos métricos cuantitativos: la stigmê para el arsis y líneas para duraciones dobles o triples.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental."
+          },
+          {
+            "source_id": "S2",
+            "quote": " Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis y líneas para duraciones dobles o triples)."
+          }
+        ],
+        "student_summary": "Los griegos escribían la música con letras de su alfabeto, que podían ir giradas o invertidas para indicar notas diferentes. En el Epitafio de Seikilos también aparecen signos rítmicos: un punto para el tiempo débil y rayas para notas más largas."
+      },
+      {
+        "kind": "summary",
+        "text": "El Epitafio de Seikilos, datado entre el siglo II a. C. y el I d. C., está grabado en una estela de mármol de Tralles (Asia Menor) y es la composición musical completa más antigua que se conserva. Está compuesto en el modo frigio (tono jonio) y su texto tiene un sentido filosófico que invita a disfrutar de la vida.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C."
+          },
+          {
+            "source_id": "S1",
+            "quote": " y el I d."
+          },
+          {
+            "source_id": "S1",
+            "quote": " C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis "
+          }
+        ],
+        "student_summary": "El Epitafio de Seikilos es la pieza musical completa más antigua que conservamos. Está tallado en una columna de mármol en Tralles (actual Turquía), en modo frigio, y su letra nos anima a vivir el presente."
+      },
+      {
+        "kind": "inference",
+        "text": "La línea temporal de la teoría musical griega se puede ordenar desde Pitágoras (c. 530 a. C.), pasando por Aristóxeno de Tarento (siglo IV a. C.), Claudio Ptolomeo (siglo II d. C.), hasta la transmisión tardoantigua en San Agustín y Boecio, quienes llevaron estas teorías a la Edad Media occidental.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Pitágoras (c. 530 a."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C."
+          },
+          {
+            "source_id": "S2",
+            "quote": " San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental."
+          }
+        ],
+        "student_summary": "La teoría musical griega evolucionó a lo largo de casi mil años: empezó con Pitágoras, siguió con Aristóxeno y Ptolomeo, y llegó a la Edad Media gracias a Boecio y San Agustín."
+      }
+    ],
+    "visualizations": [
+      {
+        "type": "sequence",
+        "title": "Línea temporal de la teoría musical griega",
+        "items": [
+          {
+            "label": "Pitágoras (c. 530 a. C.)",
+            "detail": "Investiga proporciones acústicas con el monocordio: octava 2:1, quinta 3:2, cuarta 4:3."
+          },
+          {
+            "label": "Aristóxeno de Tarento (s. IV a. C.)",
+            "detail": "Fundamenta la teoría armónica empírica."
+          },
+          {
+            "label": "Claudio Ptolomeo (s. II d. C.)",
+            "detail": "Sistematiza los modos y géneros armónicos."
+          },
+          {
+            "label": "San Agustín y Boecio (tardoantigüedad)",
+            "detail": "Transmiten estas teorías a la Edad Media occidental."
+          }
+        ],
+        "caption": "Cronología esencial desde Pitágoras hasta la transmisión tardoantigua.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Pitágoras (c. 530 a."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C."
+          },
+          {
+            "source_id": "S2",
+            "quote": " San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental."
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "title": "Géneros del tetracordo",
+        "items": [
+          {
+            "label": "Diatónico",
+            "detail": "Semitono, tono, tono"
+          },
+          {
+            "label": "Cromático",
+            "detail": "Semitono, semitono, tono y medio"
+          },
+          {
+            "label": "Enarmónico",
+            "detail": "Dos cuartos de tono (diesis) y un ditono"
+          }
+        ],
+        "caption": "Distribución interválica en los tres géneros del tetracordo griego.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono)."
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1,
+          2
+        ],
+        "note": "Se explican tetracordos, géneros, monocordio y proporciones pitagóricas."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          3
+        ],
+        "note": "Se detalla la notación alfabética instrumental y vocal, y los signos métricos."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          4
+        ],
+        "note": "Se analiza el Epitafio de Seikilos: soporte, modo frigio/jonio, texto y sentido filosófico."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          5
+        ],
+        "note": "Se incluye línea temporal desde Pitágoras hasta Boecio y San Agustín."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "note": "Se diseñan actividades prácticas de transcripción rítmica, entonación guiada y debate colectivo."
+      }
+    ],
+    "plan": {
+      "objectives": [
+        "Comprender la estructura del tetracordo y sus géneros, así como las proporciones pitagóricas fundamentales.",
+        "Identificar los principios de la notación alfabética griega vocal e instrumental.",
+        "Analizar el Epitafio de Seikilos en su contexto arqueológico, modal y filosófico.",
+        "Situar cronológicamente las principales figuras de la teoría musical griega y su transmisión tardoantigua.",
+        "Aplicar estos conocimientos en tareas prácticas de transcripción rítmica, entonación y debate."
+      ],
+      "difficulty": "Intermedio. Se requieren conocimientos básicos de intervalos y notación musical moderna para relacionarlos con los conceptos griegos.",
+      "activities": [
+        {
+          "title": "Transcripción rítmica del Epitafio de Seikilos",
+          "teacher_notes": "Proporciona el texto original con signos métricos (stigmê y líneas) y guía la correspondencia con figuras rítmicas actuales. Recuerda que la stigmê indica arsis y las líneas duraciones dobles o triples.",
+          "student_task": "Transcribe la línea rítmica del Epitafio de Seikilos usando figuras musicales actuales, a partir de los signos métricos griegos.",
+          "grouping": "individual",
+          "deliverable": "Partitura rítmica en notación moderna.",
+          "solution": "La stigmê se transcribe como una nota breve (p. ej. corchea) y las líneas como valores más largos (negra, blanca), según el contexto métrico.",
+          "instructions": "Observa los signos sobre el texto, asigna duraciones y escribe la línea rítmica en un pentagrama.",
+          "minutes": 15,
+          "claim_ids": [
+            3,
+            4
+          ]
+        },
+        {
+          "title": "Entonación guiada del modo frigio",
+          "teacher_notes": "Explica la estructura del modo frigio (tono jonio) y su relación con los tetracordos. Acompaña al piano o con un instrumento melódico para afianzar la afinación.",
+          "student_task": "Entona la melodía del Epitafio de Seikilos siguiendo la escala frigia, prestando atención a los intervalos característicos.",
+          "grouping": "colectivo",
+          "deliverable": "Grabación audio o interpretación en clase.",
+          "solution": "La melodía se ajusta a la escala frigia; se puede partir de una nota base y cantar los intervalos según la teoría de tetracordos.",
+          "instructions": "Escucha la escala frigia, luego canta la melodía por imitación y finalmente con la partitura.",
+          "minutes": 20,
+          "claim_ids": [
+            1,
+            4
+          ]
+        },
+        {
+          "title": "Debate sobre el sentido filosófico del Epitafio",
+          "teacher_notes": "Modera el debate relacionando el texto con la filosofía epicúrea y estoica. Fomenta la participación y el respeto por las opiniones.",
+          "student_task": "Participa en un debate sobre el mensaje del Epitafio de Seikilos y su relación con la visión de la vida en la Antigua Grecia.",
+          "grouping": "grupo",
+          "deliverable": "Conclusiones escritas del grupo.",
+          "solution": "El texto invita a disfrutar del presente y a no entristecerse por lo efímero de la vida, en línea con corrientes filosóficas helenísticas.",
+          "instructions": "Lee el texto traducido, forma grupos y prepara argumentos para el debate.",
+          "minutes": 15,
+          "claim_ids": [
+            4
+          ]
+        },
+        {
+          "title": "Línea temporal colaborativa",
+          "teacher_notes": "Proporciona tarjetas con nombres y fechas. Supervisa la ordenación y explica la importancia de cada figura.",
+          "student_task": "Ordena cronológicamente las figuras clave (Pitágoras, Aristóxeno, Ptolomeo, Boecio, San Agustín) y añade una breve descripción de su aportación.",
+          "grouping": "grupo",
+          "deliverable": "Póster o línea temporal en papel o digital.",
+          "solution": "Pitágoras (c. 530 a. C.), Aristóxeno (s. IV a. C.), Ptolomeo (s. II d. C.), Boecio y San Agustín (tardoantigüedad).",
+          "instructions": "Usa las tarjetas, investiga brevemente y coloca cada figura en orden con su aportación.",
+          "minutes": 10,
+          "claim_ids": [
+            5
+          ]
+        }
+      ],
+      "resources": [
+        "Partitura del Epitafio de Seikilos con notación griega y transcripción moderna.",
+        "Grabaciones de reconstrucciones del Epitafio de Seikilos.",
+        "Monocordio virtual o instrumento de cuerda para demostrar proporciones.",
+        "Tarjetas con nombres y fechas para la línea temporal.",
+        "Pizarra o proyector para esquemas."
+      ],
+      "assessment": "Observación directa de la transcripción rítmica, evaluación de la entonación y participación en el debate. Se valorará la comprensión de los conceptos teóricos y la capacidad de relacionarlos con el repertorio.",
+      "observations": "El grupo es de 3º de Grao Profesional y la duración es de 60 minutos. Las actividades suman 60 minutos. No se han encontrado fuentes que detallen la escala mayor o harmonia más allá de su mención; se ha cubierto con la información disponible sobre tetracordos. La notación vocal e instrumental se ha tratado según las fuentes."
+    }
+  },
+  "metrics": {
+    "retrieval_ranking": {
+      "scores": [
+        {
+          "chunk_id": "chunk-daafd29f98c64100b4df849fdb07575a",
+          "score": 3
+        },
+        {
+          "chunk_id": "chunk-2243d0e14b2a46989a2702d7fcee5bd5",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-e115dada5e7b4420b6751711f611da2d",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-0d5a8b63d62c406ea2f94ae86f2a8c68",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-35d7f73e3a1d4a82af70c914c7c3579d",
+          "score": 2
+        }
+      ],
+      "selected": [
+        "chunk-daafd29f98c64100b4df849fdb07575a",
+        "chunk-35d7f73e3a1d4a82af70c914c7c3579d"
+      ],
+      "batches": 2
+    },
+    "retrieval_queries": [
+      "Teoria musical griega, notacion y epitafio de seikilos\nEnfoque indicado por el profesor: Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo.",
+      "Greek music theory tetrachords genera diatonic chromatic enharmonic harmonia monocord Pythagorean ratios octave fifth fourth",
+      "notación alfabética griega instrumental vocal Epitafio de Seikilos columna estela mármol modo frigio jonío",
+      "Pythagoras Aristoxenus Ptolemy Boethius Augustine transmission late antiquity timeline ancient Greek music",
+      "Epitafio de Seikilos análisis texto filosofía modo frigio jonío notación griega",
+      "actividades aula teoría musical griega transcripción rítmica entonación guiada debate",
+      "ancient Greek musical notation instrumental vocal symbols Seikilos epitaph",
+      "Greek tetrachord genera diatonic chromatic enharmonic scale harmonia monocord",
+      "Pythagorean proportions music octave 2:1 fifth 3:2 fourth 4:3 Greek theory",
+      "Explicar el sistema musical griego antiguo: los tetracordos (géneros diatónico, cromático y enarmónico), la escala mayor o harmonia, el monocordio y las proporciones pitagóricas (octava 2:1, quinta 3:2, cuarta 4:3).",
+      "Detallar la notación alfabética instrumental y vocal griega.",
+      "Analizar el Epitafio de Seikilos: soporte arqueológico (columna estela de mármol), modo frigio/jonio, texto y sentido filosófico."
+    ],
+    "retrieval_method": "hybrid-rrf:1",
+    "retrieval_profile_id": "95828952e6e34f9023fa5d130943863a8b91fa6d7c6f08fb15af4fe9cd69760c",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 2,
+    "retrieval_seconds": 13.99,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 2932,
+          "output": 3477
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "prompt_eval_count": 2932,
+    "eval_count": 3477,
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "transport_retries": 0,
+    "estimated_input_bytes": 10677,
+    "omitted_count": 5
+  },
+  "review": null,
+  "warnings": []
+}

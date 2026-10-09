@@ -243,6 +243,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             raise ValueError('Elige una materia.')
         values = {'title': data.get('title'), 'authors': data.get('authors', [])}
         values['year'] = data.get('year')
+        if 'origin' in data and data['origin']:
+            values['origin'] = data['origin']
         return JSONResponse(await run_in_threadpool(update_document, ws.db, request.path_params['id'], values=values, subjects=[subject]))
 
     async def generation(request):

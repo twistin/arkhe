@@ -575,11 +575,13 @@ expone un booleano y permite borrar la entrada del Llavero. La instantánea de
 generación en SQLite contiene únicamente ese booleano. Un filtro global protege
 handlers existentes y futuros y enmascara también el texto de las excepciones.
 
-## Contrato de reparación: grounded-answer:6 y pedagogy:6
+## Contrato de reparación: grounded-answer:6 y pedagogy:7
 
 Ambos flujos pasan por `service.ask` y `generation.repair.generate_validated`.
 Hay una llamada inicial y hasta dos reintentos de contenido. La decisión usa
 excepciones tipadas, nunca comparaciones de mensajes:
+
+En `pedagogy:7`, el validador exige marcar la modalidad práctica (`[Individual]`, `[En grupo]` o `[Colectivo]`) en las actividades con instrucción de reparación clara, normaliza esquemas cronológicos estructurados con fechas hacia `sequence`, y depura sufijos de rangos de minutos en los títulos de actividades tanto en validación como en renderizado.
 
 | Tipo | Acción |
 |---|---|
@@ -855,9 +857,34 @@ próxima fecha prioritaria y el listado completo en las cinco vistas.
 No inventa duración. El cliente de calendario externo gestiona las notificaciones;
 la aplicación no instala servicios ni programa avisos del sistema.
 
-El contrato pedagógico `pedagogy:7` exige explícitamente de 1 a 30 evidencias
-por bloque documental y separa las actividades originales en el plan.
+- El contrato pedagógico se actualiza a `pedagogy:9` incorporando extracción y verificación de requisitos:
+  - Fase `extract_requirements`: extrae de 1 a 8 requisitos atómicos (`id`, `description`, `type` enum: `contenido`, `análisis de obra`, `línea temporal`, `actividad`, `formato`) a partir del tema y los criterios del docente usando decodificación estructurada, persistidos en el registro (`request_json`).
+  - Recuperación dirigida por requisito: consultas orientadas que garantizan que el presupuesto de contexto se distribuya asignando fuentes a cada requisito antes de rellenar con candidatos generales, registrando en `omitted` los requisitos sin pasajes.
+  - Campo `coverage` en la respuesta estructurada: lista con `requirement_id`, `status` (`cubierto`, `sin_fuentes`, `parcial`), `claim_ids` y `note`. El validador exige que todos los requisitos estén presentes, que un estado 'cubierto' enlace claims, que 'sin_fuentes' no tenga claims asociados y que no aparezcan claims ajenos a los requisitos y a la programación.
+  - Renderizado: tabla inicial de cobertura de requisitos en la Guía Docente y en la interfaz web, con aviso destacado para los requisitos sin fuentes en la biblioteca.
 La validación clasifica listas ausentes, vacías o excesivas como `evidence_count`.
 La reparación acotada pide eliminar bloques sin respaldo y reajustar `claim_ids`
 y duración; nunca añade citas por código ni relaja su resolución exacta.
 Los tres intentos siguen sujetos a la validación completa antes de publicar.
+
+## Clasificación de procedencia de documentos y exclusión de IA
+
+Para preservar el rigor documental e impedir la reincorporación de textos sintéticos:
+- **Modelo de procedencia (`origin`):** Los metadatos de los documentos en la biblioteca incorporan el campo inmutable/editable `origin` (`bibliografia`, `fuente_primaria`, `programacion`, `notas_profesor`, `generado_ia`, `sin_clasificar`).
+- **Heurística de detección de IA:** `detect_ai_generated` analiza patrones textuales de exportaciones de LLM y nombres de archivos para asignar `generado_ia` por defecto en la importación.
+- **Filtrado en recuperación:** La consulta RAG (`eligible`) excluye activamente `generado_ia`, impidiendo que fragmentos sintéticos alimenten el contexto generativo.
+- **Trazabilidad en propuestas:** Cada claim renderiza sus fuentes detallando autor, título, año y localizador (página o sección). El generador clasifica la evidencia como síntesis bibliográfica, notas de profesor o contenido sin respaldo bibliográfico, emitiendo una advertencia explícita en cabecera si faltan fuentes documentales.
+
+## Arquitectura de fichas curadas y catálogo de audiciones
+
+Para desacoplar el conocimiento especializado del código fuente de renderizado y JavaScript:
+- **Módulo `teaching/fichas.py`:** Administra el directorio de fichas docentes (`data/fichas/` y fallback en `config/fichas/`). Carga y parsea documentos Markdown con cabecera YAML, indexándolos de forma estructurada según sus etiquetas y palabras clave. Durante la generación, las fichas relevantes se integran de forma dinámica en la etapa RAG como fuentes con origen `notas_profesor` o `bibliografia`.
+- **Módulo `teaching/audiciones.py`:** Gestiona el catálogo canónico de audiciones (`data/audiciones.yaml` y fallback en `config/audiciones.example.yaml`). La selección de audiciones se produce mediante identificadores únicos del catálogo. Se prohíbe taxativamente la generación libre de URLs por el modelo generativo. Si un tema no cuenta con audiciones en el catálogo, la propuesta declara el estado de recurso pendiente.
+## Rol Revisor opcional y rúbrica pedagógica (Opción B)
+
+Siguiendo el patrón de roles secuenciales acotados (Opción B de la arquitectura de agentes):
+- **Activación en configuración (`enable_review: bool = False`):** Desactivado por defecto para no aumentar costes ni latencia en flujos interactivos habituales. Configurable en `pedagogy.yaml` / `GenerationSettings`.
+- **Evaluación determinista y semántica con rúbrica:** Tras la generación y validación determinista (`pedagogy:9`), el rol revisor (`src/docente_ai/agents/reviewer.py`) recibe la propuesta completa, los requisitos extraídos, la tabla de cobertura y los mismos pasajes de evidencia recuperados. Evalúa la propuesta contra los 6 criterios de `eval/rubrica.md` (puntuación de 0 a 3: `cobertura`, `rigor_factual`, `separacion_roles`, `actividades_activas`, `adecuacion_nivel`, `temporizacion`), devolviendo un JSON estructurado con `scores`, `issues` (`field`, `issue`, `proposal`) y `summary`.
+- **Ronda de reparación acotada:** Si algún criterio de la rúbrica obtiene una puntuación inferior a 2, se ejecuta como máximo una ronda de reparación (`repair_with_review` en `generation/repair.py`) guiada estrictamente por los problemas reportados. El revisor nunca reescribe directamente el texto ni aporta hechos nuevos; el generador repara su borrador preservando el contrato de citas `quote_XXX`.
+- **Trazabilidad y renderizado transparente:** El resultado de la revisión se guarda en `metrics['auto_review']` (`scores`, `issues`, `repaired`, `summary`). La Guía Docente renderiza una sección plegable final (`<details><summary>Revisión automática (Rúbrica pedagógica)</summary>...`) que muestra la tabla de criterios, avisos de reparación y una advertencia explícita: *«Esta evaluación automática se basa en la rúbrica pedagógica interna y no sustituye la revisión ni el criterio del profesor.»*
+

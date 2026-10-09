@@ -69,7 +69,17 @@ generativo elegido, por lo que también pueden ser remotas. No requiere volver a
 
 En **Propuestas**, elige grupo, tema y duración; revisa el resultado y expórtalo
 como Markdown. Las respuestas inválidas se registran como fallidas y no se
-presentan como propuestas válidas. La revisión pedagógica sigue siendo del profesor.
+presentan como propuestas válidas. Con el contrato `pedagogy:8`, cada actividad separa
+estrictamente las notas metodológicas del docente (`teacher_notes`), la tarea en 2ª persona
+para el alumno (`student_task`), la agrupación estructurada (`grouping`), el entregable
+esperado (`deliverable`) y la solución o criterios de corrección (`solution`). Además,
+cada claim incluye una síntesis redactada para el nivel del grupo (`student_summary`)
+y el plan incorpora un campo de evaluación formativa (`assessment`). El renderizado
+garantiza que el material del alumnado nunca contenga notas internas ni soluciones
+del profesor. También limpia minutos duplicados en los títulos, normaliza erratas en
+el encabezado (preservando el texto original) y convierte cronologías a secuencias.
+Las propuestas de contratos anteriores conservan compatibilidad hacia atrás.
+La revisión pedagógica sigue siendo del profesor.
 
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes
@@ -955,3 +965,39 @@ es requisito; el dominio europeo no demuestra por sí solo todas las ubicaciones
 
 La guía incluye instalación, cuenta inicial, DNS/HTTPS, firewall, copias, actualización
 y recuperación, además del diseño futuro de una instancia aislada por profesor.
+
+## Extracción y cobertura de requisitos del profesor
+
+A partir del contrato `pedagogy:9`:
+- El sistema ejecuta una fase inicial estructurada (`extract_requirements`) que descompone el tema y los criterios del profesor en requisitos atómicos (`contenido`, `análisis de obra`, `línea temporal`, `actividad`, `formato`).
+- La recuperación documental planifica consultas dirigidas por requisito y reparte el presupuesto RAG para que ningún requisito quede sin fuentes disponibles, registrando omisiones si no existen pasajes en la biblioteca.
+- La respuesta generada incluye una auditoría de `coverage` donde cada requisito debe marcarse como `cubierto` (enlazando contenidos documentados), `sin_fuentes` o `parcial`.
+- La Guía Docente y la interfaz web presentan una tabla frontal de cobertura destacando de forma inmediata los requisitos que carecen de fuentes en la biblioteca del profesor.
+
+## Clasificación de procedencia y trazabilidad de fuentes
+
+Para garantizar que los textos generados por IA no se reciclen como evidencia documental y que cada contenido señale con precisión su fundamentación:
+- **Campo `origin` en biblioteca:** Cada documento se clasifica en uno de estos orígenes: `bibliografia`, `fuente_primaria`, `programacion`, `notas_profesor`, `generado_ia` o `sin_clasificar`.
+- **Detección automática de IA:** Al importar documentos desde la interfaz web o la CLI, si el texto o archivo presenta rasgos de borrador generado por IA (encabezados de Arkhé, marcas de chat, registros de ejecución), se clasifica automáticamente por defecto como `generado_ia`.
+- **Exclusión estricta de `generado_ia`:** Los documentos marcados como `generado_ia` nunca entran como evidencia en la recuperación RAG ni en las propuestas docentes.
+- **Papel de las notas del profesor:** Los documentos con origen `notas_profesor` sirven como orientación pedagógica cuando se solicitan explícitamente, pero no reemplazan a la bibliografía ni a las fuentes primarias.
+- **Pestaña y filtro «Sin clasificar»:** Los documentos previos o no clasificados quedan en estado `sin_clasificar` y se muestran en una pestaña dedicada en la biblioteca para su revisión y actualización manual por parte del profesor.
+- **Fuentes reales por contenido:** Bajo cada contenido de la guía docente se desglosa la fuente real con autor, título, año y localizador exacto (página o sección).
+- **Distinción de síntesis y avisos veraces:** El sistema distingue entre «Síntesis respaldada por bibliografía», «Síntesis basada en notas del profesor» y «Contenido sin respaldo bibliográfico». Si algún contenido carece de fuentes bibliográficas, la cabecera advierte de forma explícita y veraz sobre esta circunstancia.
+
+## Fichas curadas y catálogo de audiciones verificadas
+
+Para evitar la inclusión de contenido estático y tablas fijas en el código:
+- **Directorio de fichas curadas (`data/fichas/`, con respaldo en `config/fichas/`):** Archivos Markdown con metadatos frontmatter YAML (`tema`, `periodo`, `palabras_clave`, `tipo`, `fuente_bibliografica`, `fecha_verificacion`). Las fichas se indexan y recuperan de forma dinámica en el pipeline RAG como fuentes con origen `notas_profesor` o `bibliografia` según su frontmatter. Incluye plantilla de ficha (`00_plantilla_ficha.md`) y ejemplo de Grecia (`grecia_teoria_y_seikilos.md`) con campos factuales marcados como `PENDIENTE DE VERIFICAR`.
+- **Catálogo de audiciones verificadas (`data/audiciones.yaml` y `config/audiciones.example.yaml`):** Obras musicales con compositor, movimiento, intérprete, URL, bibliografía, puntos de escucha y comentario docente. Las audiciones se resuelven por identificador de catálogo (`listening_ids`), asegurando que las URLs procedan exclusivamente del repositorio verificado y nunca sean generadas libremente por el modelo.
+- **Recursos pendientes explícitos:** Si un tema propuesto carece de audiciones en el catálogo verificado, la propuesta y la interfaz advierten expresamente: *«Recurso de audición pendiente de incorporar al catálogo»*.
+
+## Revisión pedagógica automática y reparación (opcional)
+
+- **Configuración (`enable_review`):** Desactivada por defecto (`enable_review: false`) para preservar la agilidad de generación interactiva y ahorrar llamadas/tokens del modelo.
+- **Rol Revisor (Rúbrica de 6 criterios):** Cuando se activa, un evaluador especializado audita la propuesta contra la rúbrica oficial (`eval/rubrica.md`): cobertura de requisitos, rigor factual y citas, separación docente/alumnado, actividades activas y prácticas, adecuación al nivel educativo y temporización.
+- **Ronda de auto-reparación acotada:** Si alguna dimensión puntúa por debajo de 2 (escala 0-3), se activa una ronda de reparación guiada por los problemas detectados (`repair_with_review`), sin que el revisor invente hechos ni reescriba libremente el contenido.
+- **Auditoría visible:** Los resultados de la rúbrica se guardan en el run y se muestran en una sección plegable de la Guía Docente con aviso explícito de que no sustituyen la revisión del profesor.
+- **Herramienta de benchmark (`scripts/run_eval.py`):** Permite comparar el impacto con `--with-review` y `--compare-review`.
+
+

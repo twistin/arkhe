@@ -1,0 +1,659 @@
+{
+  "id": "run-66ed5dc67587414e999505f9afe967c2",
+  "created_at": "2026-10-09T07:12:16.824466+00:00",
+  "finished_at": "2026-10-09T07:13:06.764302+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "deepseek-chat",
+  "digest": null,
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "deepseek-chat",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 65536,
+      "max_output_tokens": 8192,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "deepseek",
+      "base_url": "https://api.deepseek.com",
+      "data_residency": "fuera-ue",
+      "response_format": "json_object",
+      "remote_consent": "6987143b86819a667cd09efd950933da08e18b105ffe648c6b7e56770fb12091",
+      "enable_review": true,
+      "api_key_configured": true
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.\n",
+      "prior_experience": null,
+      "session": null,
+      "topic": "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi",
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "Explicar el bajo continuo: basso continuo, bajo cifrado y su realización armónica al clave, órgano o tiorba.",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Explicar el principio de concertación y la polaridad tiple-bajo en la música instrumental barroca.",
+          "type": "contenido"
+        },
+        {
+          "id": "R3",
+          "description": "Describir el nacimiento y evolución del concerto: concerto grosso (contraste concertino vs. ripieno/tutti) y concerto solista.",
+          "type": "contenido"
+        },
+        {
+          "id": "R4",
+          "description": "Analizar el modelo de Arcangelo Corelli: op. 6 (concerto grosso) y sonata a tre da chiesa y da camera.",
+          "type": "análisis de obra"
+        },
+        {
+          "id": "R5",
+          "description": "Analizar el modelo de Antonio Vivaldi: op. 3 L'estro armonico, estructura en tres movimientos (rápido-lento-rápido) y forma ritornello.",
+          "type": "análisis de obra"
+        },
+        {
+          "id": "R6",
+          "description": "Realizar una audición comparativa de movimientos de Corelli y Vivaldi.",
+          "type": "actividad"
+        },
+        {
+          "id": "R7",
+          "description": "Identificar auditivamente ritornellos y solos en las obras escuchadas.",
+          "type": "actividad"
+        },
+        {
+          "id": "R8",
+          "description": "Analizar guiadamente un pasaje de partitura de bajo continuo cifrado por parejas.",
+          "type": "actividad"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "Explicar el bajo continuo: basso continuo, bajo cifrado y su realización armónica al clave, órgano o tiorba.",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Explicar el principio de concertación y la polaridad tiple-bajo en la música instrumental barroca.",
+        "type": "contenido"
+      },
+      {
+        "id": "R3",
+        "description": "Describir el nacimiento y evolución del concerto: concerto grosso (contraste concertino vs. ripieno/tutti) y concerto solista.",
+        "type": "contenido"
+      },
+      {
+        "id": "R4",
+        "description": "Analizar el modelo de Arcangelo Corelli: op. 6 (concerto grosso) y sonata a tre da chiesa y da camera.",
+        "type": "análisis de obra"
+      },
+      {
+        "id": "R5",
+        "description": "Analizar el modelo de Antonio Vivaldi: op. 3 L'estro armonico, estructura en tres movimientos (rápido-lento-rápido) y forma ritornello.",
+        "type": "análisis de obra"
+      },
+      {
+        "id": "R6",
+        "description": "Realizar una audición comparativa de movimientos de Corelli y Vivaldi.",
+        "type": "actividad"
+      },
+      {
+        "id": "R7",
+        "description": "Identificar auditivamente ritornellos y solos en las obras escuchadas.",
+        "type": "actividad"
+      },
+      {
+        "id": "R8",
+        "description": "Analizar guiadamente un pasaje de partitura de bajo continuo cifrado por parejas.",
+        "type": "actividad"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Cada claim de la propuesta debe estar vinculado al requisito correspondiente en coverage. Si un requisito está \"cubierto\", enlaza sus claims; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi\",\"context\":{\"group\":{\"level\":\"3º GP\",\"language\":\"gl\"},\"duration_minutes\":60,\"teacher_criteria\":\"Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.\\n\",\"requirements\":[{\"id\":\"R1\",\"description\":\"Explicar el bajo continuo: basso continuo, bajo cifrado y su realización armónica al clave, órgano o tiorba.\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Explicar el principio de concertación y la polaridad tiple-bajo en la música instrumental barroca.\",\"type\":\"contenido\"},{\"id\":\"R3\",\"description\":\"Describir el nacimiento y evolución del concerto: concerto grosso (contraste concertino vs. ripieno/tutti) y concerto solista.\",\"type\":\"contenido\"},{\"id\":\"R4\",\"description\":\"Analizar el modelo de Arcangelo Corelli: op. 6 (concerto grosso) y sonata a tre da chiesa y da camera.\",\"type\":\"análisis de obra\"},{\"id\":\"R5\",\"description\":\"Analizar el modelo de Antonio Vivaldi: op. 3 L'estro armonico, estructura en tres movimientos (rápido-lento-rápido) y forma ritornello.\",\"type\":\"análisis de obra\"},{\"id\":\"R6\",\"description\":\"Realizar una audición comparativa de movimientos de Corelli y Vivaldi.\",\"type\":\"actividad\"},{\"id\":\"R7\",\"description\":\"Identificar auditivamente ritornellos y solos en las obras escuchadas.\",\"type\":\"actividad\"},{\"id\":\"R8\",\"description\":\"Analizar guiadamente un pasaje de partitura de bajo continuo cifrado por parejas.\",\"type\":\"actividad\"}],\"unit\":{\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[]}},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: barroco-concerto-grosso\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot).\"},{\"id\":\"quote_002\",\"text\":\" Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes.\"},{\"id\":\"quote_003\",\"text\":\" Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op.\"},{\"id\":\"quote_004\",\"text\":\" 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda).\"},{\"id\":\"quote_005\",\"text\":\" Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op.\"},{\"id\":\"quote_006\",\"text\":\" 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-24d91fc212154ba793f5fccf9ed1f688",
+      "document_id": "doc-30fd1cd65e364975a1ceb84532b2e3a7",
+      "version_id": "ver-6ffaa6b2e34b4536b31f7936078545d8",
+      "segment_id": "ver-6ffaa6b2e34b4536b31f7936078545d8:1",
+      "category": "documental",
+      "text": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot). Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes. Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op. 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda). Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op. 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1051,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.1433650106191635,
+      "metadata": {
+        "origin": "bibliografia",
+        "publisher": null,
+        "doi": null,
+        "collections": [],
+        "document_type": null,
+        "tags": [],
+        "authors": [
+          "Musicología Académica"
+        ],
+        "url": null,
+        "title": "Fuente de evaluación: barroco-concerto-grosso",
+        "year": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: barroco-concerto-grosso",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R6",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R7",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R8",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-24d91fc212154ba793f5fccf9ed1f688",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "O baixo continuo (basso continuo) é a base da música instrumental barroca: unha liña de baixo sostida, complementada por cifras que indican os acordes, realizada por instrumentos armónicos (clave, órgano, tiorba, laúde) xunto con instrumentos melódicos graves (violonchelo, viola da gamba, fagot). Esta práctica sustenta a polaridade tiple-baixo e o principio de concertación entre forzas sonoras contrastantes.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes."
+          }
+        ],
+        "student_summary": "O baixo continuo é unha liña de baixo con cifras que indican os acordes; realízase con clave, órgano ou tiorba xunto a violonchelo, viola da gamba ou fagot. Esta base sostén a polaridade entre a melodía aguda (tiple) e o baixo, e permite o xogo de contrastes entre grupos sonoros."
+      },
+      {
+        "kind": "summary",
+        "text": "O principio de concertación e a polaridade tiple-baixo son dous eixes da música instrumental barroca. A polaridade refírese á textura a dúas voces extremas (tiple e baixo) sustentada polo continuo; a concertación é o diálogo e contraste entre forzas sonoras distintas, que se concreta no concerto grosso e no concerto solista.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes."
+          }
+        ],
+        "student_summary": "A polaridade tiple-baixo é a textura a dúas voces extremas sostida polo continuo. O principio de concertación é o diálogo e contraste entre grupos sonoros, que dá lugar ao concerto grosso e ao concerto solista."
+      },
+      {
+        "kind": "summary",
+        "text": "Arcangelo Corelli (1653-1713) fixou os modelos da sonata a tre (da chiesa e da camera) e do concerto grosso (op. 6). O concerto grosso baséase na alternancia e diálogo dinámico entre o concertino (pequeno grupo de solistas, habitualmente dous violíns e violonchelo) e o ripieno ou tutti (o groso da orquestra de corda).",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda)."
+          }
+        ],
+        "student_summary": "Corelli fixou a sonata a tre (da chiesa e da camera) e o concerto grosso op. 6. No concerto grosso, o concertino (dous violíns e violonchelo) dialoga e alterna co ripieno ou tutti (toda a corda)."
+      },
+      {
+        "kind": "summary",
+        "text": "Antonio Vivaldi (1678-1741) consolidou o concerto solista e a estrutura tripartita en tres movementos (rápido-lento-rápido) en coleccións como L'estro armonico op. 3. Estableceu o ritornello formal, onde o tutti orquestral expón o tema principal e os episodios solistas modulan con virtuosismo concertante.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante."
+          }
+        ],
+        "student_summary": "Vivaldi consolidou o concerto solista e a estrutura en tres movementos (rápido-lento-rápido) en L'estro armonico op. 3. Na forma ritornello, o tutti expón o tema principal e os solos modulan con virtuosismo."
+      },
+      {
+        "kind": "inference",
+        "text": "A partir das fontes pódese inferir que a audición comparativa entre Corelli e Vivaldi permite observar a evolución desde o concerto grosso (contraste concertino/ripieno) cara ao concerto solista con ritornello. A identificación auditiva de ritornellos e solos é viable porque a fonte describe explicitamente a alternancia entre tutti e episodios solistas.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante."
+          }
+        ],
+        "student_summary": "Ao escoitar Corelli e Vivaldi podes comparar o contraste concertino/ripieno coa alternancia tutti/solo do ritornello. Identifica cando soa o tutti e cando o solista para ver a evolución do concerto."
+      }
+    ],
+    "visualizations": [
+      {
+        "type": "table",
+        "title": "Comparación: Corelli vs. Vivaldi",
+        "items": [
+          {
+            "label": "Corelli (op. 6)",
+            "detail": "Concerto grosso: alternancia e diálogo entre concertino (dous violíns e violonchelo) e ripieno/tutti. Tamén sonata a tre da chiesa e da camera."
+          },
+          {
+            "label": "Vivaldi (op. 3)",
+            "detail": "Concerto solista e estrutura en tres movementos (rápido-lento-rápido). Forma ritornello: tutti expón o tema, solos modulan con virtuosismo."
+          }
+        ],
+        "caption": "Síntese comparativa dos dous modelos a partir das fontes.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante."
+          }
+        ]
+      },
+      {
+        "type": "sequence",
+        "title": "Do baixo continuo ao concerto",
+        "items": [
+          {
+            "label": "Basso continuo",
+            "detail": "Liña de baixo con cifras, realizada por clave/órgano/tiorba e instrumentos graves."
+          },
+          {
+            "label": "Polaridade tiple-baixo",
+            "detail": "Textura a dúas voces extremas sostida polo continuo."
+          },
+          {
+            "label": "Principio de concertación",
+            "detail": "Diálogo e contraste entre forzas sonoras."
+          },
+          {
+            "label": "Concerto grosso",
+            "detail": "Concertino vs. ripieno/tutti (Corelli, op. 6)."
+          },
+          {
+            "label": "Concerto solista",
+            "detail": "Estrutura rápido-lento-rápido e forma ritornello (Vivaldi, op. 3)."
+          }
+        ],
+        "caption": "Secuencia conceptual desde a base do continuo ata o concerto solista.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda)."
+          },
+          {
+            "source_id": "S1",
+            "quote": " Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op."
+          },
+          {
+            "source_id": "S1",
+            "quote": " 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante."
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "A fonte describe o basso continuo, o cifrado e os instrumentos de realización."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          1,
+          2
+        ],
+        "note": "A fonte menciona explicitamente a polaridade tiple-baixo e o principio de concertación."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          3,
+          4
+        ],
+        "note": "A fonte describe o concerto grosso (concertino vs. ripieno) e o concerto solista."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          3
+        ],
+        "note": "A fonte cita Corelli, op. 6, sonata a tre da chiesa e da camera e concerto grosso."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          4
+        ],
+        "note": "A fonte cita Vivaldi, L'estro armonico op. 3, estrutura en tres movementos e ritornello."
+      },
+      {
+        "requirement_id": "R6",
+        "status": "parcial",
+        "claim_ids": [
+          5
+        ],
+        "note": "A fonte permite inferir a comparación, pero non describe unha audición concreta."
+      },
+      {
+        "requirement_id": "R7",
+        "status": "parcial",
+        "claim_ids": [
+          5
+        ],
+        "note": "A fonte describe a alternancia tutti/solos, o que permite a identificación auditiva, pero non é unha actividade explícita."
+      },
+      {
+        "requirement_id": "R8",
+        "status": "sin_fuentes",
+        "claim_ids": [],
+        "note": "Non hai fontes que documenten o análise guiado dun pasaje de partitura de baixo continuo cifrado."
+      }
+    ],
+    "plan": {
+      "objectives": [
+        "Comprender o funcionamento do baixo continuo e a súa realización armónica.",
+        "Recoñecer a polaridade tiple-baixo e o principio de concertación.",
+        "Distinguir as características do concerto grosso e do concerto solista.",
+        "Identificar auditivamente ritornellos e solos en obras de Corelli e Vivaldi."
+      ],
+      "difficulty": "Nivel intermedio-alto (3º Grao Profesional). Requírese familiaridade coa análise auditiva e vocabulario musical básico.",
+      "activities": [
+        {
+          "title": "Audición comparativa Corelli vs. Vivaldi",
+          "teacher_notes": "Seleccionar un movemento de Corelli (op. 6) e outro de Vivaldi (op. 3). Guiar a escoita cara ao contraste concertino/ripieno e tutti/solo.",
+          "student_task": "Escoita os dous fragmentos e anota as diferenzas na textura, o número de solistas e o tipo de contraste.",
+          "grouping": "colectivo",
+          "deliverable": "Táboa comparativa con 3-4 diferenzas.",
+          "solution": "Corelli: alternancia concertino (dous violíns e violonchelo) e ripieno. Vivaldi: solista virtuoso con tutti que expón o ritornello.",
+          "instructions": "Primeira escoita sen apuntar; segunda escoita con atención ao tutti e aos solos.",
+          "minutes": 20,
+          "claim_ids": [
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "title": "Identificación de ritornellos e solos",
+          "teacher_notes": "Usar un movemento de Vivaldi (op. 3) e marcar as entradas do tutti e dos episodios solistas.",
+          "student_task": "Marca nunha folla as veces que escoitas o tema principal (ritornello) e cando soa o solista.",
+          "grouping": "individual",
+          "deliverable": "Esquema temporal con marcas R (ritornello) e S (solo).",
+          "solution": "O tutti expón o tema principal e os episodios solistas modulan con virtuosismo concertante.",
+          "instructions": "Escoita atentamente as entradas do tutti e dos solos; podes escoitar o fragmento dúas veces.",
+          "minutes": 15,
+          "claim_ids": [
+            4,
+            5
+          ]
+        },
+        {
+          "title": "Análise guiado de baixo cifrado por parellas",
+          "teacher_notes": "Proporcionar un pasaxe sinxelo de baixo cifrado (p. ex. de Corelli) e guiar a lectura das cifras e a súa realización.",
+          "student_task": "En parellas, lede o baixo cifrado e identificade os acordes indicados polas cifras; despois realizade unha versión sinxela ao teclado.",
+          "grouping": "grupo",
+          "deliverable": "Realización escrita ou tocada dos acordes do pasaxe.",
+          "solution": "As cifras indican os intervalos sobre o baixo; a realización completa a harmonía segundo o estilo.",
+          "instructions": "Primeiro identificade a tonalidade e as notas do baixo; logo interpretade as cifras como acordes.",
+          "minutes": 25,
+          "claim_ids": [
+            1,
+            2
+          ]
+        }
+      ],
+      "resources": [
+        "Gravacións de Corelli, op. 6 (concerto grosso) e Vivaldi, op. 3 L'estro armonico.",
+        "Partitura dun pasaxe sinxelo de baixo cifrado (Corelli ou similar).",
+        "Teclado ou piano para a realización do baixo continuo.",
+        "Follas de traballo para a audición e o esquema de ritornellos."
+      ],
+      "assessment": "Observación directa durante as actividades: participación na audición, precisión na identificación de ritornellos e solos, e corrección da realización do baixo cifrado. Valorar a capacidade de relacionar os conceptos coas obras escoitadas.",
+      "observations": "A fonte non documenta o análise guiado de partitura de baixo cifrado (R8), polo que a actividade correspondente é unha proposta didáctica baseada nos conceptos xerais do continuo. As actividades de audición comparativa e identificación auditiva son inferencias a partir da descrición das obras."
+    }
+  },
+  "metrics": {
+    "retrieval_ranking": {
+      "scores": [
+        {
+          "chunk_id": "chunk-24d91fc212154ba793f5fccf9ed1f688",
+          "score": 3
+        },
+        {
+          "chunk_id": "chunk-70f08af2385a4109b9322bb22d8ea4bc",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-9b21f00365804cfdaa3708291c0ac6d0",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-8f8bf2e60e134ef8a7bd287b9a6c73b2",
+          "score": 0
+        },
+        {
+          "chunk_id": "chunk-d420ae6c8bc9468cacaff656e0fc895c",
+          "score": 0
+        }
+      ],
+      "selected": [
+        "chunk-24d91fc212154ba793f5fccf9ed1f688"
+      ],
+      "batches": 2
+    },
+    "retrieval_queries": [
+      "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi\nEnfoque indicado por el profesor: Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.",
+      "Corelli Vivaldi concerto grosso basso continuo instrumental Baroque",
+      "bajo continuo bajo cifrado realización armónica clave órgano tiorba Corelli Vivaldi",
+      "concerto grosso concertino ripieno tutti Corelli op. 6 Vivaldi op. 3 L'estro armonico",
+      "Vivaldi ritornello form three-movement fast-slow-fast concerto structure",
+      "Corelli sonata da chiesa sonata da camera trio sonata instrumental Baroque",
+      "principio de concertación polaridad tiple-bajo música instrumental Barroco",
+      "instrumental music seventeenth early eighteenth century Baroque concerto grosso solo concerto",
+      "Corelli Vivaldi análisis partitura bajo continuo cifrado audición comparativa",
+      "Explicar el bajo continuo: basso continuo, bajo cifrado y su realización armónica al clave, órgano o tiorba.",
+      "Explicar el principio de concertación y la polaridad tiple-bajo en la música instrumental barroca.",
+      "Describir el nacimiento y evolución del concerto: concerto grosso (contraste concertino vs. ripieno/tutti) y concerto solista."
+    ],
+    "retrieval_method": "hybrid-rrf:1",
+    "retrieval_profile_id": "95828952e6e34f9023fa5d130943863a8b91fa6d7c6f08fb15af4fe9cd69760c",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 1,
+    "retrieval_seconds": 15.7,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 2607,
+          "output": 3278
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "prompt_eval_count": 2607,
+    "eval_count": 3278,
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "transport_retries": 0,
+    "auto_review": {
+      "scores": {
+        "cobertura": 3,
+        "rigor_factual": 3,
+        "separacion_roles": 2,
+        "actividades_activas": 3,
+        "adecuacion_nivel": 3,
+        "temporizacion": 1
+      },
+      "issues": [
+        {
+          "field": "plan.activities[2].grouping",
+          "issue": "La actividad 3 se describe como 'por parejas' en el título y en el enunciado, pero el campo 'grouping' indica 'grupo', lo que contradice la agrupación explícita solicitada y puede inducir a confusión sobre la organización del aula.",
+          "proposal": "Cambiar el valor de 'grouping' a 'parejas' para que coincida con la tarea descrita y con el requisito R8."
+        },
+        {
+          "field": "plan.activities[0].minutes + plan.activities[1].minutes + plan.activities[2].minutes",
+          "issue": "La suma de las duraciones de las tres actividades (20 + 15 + 25 = 60 minutos) consume exactamente el tiempo total de la sesión, sin margen para la introducción, la explicación de conceptos, la puesta en común ni los cierres. La temporización no es realista para una clase de 60 minutos.",
+          "proposal": "Reducir la duración de las actividades (por ejemplo, 15, 10 y 15 minutos) y asignar los 20 minutos restantes a la explicación inicial de conceptos, la transición entre tareas y la puesta en común final."
+        },
+        {
+          "field": "plan.activities[2].student_task",
+          "issue": "La tarea de realizar una versión sencilla al teclado puede exceder el nivel esperado en 3º de Grao Profesional si no se ha trabajado previamente la realización de bajo cifrado; además, no se especifica si todos los alumnos tienen competencias de teclado.",
+          "proposal": "Ajustar la tarea para que la realización sea escrita (identificación de acordes y cifrado) y ofrecer la opción de tocar al teclado solo a quienes tengan esa destreza, o simplificar el pasaje para que sea accesible a todos."
+        },
+        {
+          "field": "plan.activities[0].solution",
+          "issue": "La solución de la actividad 1 afirma que en Vivaldi hay 'solista virtuoso con tutti que expón el ritornello', pero no menciona que en Corelli también puede haber pasajes solistas dentro del concertino; la comparación puede resultar simplista y no refleja matices de la fuente.",
+          "proposal": "Ampliar la solución indicando que en Corelli el contraste se da entre concertino y ripieno, mientras que en Vivaldi el solista individual dialoga con el tutti; evitar afirmaciones absolutas sobre ausencia de solos en Corelli."
+        },
+        {
+          "field": "plan.activities[1].student_task",
+          "issue": "La tarea de marcar entradas del tutti y solos es adecuada, pero no se especifica qué hacer si el fragmento tiene múltiples secciones o si el ritornello se repite; puede generar confusión en la identificación.",
+          "proposal": "Indicar que se marquen las entradas del tema principal (ritornello) y los episodios solistas, y que se anote si el ritornello reaparece total o parcialmente, para fomentar una escucha más analítica."
+        },
+        {
+          "field": "plan.activities[2].claim_ids",
+          "issue": "La actividad 3 se vincula a los claims 1 y 2 (bajo continuo y polaridad/concertación), pero no hay una fuente que documente el análisis de un pasaje de bajo cifrado (R8). Aunque se reconoce en observaciones, la actividad no está respaldada por evidencia directa.",
+          "proposal": "Mantener la actividad como propuesta didáctica, pero añadir en las notas del profesor que se basa en los conceptos generales del continuo y no en una fuente específica sobre análisis de partituras cifradas."
+        }
+      ],
+      "summary": "La propuesta cubre todos los requisitos con rigor factual y actividades activas bien diseñadas, pero presenta un desajuste temporal grave (60 minutos exactos sin margen para explicaciones) y una inconsistencia en la agrupación de la actividad 3. La separación de roles es aceptable, aunque la guía docente y el material del alumnado no están completamente diferenciados en secciones separadas. Se recomienda ajustar la temporización y corregir la agrupación para mejorar la viabilidad en el aula.",
+      "repaired": false,
+      "tokens": {
+        "input": 5572,
+        "output": 1081
+      }
+    },
+    "estimated_input_bytes": 9654,
+    "omitted_count": 8
+  },
+  "review": null,
+  "warnings": []
+}

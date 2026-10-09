@@ -39,6 +39,7 @@ class GenerationSettings:
     data_residency: str = ''
     response_format: str = ''
     remote_consent: str = ''
+    enable_review: bool = False
 
     def __post_init__(self):
         if self.provider not in PRESETS:
@@ -85,6 +86,8 @@ class GenerationSettings:
                 raise ValueError(f'{key} debe ser un número entre {low} y {high}.')
         if type(self.think) is not bool:
             raise ValueError('think debe ser true o false.')
+        if type(self.enable_review) is not bool:
+            raise ValueError('enable_review debe ser true o false.')
 
     @property
     def is_remote(self):

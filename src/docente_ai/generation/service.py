@@ -15,7 +15,8 @@ from docente_ai import __version__
 from docente_ai.generation.prompt import PROMPT_VERSION, build_prompt
 from docente_ai.generation.validation import validate_response
 from docente_ai.generation.errors import SourceChangedError
-from docente_ai.generation.repair import generate_validated
+from docente_ai.generation.repair import generate_validated, repair_with_review
+from docente_ai.agents.reviewer import perform_review
 from docente_ai.library.service import now, read_connection
 from docente_ai.llm.generation import OllamaGenerator
 from docente_ai.rag.ollama import OllamaEmbedder
@@ -139,13 +140,39 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         retrieval_started = time.monotonic()
         report = progress or (lambda message: None)
         retrieval_question = question
-        if pedagogy_context is not None and pedagogy_context.get('teacher_criteria', '').strip():
-            retrieval_question += '\nEnfoque indicado por el profesor: ' + pedagogy_context['teacher_criteria'].strip()
+        requirements = []
+        if pedagogy_context is not None:
+            pedagogy_context['topic'] = question
+            teacher_crit = pedagogy_context.get('teacher_criteria', '').strip()
+            if teacher_crit:
+                retrieval_question += '\nEnfoque indicado por el profesor: ' + teacher_crit
+            if 'requirements' in pedagogy_context and pedagogy_context['requirements']:
+                requirements = pedagogy_context['requirements']
+            else:
+                from docente_ai.rag.planning import extract_requirements
+                report('Extrayendo requisitos pedagógicos')
+                # Solo pasar generator_factory si estamos en recuperación avanzada con modelo real,
+                # para no consumir diálogos de fakes en tests.
+                extractor_factory = generator_factory if enhanced_retrieval else None
+                requirements = extract_requirements(question, teacher_crit, settings, generator_factory=extractor_factory)
+                pedagogy_context['requirements'] = requirements
+            request['requirements'] = requirements
+            with closing(connect(db)) as connection, connection:
+                connection.execute('UPDATE generation_runs SET request_json=? WHERE id=?', (dump(request), run_id))
+
         variants = []
         if sources and enhanced_retrieval:
             from docente_ai.rag.planning import plan_queries
             report('Preparando búsqueda multilingüe')
+            # Generar consultas orientadas al tema y a los requisitos pedagógicos
             variants = plan_queries(retrieval_question, settings, generator_factory=generator_factory)
+            if requirements:
+                for req in requirements:
+                    req_desc = req['description'].strip()
+                    if req_desc and req_desc not in variants and req_desc != question:
+                        variants.append(req_desc)
+                variants = list(dict.fromkeys(variants))[:11]
+
         programming_results = []
         if sources:
             report('Buscando pasajes en tus fuentes')
@@ -153,6 +180,23 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             with embedder_factory(rag_settings) as embedder:
                 retrieved = search(db, rag_settings, embedder, retrieval_question, subject=subject,
                                    category=category, document_ids=document_ids, top_k=max(top_k, 24) if variants else top_k, max_distance=max_distance, query_variants=variants)
+                
+                # Búsqueda específica por requisito para garantizar que cada uno tenga candidatos etiquetados
+                if requirements:
+                    existing_chunks = {r['chunk_id']: r for r in retrieved['results']}
+                    for req in requirements:
+                        req_query = f"{question} {req['description']}"
+                        req_res = search(db, rag_settings, embedder, req_query, subject=subject,
+                                         category=category, document_ids=document_ids, top_k=4, max_distance=max_distance)
+                        for r_item in req_res['results']:
+                            cid = r_item['chunk_id']
+                            if cid not in existing_chunks:
+                                r_item['requirement_id'] = req['id']
+                                retrieved['results'].append(r_item)
+                                existing_chunks[cid] = r_item
+                            elif 'requirement_id' not in existing_chunks[cid]:
+                                existing_chunks[cid]['requirement_id'] = req['id']
+
                 # La programación fija el marco de la propuesta. Se recupera por
                 # separado para que un corpus grande no la expulse por similitud.
                 programming_ids = [source['document_id'] for source in programming_sources]
@@ -216,6 +260,43 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             result, raw = generate_validated(generator, bundle['messages'], validator, metrics,
                                             check=check, report=report, sanitize_response=not is_local,
                                             on_dialogue=lambda dialogue: record_prompt(db, run_id, {**bundle, 'messages': dialogue}, model_id, digest))
+
+            # Paso de revisión opcional si está activado en settings y la propuesta fue respondida
+            if getattr(settings, 'enable_review', False) and result.get('status') == 'answered' and pedagogy_context is not None:
+                report('Ejecutando revisión pedagógica con la rúbrica')
+                requirements = pedagogy_context.get('requirements') or []
+                review_data = perform_review(
+                    generator, result, requirements, bundle['evidence'], pedagogy_context, question, report=report
+                )
+                min_score = min(review_data.get('scores', {}).values()) if review_data.get('scores') else 3
+                had_repair = False
+                if min_score < 2 and review_data.get('issues'):
+                    try:
+                        repaired_result, repaired_raw = repair_with_review(
+                            generator, bundle['messages'], raw, review_data['issues'], validator, metrics,
+                            check=check, report=report, sanitize_response=not is_local
+                        )
+                        result, raw = repaired_result, repaired_raw
+                        had_repair = True
+                        # Re-evaluar tras la reparación para registrar el estado final
+                        review_data = perform_review(
+                            generator, result, requirements, bundle['evidence'], pedagogy_context, question, report=report
+                        )
+                    except Exception as rep_exc:
+                        # Si la ronda de reparación falla, conservamos la propuesta validada previa
+                        report('La ronda de reparación no prosperó; conservando propuesta original')
+                review_tokens = review_data.get('_metrics', {})
+                metrics['auto_review'] = {
+                    'scores': review_data.get('scores'),
+                    'issues': review_data.get('issues'),
+                    'summary': review_data.get('summary'),
+                    'repaired': had_repair,
+                    'tokens': {
+                        'input': review_tokens.get('prompt_eval_count'),
+                        'output': review_tokens.get('eval_count'),
+                    } if review_tokens else None
+                }
+
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         complete(status='draft' if result['status'] == 'answered' else 'abstained',
                result=result, raw=raw, metrics=metrics, evidence=bundle['evidence'], request=request)

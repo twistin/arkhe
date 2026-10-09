@@ -86,7 +86,11 @@ export function libraryResults() {
   const docs = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store
     .selected)) && (!store.selectedPeriod || d.period === store.selectedPeriod) && (store.tab === 'all' ||
     store.tab === 'pending' && !d.enabled ||
-    store.tab === 'sin_clasificar' && (d.metadata.origin === 'sin_clasificar' || d.metadata.origin === 'posible_generado_ia' || !d.metadata.origin) ||
+    store.tab === 'sin_clasificar' && (
+      d.metadata.origin === 'sin_clasificar' ||
+      d.metadata.origin === 'posible_generado_ia' ||
+      !d.metadata.origin
+    ) ||
     d.category === store.tab) && [
     [
       `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} `,
@@ -210,7 +214,11 @@ export async function showDocument(id) {
     `${option('fuente_primaria', 'Fuente primaria', doc.metadata.origin||'sin_clasificar')}`,
     `${option('programacion', 'Programación didáctica', doc.metadata.origin||'sin_clasificar')}`,
     `${option('notas_profesor', 'Notas del profesor', doc.metadata.origin||'sin_clasificar')}`,
-    `${option('posible_generado_ia', 'Posible generado por IA (por confirmar)', doc.metadata.origin||'sin_clasificar')}`,
+    `${option(
+      'posible_generado_ia',
+      'Posible generado por IA (por confirmar)',
+      doc.metadata.origin||'sin_clasificar'
+    )}`,
     `${option('generado_ia', 'Generado por IA', doc.metadata.origin||'sin_clasificar')}`,
     `${option('sin_clasificar', 'Sin clasificar', doc.metadata.origin||'sin_clasificar')}`,
     `</select></div><button class="button small" type="submit">Guardar `,
