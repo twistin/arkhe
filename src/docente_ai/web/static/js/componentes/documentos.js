@@ -6,6 +6,7 @@ import {
   getRunListenings,
   is15thCenturyPolyphony,
   isAncientEgypt,
+  normalizeTopic,
   renderEgyptListeningsHTML,
   renderListeningCardItem,
 } from './audiciones.js';
@@ -68,9 +69,15 @@ export function resultHTML(run) {
     groupLabel, levelLabel
   ].filter(Boolean).join(' · ');
 
-  const titleText = run.title || run.request.question || (isPedagogy ? 'Propuesta pedagógica' :
+  const rawQuestion = (run.request?.question || '').trim();
+  const normalizedQuestion = normalizeTopic(rawQuestion);
+  const rawTitle = (run.title || '').trim();
+  const titleText = rawTitle || normalizedQuestion || (isPedagogy ? 'Propuesta pedagógica' :
     'Consulta documental');
-  const hasLongQuestion = run.title && run.title.trim() !== (run.request.question || '').trim();
+  const hasLongQuestion = (rawTitle && rawTitle !== rawQuestion) ||
+    (rawQuestion && normalizedQuestion !== rawQuestion);
+  const subtitleText = (rawTitle && rawTitle !== rawQuestion) ? rawQuestion :
+    (normalizedQuestion !== rawQuestion ? `Tema original propuesto: ${rawQuestion}` : '');
 
   let content = [
     `<section class="panel result result-document"><header class="result-cover"><div `,
@@ -98,7 +105,7 @@ export function resultHTML(run) {
     ].join(''),
     `</div><h2 class="result-title">${e(titleText)}</h2>`,
     `${
-      hasLongQuestion ? `<p class="result-subtitle">${e(run.request.question)}</p>` : ''
+      subtitleText ? `<p class="result-subtitle">${e(subtitleText)}</p>` : ''
     }`,
     `</div><div class="result-actions">${controls}</div></header>`
   ].join('');
@@ -155,6 +162,22 @@ export function resultHTML(run) {
     ].join('');
   }
   for (const warning of run.warnings || []) content += `<div class="notice warning">${e(warning)}</div>`;
+  const runClaims = run.result?.claims || [];
+  const hasUnbackedClaim = runClaims.some(claim => {
+    const evs = claim.evidence || [];
+    return !evs.some(ev => {
+      const src = (run.evidence || []).find(s => s.source_id === ev.source_id);
+      const orig = src?.metadata?.origin || (src?.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
+      return orig === 'bibliografia' || orig === 'fuente_primaria';
+    });
+  });
+  if (hasUnbackedClaim && runClaims.length > 0) {
+    content += [
+      '<div class="notice warning"><strong>Aviso de fundamentación:</strong> ',
+      'Algunos contenidos carecen de fuente bibliográfica en la biblioteca ',
+      '(se apoyan en notas del profesor o deducción de IA).</div>'
+    ].join('');
+  }
   if (review?.notes) content += [
     `<div class="notice"><strong>Notas del profesor:</strong> ${e(review.notes)}</div>`
   ].join('');
@@ -186,6 +209,44 @@ export function resultHTML(run) {
       ].join('');
     }
 
+    const requirements = context.requirements || run.request?.requirements || [];
+    const coverage = run.result?.coverage || [];
+    if (coverage.length || requirements.length) {
+      const covMap = new Map(coverage.map(item => [item.requirement_id, item]));
+      const reqMap = new Map(requirements.map(item => [item.id, item]));
+      const allIds = [...new Set([...reqMap.keys(), ...covMap.keys()])];
+
+      content += [
+        `\n    <div class="pedagogy-block coverage-block">\n      <div class="block-header">\n        `,
+        `<span class="block-num">🎯</span>\n        <div>\n          <h3>Cobertura de requisitos del profesor`,
+        `</h3>\n          <p class="block-desc">Verificación de peticiones temáticas frente a la biblioteca.</p>\n`,
+        `        </div>\n      </div>\n      <div class="table-container">\n        `,
+        `<table class="coverage-table">\n          <thead>\n            <tr>\n              <th>ID</th>\n`,
+        `              <th>Requisito</th>\n              <th>Tipo</th>\n              <th>Estado</th>\n`,
+        `              <th>Contenidos</th>\n`,
+        `              <th>Observaciones</th>\n            </tr>\n          </thead>\n`,
+        `          <tbody>\n`,
+        allIds.map(rid => {
+          const req = reqMap.get(rid) || {};
+          const cov = covMap.get(rid) || {};
+          const desc = req.description || rid;
+          const rtype = req.type || 'contenido';
+          const st = cov.status || (req ? 'sin_fuentes' : 'cubierto');
+          const badgeClass = st === 'cubierto' ? 'success' : st === 'parcial' ? 'warning' : 'danger';
+          const badgeText = st === 'cubierto' ? 'Cubierto' : st === 'parcial' ? 'Parcial' : '⚠️ Sin fuentes';
+          const claims = (cov.claim_ids || []).map(cid => '#' + String(cid)).join(', ') || '—';
+          const note = cov.note || '—';
+          return [
+            `            <tr>\n              <td><strong>${e(rid)}</strong></td>\n              `,
+            `<td>${e(desc)}</td>\n              <td>${e(rtype)}</td>\n              `,
+            `<td><span class="status-badge ${badgeClass}">${e(badgeText)}</span></td>\n              `,
+            `<td>${e(claims)}</td>\n              <td>${e(note)}</td>\n            </tr>\n`
+          ].join('');
+        }).join(''),
+        `          </tbody>\n        </table>\n      </div>\n    </div>`
+      ].join('');
+    }
+
     content += [
       `\n    <div class="pedagogy-block">\n      <div class="block-header">\n        `,
       `<span class="block-num">01</span>\n        <div>\n          <h3>Objetivos de `,
@@ -205,18 +266,27 @@ export function resultHTML(run) {
       `class="block-header">\n        <span class="block-num">02</span>\n        <div>`,
       `\n          <h3>Secuencia de aula</h3>\n          <p class="block-desc">Ritmo de `,
       `trabajo, dinámica y propósito de cada tramo.</p>\n        </div>\n      </div>\n `,
-      `     <div class="timeline-stepper">\n        `,
+      `      <div class="timeline-stepper">\n        `,
       [
         `${
           plan.activities.map((a, idx) => {
             const start = elapsed;
             elapsed += a.minutes;
-            const textToScan = (a.title + ' ' + a.instructions).toLowerCase();
-            const isGroup = /grupo|pareja|equipo|colectiv|debate|coral|conjunto/i.test(textToScan);
-            const isIndiv = /individual|personal|autónom|cada alumno/i.test(textToScan);
-            const dynamicBadge = isGroup ? '<span class="step-pill-group">Práctica en Grupo / Parejas</span>' :
-              isIndiv ? '<span class="step-pill-indiv">Ejercicio Individual</span>' :
-              '<span class="step-pill-class">Práctica Colectiva</span>';
+            let dynamicBadge = '';
+            if (a.grouping === 'grupo') {
+              dynamicBadge = '<span class="step-pill-group">Práctica en Grupo</span>';
+            } else if (a.grouping === 'individual') {
+              dynamicBadge = '<span class="step-pill-indiv">Ejercicio Individual</span>';
+            } else if (a.grouping === 'colectivo') {
+              dynamicBadge = '<span class="step-pill-class">Práctica Colectiva</span>';
+            } else {
+              const textToScan = (a.title + ' ' + (a.instructions || '') + ' ' + (a.teacher_notes || '')).toLowerCase();
+              const isGroup = /grupo|pareja|equipo|colectiv|debate|coral|conjunto/i.test(textToScan);
+              const isIndiv = /individual|personal|autónom|cada alumno/i.test(textToScan);
+              dynamicBadge = isGroup ? '<span class="step-pill-group">Práctica en Grupo / Parejas</span>' :
+                isIndiv ? '<span class="step-pill-indiv">Ejercicio Individual</span>' :
+                '<span class="step-pill-class">Práctica Colectiva</span>';
+            }
             return [
               `\n          <div class="timeline-step">\n            <div class="step-timing">\n `,
               `             <span class="timing-range">${start}–${elapsed}`,
@@ -228,18 +298,32 @@ export function resultHTML(run) {
                 `\n                </div>\n                <span class="step-claims-badge">Fundamento: Contenidos `
               ].join(''),
               `${e(a.claim_ids.map(c => '#' + c).join(', '))}`,
-              [
-                `</span>\n              </div>\n              <p class="step-instructions">${e(a.instructions)}`
-              ].join(''),
-              `</p>\n            </div>\n          </div>`
+              a.teacher_notes ? [
+                `              <p class="step-teacher-notes"><strong>Pautas docentes:</strong> `,
+                `${e(a.teacher_notes)}</p>\n`
+              ].join('') : '',
+              a.instructions ? `              <p class="step-instructions">${e(a.instructions)}</p>\n` : '',
+              a.student_task ? [
+                `              <p class="step-student-task"><strong>Consigna del alumno:</strong> `,
+                `${e(a.student_task)}</p>\n`
+              ].join('') : '',
+              a.deliverable ? [
+                `              <p class="step-deliverable"><strong>Entregable:</strong> `,
+                `${e(a.deliverable)}</p>\n`
+              ].join('') : '',
+              a.solution ? [
+                `              <div class="step-solution"><strong>Solución / Criterios de corrección:</strong><br>`,
+                `${formatMarkdown(a.solution)}</div>\n`
+              ].join('') : '',
+              `            </div>\n          </div>`
             ].join('');
           }).join('')
         }`
       ].join(''),
       `\n      </div>\n    </div>\n\n    <div class="pedagogy-block">\n      <div `,
       `class="block-header">\n        <span class="block-num">03</span>\n        <div>`,
-      `\n          <h3>Organización</h3>\n          <p class="block-desc">Recursos, `,
-      `dificultad prevista y ajustes metodológicos.</p>\n        </div>\n      </div>\n `,
+      `\n          <h3>Organización y evaluación</h3>\n          <p class="block-desc">Recursos, `,
+      `evaluación formativa, dificultad y observaciones.</p>\n        </div>\n      </div>\n `,
       `     <div class="pedagogy-details-grid">\n        <div class="detail-card">\n    `,
       [
         `      <h4>Recursos a preparar</h4>\n          <ul class="clean-bullet-list">\n            `
@@ -247,7 +331,12 @@ export function resultHTML(run) {
       `${plan.resources.map(r => `<li>${e(r)}</li>`).join('')}`,
       `\n          </ul>\n        </div>\n        <div class="detail-card">\n          `,
       `<h4>Nivel y dificultad</h4>\n          <p>${e(plan.difficulty)}`,
-      `</p>\n        </div>\n        <div class="detail-card wide">\n          <h4>`,
+      `</p>\n        </div>\n`,
+      plan.assessment ? [
+        `        <div class="detail-card wide">\n          <h4>Evaluación de la sesión</h4>\n          <p>`,
+        `${e(plan.assessment)}</p>\n        </div>\n`
+      ].join('') : '',
+      `        <div class="detail-card wide">\n          <h4>`,
       `Observaciones didácticas de IA</h4>\n          <p>${e(plan.observations)}`,
       `</p>\n        </div>\n      </div>\n    </div>`
     ].join('');
@@ -266,13 +355,51 @@ export function resultHTML(run) {
 
   for (const [index, claim] of claims.entries()) {
     const isInf = claim.kind === 'inference';
-    const tag = plan ? [
-      `CONTENIDO ${index + 1} · ${(isInf ? 'ANÁLISIS E INFERENCIA' : 'SÍNTESIS DOCUMENTAL')}`
-    ].join('') : (isInf ? 'ANÁLISIS E INFERENCIA' : 'SÍNTESIS');
+    const evs = claim.evidence || [];
+    let hasBib = false;
+    let hasProf = false;
+    for (const ev of evs) {
+      const src = (run.evidence || []).find(s => s.source_id === ev.source_id);
+      const orig = src?.metadata?.origin || (src?.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
+      if (orig === 'bibliografia' || orig === 'fuente_primaria') hasBib = true;
+      else if (orig === 'notas_profesor') hasProf = true;
+    }
+    const label = isInf ? 'ANÁLISIS E INFERENCIA' :
+      hasBib ? 'SÍNTESIS RESPALDADA POR BIBLIOGRAFÍA' :
+      hasProf ? 'SÍNTESIS BASADA EN NOTAS DEL PROFESOR' :
+      'CONTENIDO SIN RESPALDO BIBLIOGRÁFICO';
+    const tag = plan ? `CONTENIDO ${index + 1} · ${label}` : label;
+    const tagClass = isInf ? 'tag-inf' : (hasBib ? 'tag-syn' : 'tag-warn');
+
+    let claimSourcesHTML = '';
+    if (!evs.length) {
+      claimSourcesHTML = [
+        '<p class="claim-source-empty"><em>Sin fuente bibliográfica identificada ',
+        '(deducción / notas).</em></p>'
+      ].join('');
+    } else {
+      claimSourcesHTML = '<div class="claim-sources-list"><strong>Fuentes:</strong><ul>' + evs.map(ev => {
+        const src = (run.evidence || []).find(s => s.source_id === ev.source_id);
+        if (!src) return '';
+        const m = src.metadata || {};
+        const auth = m.authors?.join('; ') || 'Sin autor identificado';
+        const yr = m.year ? ` (${e(m.year)})` : '';
+        const loc = locatorLabel(src.locator || {});
+        const orig = m.origin || (src.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
+        const origLabel = orig === 'notas_profesor' ? ' [Notas profesor]' :
+          (orig === 'fuente_primaria' ? ' [Fuente primaria]' : ' [Bibliografía]');
+        return [
+          `<li><strong>${e(auth)}</strong>${yr}. `,
+          `<em>${e(m.title||'')}</em>, ${e(loc)}${e(origLabel)} — «${e(ev.quote||'')}»</li>`
+        ].join('');
+      }).join('') + '</ul></div>';
+    }
+
     content += [
       `\n    <div class="academic-section">\n      <div class="section-tag-bar">\n      `,
-      `  <span class="academic-tag ${isInf ? 'tag-inf' : 'tag-syn'}">${e(tag)}`,
-      `</span>\n      </div>\n      <div class="claim-body">${formatMarkdown(claim.text)}</div>\n    </div>`
+      `  <span class="academic-tag ${tagClass}">${e(tag)}`,
+      `</span>\n      </div>\n      <div class="claim-body">${formatMarkdown(claim.text)}</div>\n      `,
+      `${claimSourcesHTML}\n    </div>`
     ].join('');
   }
   content += `</div></div>`;

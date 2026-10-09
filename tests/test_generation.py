@@ -367,7 +367,7 @@ def test_cli_ask_show_and_safe_export(corpus, tmp_path, monkeypatch, capsys):
     assert main(['ask', '¿Qué es el pulso?', '--subject', 'historia-i', '--db', str(db), '--output', str(output), '--json']) == 0
     result = json.loads(capsys.readouterr().out)
     assert result['status'] == 'draft'
-    assert 'Síntesis de IA' in output.read_text()
+    assert 'Síntesis respaldada por bibliografía' in output.read_text()
     assert main(['generation', 'show', result['id'], '--db', str(db), '--json']) == 0
     assert json.loads(capsys.readouterr().out)['id'] == result['id']
     assert main(['ask', 'Otra consulta', '--subject', 'historia-i', '--db', str(db), '--output', str(output)]) == 1
@@ -485,7 +485,7 @@ def test_edit_plan_invalidates_review(corpus):
     from docente_ai.agents.pedagogy import context_for
     # Necesitamos un borrador pedagógico con plan para poder editar
     db, doc, rag, settings = corpus
-    settings = dc_replace(settings, num_ctx=8192, max_output_tokens=1536)
+    settings = dc_replace(settings, num_ctx=12288, max_output_tokens=1536)
     pedagogy_response = {
         'status': 'answered',
         'claims': [{'kind': 'summary', 'text': 'El pulso organiza el ritmo.',
@@ -494,8 +494,8 @@ def test_edit_plan_invalidates_review(corpus):
             'objectives': ['Comprender el pulso musical'],
             'difficulty': 'Introductorio',
             'activities': [
-                {'title': 'Escucha activa', 'instructions': 'Escuchar ejemplos.', 'minutes': 20, 'claim_ids': [1]},
-                {'title': 'Práctica', 'instructions': 'Marcar el pulso.', 'minutes': 10, 'claim_ids': [1]},
+                {'title': 'Escucha activa [Individual]', 'instructions': 'Escuchar ejemplos [Individual].', 'minutes': 20, 'claim_ids': [1]},
+                {'title': 'Práctica [En grupo]', 'instructions': 'Marcar el pulso [En grupo].', 'minutes': 10, 'claim_ids': [1]},
             ],
             'resources': ['Grabación de ejemplo'],
             'observations': 'Sesión introductoria',
@@ -704,3 +704,265 @@ def test_render_egypt_listening_guide():
     assert 'Michael Levy' in pedagogy_md
     assert 'https://www.youtube.com/watch?v=599YEae4DYA' in pedagogy_md
     assert 'https://www.bbc.co.uk/programmes/b010dp0s' in pedagogy_md
+
+
+def test_topic_detection_boundaries_and_sources():
+    from docente_ai.generation.render import _is_15th_century_topic
+
+    # "Barroco siglo XVIII" y "premisa estética" no deben activar polifonía
+    run_barroco = {
+        'request': {'question': 'Barroco siglo XVIII', 'pedagogy': {'teacher_criteria': ''}},
+        'result': {'claims': [{'kind': 'summary', 'text': 'El cantus firmus de la misa cíclica...'}]}
+    }
+    assert not _is_15th_century_topic(run_barroco), "No debe activar polifonía con 'siglo XVIII' ni claims"
+
+    run_premisa = {
+        'request': {'question': 'La premisa estética en el Clasicismo', 'pedagogy': {'teacher_criteria': ''}},
+        'result': {'claims': []}
+    }
+    assert not _is_15th_century_topic(run_premisa), "No debe activar polifonía con 'premisa'"
+
+    # "Ockeghem y la misa cíclica" sí debe activar polifonía
+    run_ockeghem = {
+        'request': {'question': 'Ockeghem y la misa cíclica', 'pedagogy': {'teacher_criteria': ''}},
+        'result': {'claims': []}
+    }
+    assert _is_15th_century_topic(run_ockeghem), "Debe activar polifonía con Ockeghem y misa cíclica"
+
+
+def test_activity_title_minute_stripping_and_section02_heading():
+    from docente_ai.generation.render import render_student, render_pedagogy
+
+    # Tema no polifónico con títulos de actividad que tienen minutos duplicados
+    run = {
+        'id': 'run-test-act-titles',
+        'status': 'draft',
+        'subject': 'historia-i',
+        'request': {
+            'question': 'Monodia medieval profana',
+            'pedagogy': {
+                'teacher_criteria': 'Trovadores y troveros',
+                'group': {'name': 'Historia I', 'level': '1º GP'},
+                'duration_minutes': 30,
+            }
+        },
+        'result': {
+            'claims': [{'kind': 'summary', 'text': 'La lírica trovadoresca floreció en Occitania.'}],
+            'visualizations': [{
+                'type': 'sequence',
+                'title': 'Evolución poética',
+                'caption': 'Etapas',
+                'items': [{'label': 'Fase 1', 'detail': 'Orígenes'}, {'label': 'Fase 2', 'detail': 'Apogeo'}]
+            }],
+            'plan': {
+                'objectives': ['Conocer la monodia profana.'],
+                'difficulty': 'Media',
+                'activities': [
+                    {'title': 'Análisis de texto poético (0–10 min)', 'instructions': 'Leer versos [Individual].', 'minutes': 10, 'claim_ids': [1]},
+                    {'title': 'Debate sobre el amor cortés (20 min)', 'instructions': 'Discusión guiada [En grupo].', 'minutes': 20, 'claim_ids': [1]},
+                ],
+                'resources': ['Textos poéticos'],
+                'observations': 'Sin observaciones.',
+            }
+        }
+    }
+
+    student_md = render_student(run)
+    # Comprobar punto 3: no debe tener encabezado específico de polifonía, sino 02 · Esquemas de estudio
+    assert '## 02 · Esquemas de estudio' in student_md
+    assert '## 02 · Esquema gráfico: Modelos y técnicas de composición' not in student_md
+
+    # Comprobar punto 2: los títulos no deben tener "(0–10 min)" ni "(20 min)" duplicados antes del "· X–Y min"
+    assert 'Análisis de texto poético · 0–10 min' in student_md
+    assert 'Análisis de texto poético (0–10 min)' not in student_md
+    assert 'Debate sobre el amor cortés · 10–30 min' in student_md
+    assert 'Debate sobre el amor cortés (20 min)' not in student_md
+
+    pedagogy_md = render_pedagogy(run)
+    assert '0–10 min · Análisis de texto poético' in pedagogy_md
+    assert '0–10 min · Análisis de texto poético (0–10 min)' not in pedagogy_md
+    assert '### Actividad 1: Análisis de texto poético (10 min)' in pedagogy_md
+    assert '### Actividad 1: Análisis de texto poético (0–10 min) (10 min)' not in pedagogy_md
+
+
+def test_visualization_timeline_normalized_to_sequence():
+    from docente_ai.generation.validation import validate_response
+
+    source = {
+        'source_id': 'S1',
+        'text': 'Pitágoras vivió hacia c. 530 a. C. y Aristóxeno en el siglo IV a. C.',
+        'category': 'documental',
+        'metadata': {'title': 'Teoría griega', 'authors': ['Fubini'], 'year': 1988},
+    }
+    payload = {
+        'status': 'answered',
+        'claims': [{'kind': 'summary', 'text': 'La teoría musical griega.', 'evidence': [{'source_id': 'S1', 'quote': 'quote_001'}]}],
+        'visualizations': [{
+            'type': 'relationship',
+            'title': 'Cronología de teóricos griegos',
+            'items': [
+                {'label': 'c. 530 a. C.', 'detail': 'Pitágoras de Samos y los intervalos numéricos'},
+                {'label': 'siglo IV a. C.', 'detail': 'Aristóxeno de Tarento y la percepción auditiva'}
+            ],
+            'caption': 'Evolución de la teoría musical griega.',
+            'evidence': [{'source_id': 'S1', 'quote': 'quote_001'}]
+        }]
+    }
+
+    result = validate_response(json.dumps(payload), [source])
+    # Debe normalizarse automáticamente a 'sequence'
+    assert result['visualizations'][0]['type'] == 'sequence'
+
+
+def test_activity_mode_validation():
+    from docente_ai.agents.pedagogy import validate
+    from docente_ai.generation.validation import ResponseValidationError
+
+    source = {
+        'source_id': 'S1',
+        'text': 'El contrapunto del siglo XV organiza las voces de la polifonía.',
+        'category': 'documental',
+    }
+    context = {'duration_minutes': 30}
+
+    # Sin marcador [Individual], [En grupo] o [Colectivo]
+    payload_without_marker = {
+        'status': 'answered',
+        'claims': [{'kind': 'summary', 'text': 'El contrapunto del siglo XV.', 'evidence': [{'source_id': 'S1', 'quote': 'quote_001'}]}],
+        'plan': {
+            'objectives': ['Comprender el contrapunto.'],
+            'difficulty': 'Media',
+            'activities': [
+                {'title': 'Lectura de partitura', 'instructions': 'Identificar voces.', 'minutes': 15, 'claim_ids': [1]},
+                {'title': 'Audición guiada', 'instructions': 'Escuchar movimiento.', 'minutes': 15, 'claim_ids': [1]},
+            ],
+            'resources': ['Partitura'],
+            'observations': 'Ninguna.',
+        }
+    }
+    with pytest.raises(ResponseValidationError) as exc_info:
+        validate(json.dumps(payload_without_marker), [source], context)
+    assert '[Individual], [En grupo] o [Colectivo]' in str(exc_info.value)
+
+    # Con marcador [Individual]
+    payload_with_marker = deepcopy(payload_without_marker)
+    payload_with_marker['plan']['activities'][0]['instructions'] = 'Identificar voces [Individual].'
+    validated = validate(json.dumps(payload_with_marker), [source], context)
+    assert validated['status'] == 'answered'
+
+
+def test_normalize_topic_typos_in_header():
+    from docente_ai.teaching.terms import normalize_topic
+    from docente_ai.generation.render import render_student, render_pedagogy
+
+    assert normalize_topic('Ockehem y la misa ciclica') == 'Johannes Ockeghem y la misa cíclica'
+    assert normalize_topic('Resse y Dufay') == 'Gustave Reese y Guillaume Du Fay'
+    assert normalize_topic('Teoria y epitafio de seikilos') == 'Teoria y Epitafio de Sícilo (Seikilos)'
+
+    run = {
+        'id': 'run-test-typos',
+        'status': 'draft',
+        'subject': 'historia-i',
+        'request': {
+            'question': 'Ockehem y la misa ciclica',
+            'pedagogy': {
+                'teacher_criteria': '',
+                'group': {'name': 'Historia I', 'level': '3º GP'},
+                'duration_minutes': 60,
+            }
+        },
+        'result': {
+            'claims': [{'kind': 'summary', 'text': 'Ockeghem compuso misas cíclicas.'}],
+            'plan': {
+                'objectives': ['Estudiar a Ockeghem.'],
+                'difficulty': 'Avanzada',
+                'activities': [
+                    {'title': 'Análisis [Individual]', 'instructions': 'Analizar misa.', 'minutes': 30, 'claim_ids': [1]},
+                    {'title': 'Puesta en común [Colectivo]', 'instructions': 'Debatir rasgos.', 'minutes': 30, 'claim_ids': [1]},
+                ],
+                'resources': ['Missa Prolationum'],
+                'observations': 'Ninguna.',
+            }
+        }
+    }
+    student_md = render_student(run)
+    assert '## Johannes Ockeghem y la misa cíclica' in student_md
+    assert '*Tema original propuesto:* Ockehem y la misa ciclica' in student_md
+
+    pedagogy_md = render_pedagogy(run)
+    assert 'Tema elegido: Johannes Ockeghem y la misa cíclica' in pedagogy_md
+    assert 'Tema original: Ockehem y la misa ciclica' in pedagogy_md
+
+
+def test_render_detailed_sources_and_unbacked_warning():
+    run_with_sources = {
+        'id': 'run-sources-audit',
+        'status': 'draft',
+        'request': {
+            'question': 'Polifonía del siglo XV',
+            'pedagogy': {
+                'teacher_criteria': 'Du Fay y Ockeghem',
+                'group': {'name': 'Historia I', 'level': '3º GP'},
+                'duration_minutes': 60,
+            }
+        },
+        'evidence': [
+            {
+                'source_id': 'S1',
+                'category': 'documental',
+                'metadata': {'title': 'Historia de la música occidental', 'authors': ['Grout', 'Palisca'], 'year': 2001, 'origin': 'bibliografia'},
+                'locator': {'kind': 'pdf_page', 'pdf_page_index': 185, 'section': 'Capítulo 6'},
+            },
+            {
+                'source_id': 'S2',
+                'category': 'profesor',
+                'metadata': {'title': 'Apuntes de clase', 'authors': ['Profesor'], 'year': 2024, 'origin': 'notas_profesor'},
+                'locator': {'kind': 'lines', 'line_start': 10, 'line_end': 25},
+            }
+        ],
+        'result': {
+            'claims': [
+                {
+                    'kind': 'summary',
+                    'text': 'Du Fay unificó los movimientos de la misa.',
+                    'evidence': [{'source_id': 'S1', 'quote': 'unificó la misa con cantus firmus'}]
+                },
+                {
+                    'kind': 'summary',
+                    'text': 'Ockeghem utilizó registros más graves en el contratenor bassus.',
+                    'evidence': [{'source_id': 'S2', 'quote': 'líneas vocales graves'}]
+                },
+                {
+                    'kind': 'inference',
+                    'text': 'La estética franco-flamenca anticipa el equilibrio vocal renacentista.',
+                    'evidence': []
+                }
+            ],
+            'plan': {
+                'objectives': ['Comprender la polifonía del XV.'],
+                'difficulty': 'Media',
+                'activities': [
+                    {'title': 'Audición de Du Fay', 'teacher_notes': 'Pautas.', 'student_task': 'Escucha y analiza [Individual].', 'grouping': 'individual', 'deliverable': 'Ficha.', 'solution': 'Sol.', 'minutes': 30, 'claim_ids': [1]},
+                    {'title': 'Análisis de Ockeghem', 'teacher_notes': 'Pautas.', 'student_task': 'Compara tesituras [En grupo].', 'grouping': 'grupo', 'deliverable': 'Tabla.', 'solution': 'Sol.', 'minutes': 30, 'claim_ids': [2]},
+                ],
+                'resources': ['Partituras'],
+                'observations': 'Sin observaciones.',
+            }
+        }
+    }
+
+    pedagogy_md = render_pedagogy(run_with_sources)
+    # 1. Comprobar etiquetas diferenciadas de síntesis e inferencia
+    assert 'Contenido 1 — Síntesis respaldada por bibliografía:' in pedagogy_md
+    assert 'Contenido 2 — Síntesis basada en notas del profesor:' in pedagogy_md
+    assert 'Contenido 3 — Inferencia de IA:' in pedagogy_md
+
+    # 2. Comprobar detalle de autor, título, año y localizador exacto bajo cada claim
+    assert '- **Grout; Palisca** (2001). *Historia de la música occidental*, pág. 185 (Capítulo 6) [Bibliografía]' in pedagogy_md
+    assert '- **Profesor** (2024). *Apuntes de clase*, líneas 10–25 [Notas del profesor]' in pedagogy_md
+    assert '*Fuentes:* Sin fuente bibliográfica identificada (deducción / conocimiento general).' in pedagogy_md
+
+    # 3. Comprobar aviso veraz en cabecera cuando algún contenido carece de fuente bibliográfica
+    assert 'Aviso: algunos contenidos carecen de fuente bibliográfica en la biblioteca' in pedagogy_md
+
+

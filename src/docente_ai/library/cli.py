@@ -7,7 +7,7 @@ from pathlib import Path
 from docente_ai.rag.cli import add_index, run as run_rag
 
 from docente_ai.library.service import (
-    FIELDS, LIST_FIELDS, authorize_document, import_document, list_documents,
+    FIELDS, LIST_FIELDS, ORIGINS, authorize_document, import_document, list_documents,
     show_document, update_document,
 )
 
@@ -22,7 +22,7 @@ def add_metadata_options(command):
     command.add_argument('--type', dest='document_type')
     command.add_argument('--tag', action='append', dest='tags')
     command.add_argument('--collection', action='append', dest='collections')
-    command.add_argument('--origin')
+    command.add_argument('--origin', choices=ORIGINS, help='Origen del documento en la biblioteca.')
     subjects = command.add_mutually_exclusive_group()
     subjects.add_argument('--subject', action='append', dest='subjects')
     subjects.add_argument('--clear-subjects', action='store_true')
@@ -49,6 +49,7 @@ def add_commands(commands):
         elif action == 'list':
             command.add_argument('--subject')
             command.add_argument('--category', choices=['documental', 'profesor'])
+            command.add_argument('--origin', choices=ORIGINS, help='Filtrar por origen (ej. sin_clasificar, generado_ia).')
             command.add_argument('--authorized-only', action='store_true')
         elif action == 'show':
             command.add_argument('--text', action='store_true', help='Mostrar extracción y localizadores.')
@@ -78,7 +79,8 @@ def run(args):
                                  values=metadata_values(args), subjects=[] if args.clear_subjects else args.subjects,
                                  shared=args.shared, document_id=args.document_id, max_mb=args.max_mb)
     elif args.action == 'list':
-        result = list_documents(args.db, subject=args.subject, category=args.category, authorized_only=args.authorized_only)
+        result = list_documents(args.db, subject=args.subject, category=args.category,
+                                origin=args.origin, authorized_only=args.authorized_only)
     elif args.action == 'show':
         result = show_document(args.db, args.document_id, text=args.text, version_id=args.version_id)
     elif args.action == 'update':
@@ -94,9 +96,11 @@ def run(args):
             print('No hay documentos que coincidan.')
         for item in result:
             state = 'autorizado' if item['enabled'] else 'no autorizado'
-            print(f"{item['id']} · {item['metadata']['title']} · {item['category']} · {state} · última importación: {item['latest_import_status']}")
+            orig = item['metadata'].get('origin', 'sin_clasificar')
+            print(f"{item['id']} · {item['metadata']['title']} · {item['category']} ({orig}) · {state} · última importación: {item['latest_import_status']}")
     elif args.action == 'show':
-        print(f"{result['id']} · {result['metadata']['title']} · {result['category']}")
+        orig = result['metadata'].get('origin', 'sin_clasificar')
+        print(f"{result['id']} · {result['metadata']['title']} · {result['category']} (origen: {orig})")
         print(f"Autorizado: {'sí' if result['enabled'] else 'no'} · Compartido: {'sí' if result['shared'] else 'no'}")
         print(f"Asignaturas: {', '.join(result['subjects']) or 'sin asignar'}")
         print(json.dumps(result['metadata'], ensure_ascii=False, indent=2))

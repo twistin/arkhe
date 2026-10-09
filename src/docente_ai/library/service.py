@@ -18,6 +18,31 @@ from docente_ai.storage import SCHEMA_VERSION, connect, migrate, StorageError
 FIELDS = {'title', 'authors', 'year', 'publisher', 'doi', 'url', 'document_type', 'tags', 'collections', 'origin'}
 LIST_FIELDS = {'authors', 'tags', 'collections'}
 
+ORIGINS = ('bibliografia', 'fuente_primaria', 'programacion', 'notas_profesor', 'generado_ia', 'posible_generado_ia', 'sin_clasificar')
+VALID_ORIGINS = set(ORIGINS)
+
+AI_MARKERS_REGEX = re.compile(
+    r'(?:borrador\s+generado\s+por\s+ia|'
+    r'registro:\s*run-[0-9a-f]{8,}|'
+    r'como\s+modelo\s+de\s+lenguaje|'
+    r'como\s+ia\b|'
+    r'inferencia\s+de\s+ia|'
+    r's[íi]ntesis\s+de\s+ia|'
+    r'chatgpt|openai|claude\s+ai|deepseek|ollama)',
+    re.IGNORECASE
+)
+
+
+def detect_ai_generated(text: str, filename: str = '') -> bool:
+    """Detecta si el texto o el nombre del archivo parecen proceder de un chat o generador de IA."""
+    if AI_MARKERS_REGEX.search(text):
+        return True
+    if filename:
+        fn_lower = filename.lower()
+        if fn_lower.startswith('run-') or 'propuesta_docente' in fn_lower or 'material_alumnado' in fn_lower:
+            return True
+    return False
+
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -37,6 +62,14 @@ def metadata(values: dict, *, defaults: dict | None = None) -> dict:
         elif key == 'year':
             if value is not None and (type(value) is not int or not 1 <= value <= 9999):
                 raise ValueError('El año debe ser un entero entre 1 y 9999 o desconocido.')
+        elif key == 'origin':
+            if value is not None:
+                if value not in VALID_ORIGINS:
+                    # Compatibilidad con orígenes anteriores como 'archivo local'
+                    if value == 'archivo local':
+                        result[key] = 'sin_clasificar'
+                    else:
+                        raise ValueError(f'Origen inválido: {value}. Opciones: {", ".join(ORIGINS)}.')
         elif value is not None:
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f'{key}: se esperaba texto no vacío.')
@@ -53,6 +86,8 @@ def metadata(values: dict, *, defaults: dict | None = None) -> dict:
             _ = url.port
         except ValueError:
             raise ValueError('URL bibliográfica inválida; utiliza http(s) sin credenciales.') from None
+    if result.get('origin') is None:
+        result['origin'] = 'sin_clasificar'
     return result
 
 
@@ -177,7 +212,10 @@ def import_document(
                     return {'document_id': document_id, 'version_id': chosen['id'], 'status': chosen['status'], 'changed': False,
                             'error': chosen['error'], 'message': 'Versión ya importada; no se cambia la versión activa ni su autorización.'}
         else:
-            meta = metadata(values, defaults={'title': source.stem, 'origin': 'archivo local'})
+            extracted_text = ' '.join(s.get('text', '') for s in parsed.segments)
+            detected_ai = detect_ai_generated(extracted_text, filename=source.name)
+            default_origin = 'posible_generado_ia' if detected_ai else ('notas_profesor' if category == 'profesor' else 'bibliografia')
+            meta = metadata(values, defaults={'title': source.stem, 'origin': default_origin})
             subjects = list(dict.fromkeys(subjects or []))
             check_subjects(connection, subjects)
             document_id = f'doc-{uuid4().hex}'
@@ -225,7 +263,8 @@ def read_connection(db):
     return connection
 
 
-def list_documents(db: Path, *, subject: str | None = None, category: str | None = None, authorized_only: bool = False) -> list[dict]:
+def list_documents(db: Path, *, subject: str | None = None, category: str | None = None,
+                   origin: str | None = None, authorized_only: bool = False) -> list[dict]:
     with closing(read_connection(db)) as connection:
         if subject:
             check_subjects(connection, [subject])
@@ -245,6 +284,12 @@ def list_documents(db: Path, *, subject: str | None = None, category: str | None
         for row in connection.execute(query + ' ORDER BY d.created_at,d.id', args):
             item = dict(row)
             item['metadata'] = json.loads(item['metadata'])
+            # Migración al vuelo para documentos existentes con origin legado o ausente
+            cur_origin = item['metadata'].get('origin')
+            if not cur_origin or cur_origin not in VALID_ORIGINS or cur_origin == 'archivo local':
+                item['metadata']['origin'] = 'sin_clasificar'
+            if origin and item['metadata']['origin'] != origin:
+                continue
             item['subjects'] = subjects_for(connection, item['id'])
             item['enabled'] = bool(item['enabled'])
             item['shared'] = bool(item['shared'])
@@ -256,6 +301,9 @@ def show_document(db: Path, document_id: str, *, text: bool = False, version_id:
     with closing(read_connection(db)) as connection:
         document = get_document(connection, document_id)
         document['metadata'] = json.loads(document['metadata'])
+        cur_origin = document['metadata'].get('origin')
+        if not cur_origin or cur_origin not in VALID_ORIGINS or cur_origin == 'archivo local':
+            document['metadata']['origin'] = 'sin_clasificar'
         document['enabled'] = bool(document['enabled'])
         document['shared'] = bool(document['shared'])
         document['subjects'] = subjects_for(connection, document_id)

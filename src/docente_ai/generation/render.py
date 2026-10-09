@@ -12,6 +12,69 @@ def plain(value):
     return re.sub(r'([\\`*_\[\]#!|])', r'\\\1', text)
 
 
+def format_locator(loc: dict) -> str:
+    if not loc:
+        return 'sin localizador'
+    kind = loc.get('kind')
+    if kind == 'pdf_page':
+        res = f"pág. {loc.get('pdf_page_index')}"
+    elif kind == 'docx_paragraph':
+        res = f"párrafo {loc.get('paragraph_index')}"
+    elif kind == 'docx_table':
+        res = f"tabla {loc.get('table_index')}"
+    elif 'line_start' in loc and 'line_end' in loc:
+        res = f"líneas {loc.get('line_start')}–{loc.get('line_end')}"
+    else:
+        res = str(loc)
+    if loc.get('section'):
+        res += f" ({loc['section']})"
+    return res
+
+
+def claim_synthesis_label(claim: dict, by_id: dict) -> str:
+    if claim.get('kind') == 'inference':
+        return 'Inferencia de IA'
+    evidences = claim.get('evidence') or []
+    if not evidences:
+        return 'Contenido sin respaldo bibliográfico'
+    has_bib = False
+    has_prof = False
+    for ev in evidences:
+        src = by_id.get(ev.get('source_id'), {})
+        orig = (src.get('metadata') or {}).get('origin') or ('notas_profesor' if src.get('category') == 'profesor' else 'bibliografia')
+        if orig in ('bibliografia', 'fuente_primaria'):
+            has_bib = True
+        elif orig == 'notas_profesor':
+            has_prof = True
+    if has_bib:
+        return 'Síntesis respaldada por bibliografía'
+    if has_prof:
+        return 'Síntesis basada en notas del profesor'
+    return 'Contenido sin respaldo bibliográfico'
+
+
+def format_claim_sources(claim: dict, by_id: dict) -> list[str]:
+    evidences = claim.get('evidence') or []
+    if not evidences:
+        return ['*Fuentes:* Sin fuente bibliográfica identificada (deducción / conocimiento general).']
+    lines = ['*Fuentes:*']
+    for ev in evidences:
+        src = by_id.get(ev.get('source_id'))
+        if not src:
+            continue
+        meta = src.get('metadata') or {}
+        authors = '; '.join(meta.get('authors') or []) if meta.get('authors') else 'Sin autor identificado'
+        title = meta.get('title') or 'Sin título'
+        year = str(meta.get('year')) if meta.get('year') is not None else 's. f.'
+        loc_str = format_locator(src.get('locator') or {})
+        orig = meta.get('origin') or ('notas_profesor' if src.get('category') == 'profesor' else 'bibliografia')
+        orig_tag = ' [Notas del profesor]' if orig == 'notas_profesor' else (' [Fuente primaria]' if orig == 'fuente_primaria' else ' [Bibliografía]')
+        quote = ev.get('quote', '').strip()
+        quote_part = f' — «{quote}»' if quote else ''
+        lines.append(f"- **{plain(authors)}** ({plain(year)}). *{plain(title)}*, {plain(loc_str)}{orig_tag}{quote_part}")
+    return lines
+
+
 def render(run: dict) -> str:
     if run.get('request', {}).get('pedagogy'):
         return render_pedagogy(run)
@@ -213,19 +276,40 @@ ANCIENT_EGYPT_LISTENINGS = [
 
 
 
+POLYPHONY_REGEXES = (
+    re.compile(r'\b(?:siglo\s+)?xv\b', re.IGNORECASE),
+    re.compile(r'\bockeghem\b', re.IGNORECASE),
+    re.compile(r'\bdu\s*fay\b', re.IGNORECASE),
+    re.compile(r'\bdufay\b', re.IGNORECASE),
+    re.compile(r'\bbinchois\b', re.IGNORECASE),
+    re.compile(r'\bbusnois\b', re.IGNORECASE),
+    re.compile(r'\bcantus\s+firmus\b', re.IGNORECASE),
+    re.compile(r'\bformes\s+fixes\b', re.IGNORECASE),
+    re.compile(r'\bparáfrasis\b|\bparafrasis\b', re.IGNORECASE),
+    re.compile(r'\bparodia\b', re.IGNORECASE),
+    re.compile(r'\bmisa\s+cíclica\b|\bmisa\s+ciclica\b', re.IGNORECASE),
+)
+
+EGYPT_REGEXES = (
+    re.compile(r'\begipto?\b|\begipci[ao]s?\b|\begipcia\b', re.IGNORECASE),
+    re.compile(r'\bnilo\b', re.IGNORECASE),
+    re.compile(r'\bhathor\b', re.IGNORECASE),
+    re.compile(r'\bsistro\b|\bsistros\b|\bsistrum\b', re.IGNORECASE),
+    re.compile(r'\bmenat\b', re.IGNORECASE),
+    re.compile(r'\bnebamun\b', re.IGNORECASE),
+    re.compile(r'\bmesopotamia\b', re.IGNORECASE),
+    re.compile(r'\bantigüedad\b|\bantiguedad\b|\bantiga\b', re.IGNORECASE),
+)
+
+
 def _is_15th_century_topic(run: dict[str, Any]) -> bool:
     req = run.get('request') or {}
     ped = req.get('pedagogy') or {}
-    res = run.get('result') or {}
     text = (
         str(req.get('question', '')) + ' ' +
-        str(ped.get('teacher_criteria', '')) + ' ' +
-        ' '.join(str(c.get('text', '')) for c in res.get('claims') or [])
-    ).lower()
-    return any(k in text for k in (
-        'xv', 'ockeghem', 'dufay', 'du fay', 'binchois', 'busnois', 'cantus firmus',
-        'formes fixes', 'chanson', 'paráfrasis', 'parodia', 'misa cíclica', 'misa'
-    ))
+        str(ped.get('teacher_criteria', ''))
+    )
+    return any(rx.search(text) for rx in POLYPHONY_REGEXES)
 
 
 _is_polyphony_topic = _is_15th_century_topic
@@ -234,18 +318,16 @@ _is_polyphony_topic = _is_15th_century_topic
 def _is_ancient_egypt_topic(run: dict[str, Any]) -> bool:
     req = run.get('request') or {}
     ped = req.get('pedagogy') or {}
-    res = run.get('result') or {}
+    unit = ped.get('unit') or {}
+    unit_id = str(unit.get('id') or ped.get('unit_id') or '')
+    if unit_id == 'unit-h1-1':
+        return True
     text = (
         str(req.get('question', '')) + ' ' +
         str(ped.get('teacher_criteria', '')) + ' ' +
-        str((ped.get('unit') or {}).get('title', '')) + ' ' +
-        str((ped.get('unit') or {}).get('id', '')) + ' ' +
-        ' '.join(str(c.get('text', '')) for c in res.get('claims') or [])
-    ).lower()
-    return any(k in text for k in (
-        'egipt', 'nilo', 'hathor', 'sistro', 'menat', 'nebamun',
-        'mesopotamia', 'antigüedad', 'antiga', 'unit-h1-1'
-    ))
+        str(unit.get('title', ''))
+    )
+    return any(rx.search(text) for rx in EGYPT_REGEXES)
 
 
 def _is_ntam_topic(run: dict[str, Any]) -> bool:
@@ -261,8 +343,9 @@ def _is_ntam_topic(run: dict[str, Any]) -> bool:
         str(group.get('name', '')) + ' ' +
         str(unit.get('id', '')) + ' ' +
         str(ped.get('unit_id', ''))
-    ).lower()
-    return 'ntam' in text or 'novas tecnoloxías' in text or 'nuevas tecnologías' in text
+    )
+    ntam_rx = re.compile(r'\bntam\b|\bnovas\s+tecnoloxías\b|\bnuevas\s+tecnologías\b|\bnuevas\s+tecnologias\b', re.IGNORECASE)
+    return bool(ntam_rx.search(text))
 
 
 def render_student(run: dict[str, Any]) -> str:
@@ -273,7 +356,9 @@ def render_student(run: dict[str, Any]) -> str:
     group = context.get('group') or {}
     session = context.get('session') or {}
     topic_raw = str((run.get('request') or {}).get('question', '')).strip()
-    topic = plain(topic_raw[:1].upper() + topic_raw[1:])
+    from docente_ai.teaching.terms import normalize_topic
+    normalized_raw = normalize_topic(topic_raw)
+    topic = plain(normalized_raw[:1].upper() + normalized_raw[1:])
     is_ntam = _is_ntam_topic(run)
     is_polyphony = _is_15th_century_topic(run)
     is_egypt = _is_ancient_egypt_topic(run)
@@ -281,6 +366,10 @@ def render_student(run: dict[str, Any]) -> str:
     lines = [
         '# Material de la sesión', '',
         f'## {topic}', '',
+    ]
+    if topic_raw and normalized_raw.strip().lower() != topic_raw.strip().lower():
+        lines += [f'*Tema original propuesto:* {plain(topic_raw)}', '']
+    lines += [
         f"**Materia y grupo:** {plain(group.get('name', ''))}",
         f"**Nivel:** {plain(group.get('level', ''))}",
         f"**Duración:** {context.get('duration_minutes', 0)} minutos",
@@ -303,10 +392,12 @@ def render_student(run: dict[str, Any]) -> str:
             '*Análisis histórico, organológico e iconográfico basado en Marcelle Duchesne-Guillemin, J. Peter Burkholder y Enrico Fubini.*', ''
         ]
     for index, claim in enumerate(claims, 1):
-        lines += [f"### {index}. Punto clave", '', plain(str(claim.get('text', '')).strip()), '']
+        summary_text = str(claim.get('student_summary') or claim.get('text', '')).strip()
+        lines += [f"### {index}. Punto clave", '', plain(summary_text), '']
 
-    # --- SECCIÓN 02: ESQUEMA GRÁFICO (MODELOS Y TÉCNICAS) ---
-    lines += ['', '## 02 · Esquema gráfico: Modelos y técnicas de composición', '']
+    # --- SECCIÓN 02: ESQUEMAS ---
+    sec02_title = '## 02 · Esquema gráfico: Modelos y técnicas de composición' if is_polyphony else '## 02 · Esquemas de estudio'
+    lines += ['', sec02_title, '']
     if is_polyphony:
         lines += [
             '### 1. Distribución vocálica y modelos de misa del siglo XV',
@@ -434,9 +525,15 @@ def render_student(run: dict[str, Any]) -> str:
             lines.append(f"- **Clave {index}:** {plain(str(claim.get('text', '')).strip())}")
 
     lines += ['', '### Secuencia rápida de hoy', '']
+    time_suffix_rx = re.compile(
+        r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
+        re.IGNORECASE
+    )
     for index, activity in enumerate(plan.get('activities', []), 1):
+        raw_title = str(activity.get('title', '')).strip()
+        clean_title = time_suffix_rx.sub('', raw_title).strip()
         lines.append(
-            f"- **{index}. {plain(activity.get('title', ''))}** · "
+            f"- **{index}. {plain(clean_title)}** · "
             f"{activity.get('minutes', 0)} min"
         )
 
@@ -472,11 +569,16 @@ def render_student(run: dict[str, Any]) -> str:
                 ]
         else:
             activities = plan.get('activities', [])
+            time_suffix_rx = re.compile(
+                r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
+                re.IGNORECASE
+            )
             for i in range(1, 5):
                 act = activities[i - 1] if i - 1 < len(activities) else {}
-                title = act.get('title') or f"Obra representativa {i} de la sesión"
+                raw_title = act.get('title') or f"Obra representativa {i} de la sesión"
+                clean_title = time_suffix_rx.sub('', str(raw_title)).strip()
                 lines += [
-                    f"### Audición {i}: {plain(title)}",
+                    f"### Audición {i}: {plain(clean_title)}",
                     f"- **Tipo / Género:** Ejemplo práctico de análisis formal y auditivo para {plain(topic)}.",
                     f"- **Guía de escucha activa:** Prestar atención a la textura principal, articulación de frases y elementos temáticos desarrollados en clase.",
                     f"- **Fuente / Partitura:** Materiales de consulta autorizados de la materia.",
@@ -555,12 +657,30 @@ def render_student(run: dict[str, Any]) -> str:
     # --- TRABAJO EN CLASE (Mantiene string requerido por tests) ---
     lines += ['### Trabajo en clase', '']
     elapsed = 0
+    time_suffix_rx = re.compile(
+        r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
+        re.IGNORECASE
+    )
+    grouping_labels = {
+        'individual': 'Individual',
+        'grupo': 'En grupo',
+        'colectivo': 'Colectivo',
+    }
     for index, activity in enumerate(plan.get('activities', []), 1):
         minutes = activity.get('minutes', 0)
+        raw_title = str(activity.get('title', '')).strip()
+        clean_title = time_suffix_rx.sub('', raw_title).strip()
+        grouping_key = activity.get('grouping')
+        mode_tag = f" [{grouping_labels.get(grouping_key, grouping_key.capitalize())}]" if grouping_key else ""
         lines += [
-            f"#### {index}. {plain(activity.get('title', ''))} · {elapsed}–{elapsed + minutes} min", '',
-            plain(activity.get('instructions', '')), '',
+            f"#### {index}. {plain(clean_title)}{mode_tag} · {elapsed}–{elapsed + minutes} min", '',
         ]
+        task_text = activity.get('student_task') or activity.get('instructions', '')
+        if task_text:
+            lines += [f"- **Tarea:** {plain(task_text.strip())}"]
+        if activity.get('deliverable'):
+            lines += [f"- **Entregable:** {plain(str(activity['deliverable']).strip())}"]
+        lines.append('')
         elapsed += minutes
 
     lines += ['## Material necesario', '']
@@ -624,18 +744,36 @@ def render_general(run: dict) -> str:
         lines.append(NO_EVIDENCE)
         return '\n'.join(lines) + '\n'
 
+    by_id = {item['source_id']: item for item in (run.get('evidence') or [])}
+    claims = (run.get('result') or {}).get('claims', [])
+
+    has_unbacked = any(
+        not any(
+            (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') in ('bibliografia', 'fuente_primaria')
+            for ev in claim.get('evidence', [])
+        )
+        for claim in claims
+    )
+    has_pending_ia = any(
+        (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') == 'posible_generado_ia'
+        for claim in claims for ev in claim.get('evidence', [])
+    )
+
     review = run.get('review')
     if review and review.get('action') == 'approved':
         lines += ['**Propuesta aprobada por el profesor.**', '']
     else:
-        lines += ['**Borrador generado por IA, pendiente de revisión del profesor.**', '',
-                  'Las referencias y citas textuales se han comprobado; eso no garantiza que cada afirmación sea correcta o esté suficientemente sustentada.', '']
+        disclaimer = 'Las referencias y citas textuales se han comprobado; eso no garantiza que cada afirmación sea correcta o esté suficientemente sustentada.'
+        if has_unbacked:
+            disclaimer += '\n\nAviso: algunos contenidos carecen de fuente bibliográfica en la biblioteca (se apoyan en notas del profesor o deducción de IA).'
+        if has_pending_ia:
+            disclaimer += '\n\nAviso: la propuesta utiliza fuentes pendientes de confirmar su origen (posible texto generado por IA).'
+        lines += ['**Borrador generado por IA, pendiente de revisión del profesor.**', '', disclaimer, '']
 
-    by_id = {item['source_id']: item for item in (run.get('evidence') or [])}
-    claims = (run.get('result') or {}).get('claims', [])
     for index, claim in enumerate(claims, 1):
-        label = 'Inferencia de IA' if claim.get('kind') == 'inference' else 'Síntesis de IA'
+        label = claim_synthesis_label(claim, by_id)
         lines += [f"**Contenido {index} — {label}:** {plain(claim.get('text', ''))}", '']
+        lines += format_claim_sources(claim, by_id) + ['']
 
     for visual in (run.get('result') or {}).get('visualizations', []):
         lines += ['## Esquema documentado', '', f"### {plain(visual.get('title', ''))}", '']
@@ -691,8 +829,16 @@ def render_general(run: dict) -> str:
 def render_pedagogy(run: dict) -> str:
     context = run['request']['pedagogy']
     group = context.get('group', {})
+    topic_raw = str(run['request'].get('question', '')).strip()
+    from docente_ai.teaching.terms import normalize_topic
+    normalized_topic = normalize_topic(topic_raw)
+    topic_header = plain(normalized_topic)
+    topic_lines = [f"Tema elegido: {topic_header}"]
+    if topic_raw and normalized_topic.strip().lower() != topic_raw.strip().lower():
+        topic_lines.append(f"Tema original: {plain(topic_raw)}")
+
     lines = ['# Propuesta pedagógica', '', f"Registro: {run['id']}", '',
-             f"Tema elegido: {plain(run['request'].get('question', ''))}",
+             *topic_lines,
              f"Grupo: {plain(group.get('name', ''))} · Nivel: {plain(group.get('level', ''))}",
              f"Duración solicitada: {context.get('duration_minutes', 0)} minutos", '',
              f"Criterios del profesor: {plain(context.get('teacher_criteria') or 'No especificados')}",
@@ -708,35 +854,120 @@ def render_pedagogy(run: dict) -> str:
 
     plan = (run.get('result') or {}).get('plan')
     claims = (run.get('result') or {}).get('claims', [])
+    by_id = {item['source_id']: item for item in (run.get('evidence') or [])}
+    has_unbacked = any(
+        not any(
+            (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') in ('bibliografia', 'fuente_primaria')
+            for ev in claim.get('evidence', [])
+        )
+        for claim in claims
+    )
+    has_pending_ia = any(
+        (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') == 'posible_generado_ia'
+        for claim in claims for ev in claim.get('evidence', [])
+    )
+
     review = run.get('review')
     if review and review.get('action') == 'approved':
         review_text = '**Propuesta aprobada por el profesor.**'
     else:
-        review_text = '**Borrador generado por IA, pendiente de revisión del profesor.**\n\nLas referencias y citas textuales se han comprobado; eso no garantiza que cada afirmación sea correcta o esté suficientemente sustentada.'
+        disclaimer = 'Las referencias y citas textuales se han comprobado; eso no garantiza que cada afirmación sea correcta o esté suficientemente sustentada.'
+        if has_unbacked:
+            disclaimer += '\n\nAviso: algunos contenidos carecen de fuente bibliográfica en la biblioteca (se apoyan en notas del profesor o deducción de IA).'
+        if has_pending_ia:
+            disclaimer += '\n\nAviso: la propuesta utiliza fuentes pendientes de confirmar su origen (posible texto generado por IA).'
+        review_text = f'**Borrador generado por IA, pendiente de revisión del profesor.**\n\n{disclaimer}'
 
     lines += ['---', '', '# PARTE 1 · GUÍA DOCENTE (Para el Profesor)', '', review_text, '']
+
+    # --- TABLA DE COBERTURA DE REQUISITOS DEL PROFESOR ---
+    requirements = context.get('requirements') or (run.get('request') or {}).get('requirements') or []
+    coverage = (run.get('result') or {}).get('coverage') or []
+    if coverage or requirements:
+        lines += ['## Cobertura de requisitos del profesor', '']
+        cov_by_id = {item.get('requirement_id'): item for item in coverage if isinstance(item, dict)}
+        req_by_id = {item.get('id'): item for item in requirements if isinstance(item, dict)}
+        all_req_ids = list(dict.fromkeys(list(req_by_id.keys()) + list(cov_by_id.keys())))
+
+        status_labels = {
+            'cubierto': 'Cubierto',
+            'parcial': 'Parcial',
+            'sin_fuentes': '⚠️ Sin fuentes documentales'
+        }
+
+        lines += [
+            '| ID | Requisito / Petición | Tipo | Estado | Contenidos (claims) | Observaciones |',
+            '| --- | --- | --- | --- | --- | --- |'
+        ]
+        has_missing_sources = False
+        for rid in all_req_ids:
+            req_info = req_by_id.get(rid, {})
+            cov_info = cov_by_id.get(rid, {})
+            desc = plain(req_info.get('description') or rid)
+            rtype = plain(req_info.get('type') or 'contenido')
+            c_status = cov_info.get('status', 'sin_fuentes' if not cov_info else 'cubierto')
+            status_txt = status_labels.get(c_status, c_status.capitalize())
+            c_claims = cov_info.get('claim_ids') or []
+            claims_txt = ', '.join(f'#{cid}' for cid in c_claims) if c_claims else '—'
+            note_txt = plain(cov_info.get('note') or '—')
+            if c_status == 'sin_fuentes':
+                has_missing_sources = True
+            lines.append(f"| **{plain(rid)}** | {desc} | {rtype} | {status_txt} | {claims_txt} | {note_txt} |")
+        lines.append('')
+        if has_missing_sources:
+            lines += [
+                '> ⚠️ **Aviso de cobertura bibliográfica:** Hay requisitos marcados como *Sin fuentes documentales*. '
+                'La biblioteca actual no dispone de pasajes autorizados suficientes para fundamentar estos aspectos sin especulación.',
+                ''
+            ]
 
     if plan:
         lines += ['## 1. Planificación didáctica y objetivos', '',
                   '### Objetivos de aprendizaje', '']
         lines += ['- ' + plain(x) for x in plan.get('objectives', [])]
-        lines += ['', '**Dificultad propuesta:** ' + plain(plan.get('difficulty', '')), '',
-                  '### Secuencia didáctica y actividades', '']
+        lines += ['', '**Dificultad propuesta:** ' + plain(plan.get('difficulty', '')), '']
+        if plan.get('assessment'):
+            lines += ['**Evaluación de la sesión:** ' + plain(plan.get('assessment', '')), '']
+        lines += ['### Secuencia didáctica y actividades', '']
         elapsed = 0
+        time_suffix_rx = re.compile(
+            r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
+            re.IGNORECASE
+        )
+        grouping_labels = {
+            'individual': 'Individual',
+            'grupo': 'En grupo',
+            'colectivo': 'Colectivo',
+        }
         for activity in plan.get('activities', []):
             end = elapsed + activity.get('minutes', 0)
             links = ', '.join(str(i) for i in activity.get('claim_ids', []))
-            lines += [f"**{elapsed}–{end} min · {plain(activity.get('title', ''))}**", '',
-                      plain(activity.get('instructions', '')), '', f'Base documental: contenidos {links}.', '']
+            raw_title = str(activity.get('title', '')).strip()
+            clean_title = time_suffix_rx.sub('', raw_title).strip()
+            grouping_key = activity.get('grouping')
+            mode_tag = f" [{grouping_labels.get(grouping_key, grouping_key.capitalize())}]" if grouping_key else ""
+            lines += [f"**{elapsed}–{end} min · {plain(clean_title)}{mode_tag}**", '']
+            if activity.get('teacher_notes'):
+                lines += [f"**Pautas docentes:** {plain(activity['teacher_notes'].strip())}", '']
+            elif activity.get('instructions'):
+                lines += [plain(activity['instructions'].strip()), '']
+            if activity.get('student_task'):
+                lines += [f"**Consigna del alumno:** {plain(activity['student_task'].strip())}", '']
+            if activity.get('deliverable'):
+                lines += [f"**Entregable:** {plain(activity['deliverable'].strip())}", '']
+            if activity.get('solution'):
+                lines += [f"**Solución / Criterios de corrección:** {plain(activity['solution'].strip())}", '']
+            lines += [f'Base documental: contenidos {links}.', '']
             elapsed = end
         lines += ['### Recursos y partituras por preparar', ''] + ['- ' + plain(x) for x in plan.get('resources', [])]
         lines += ['', '**Observaciones didácticas:** ' + plain(plan.get('observations', '')), '']
 
     lines += ['## 2. Fundamentación teórica y contenidos', '']
     for index, claim in enumerate(claims, 1):
-        label = 'Inferencia de IA' if claim.get('kind') == 'inference' else 'Síntesis de IA'
+        label = claim_synthesis_label(claim, by_id)
         text = str(claim.get('text', '')).strip()
         lines += [f"**Contenido {index} — {label}:**", '', text, '']
+        lines += format_claim_sources(claim, by_id) + ['']
 
     guide = (run.get('result') or {}).get('teacher_guide') or {}
     if guide.get('theory'):
@@ -826,6 +1057,55 @@ def render_pedagogy(run: dict) -> str:
             lines.append(connector.join(f"**{plain(item.get('label', ''))}** ({plain(item.get('detail', ''))})" for item in visual.get('items', [])))
         lines += ['', plain(visual.get('caption', '')), '']
 
+    # --- SECCIÓN PLEGABLE DE REVISIÓN AUTOMÁTICA ---
+    auto_review = (run.get('metrics') or {}).get('auto_review')
+    if auto_review and isinstance(auto_review, dict):
+        scores = auto_review.get('scores') or {}
+        issues = auto_review.get('issues') or []
+        summary = auto_review.get('summary') or ''
+        repaired = auto_review.get('repaired', False)
+
+        from docente_ai.agents.reviewer import CRITERIA_KEYS, CRITERIA_LABELS
+
+        lines += [
+            '',
+            '<details>',
+            '<summary><strong>🔍 Revisión automática (evaluación según rúbrica)</strong></summary>',
+            '',
+            '> ℹ️ **Nota de verificación:** Esta revisión es un análisis preliminar automático basado en la rúbrica pedagógica de Arkhé. **No sustituye a la revisión ni al criterio del profesor.**',
+            '',
+        ]
+        if repaired:
+            lines += ['> ⚠️ **Aviso de reparación:** Se ejecutó una ronda de corrección automática para subsanar criterios con puntuación inferior a 2.', '']
+
+        lines += [
+            '| Criterio evaluado | Puntuación (0–3) | Valoración |',
+            '| --- |:---:| --- |'
+        ]
+        score_descs = {0: 'Insuficiente', 1: 'Parcial / Básico', 2: 'Bueno / Competente', 3: 'Excelente / Sobresaliente'}
+        for ckey in CRITERIA_KEYS:
+            clabel = CRITERIA_LABELS.get(ckey, ckey)
+            sc = scores.get(ckey, '—')
+            sdesc = score_descs.get(sc, 'Sin calificar') if isinstance(sc, int) else '—'
+            lines.append(f"| {plain(clabel)} | **{sc}** | {sdesc} |")
+        lines.append('')
+
+        if summary:
+            lines += [f"**Dictamen del revisor:** {plain(summary)}", '']
+
+        if issues:
+            lines += ['**Incidencias y propuestas de mejora detectadas:**', '']
+            for iss in issues:
+                f_name = plain(iss.get('field', 'General'))
+                i_desc = plain(iss.get('issue', ''))
+                p_desc = plain(iss.get('proposal', ''))
+                lines.append(f"- **`{f_name}`:** {i_desc} *(Propuesta: {p_desc})*")
+            lines.append('')
+        else:
+            lines += ['*No se detectaron problemas críticos en la propuesta.*', '']
+
+        lines += ['</details>', '']
+
     if plan:
         lines += ['', '---', '', '# PARTE 2 · DOSSIER Y ACTIVIDADES (Material para el Alumnado)', '',
                   f"**Materia:** {plain(group.get('name', ''))} · **Tema:** {plain(run['request'].get('question', ''))}", '',
@@ -850,13 +1130,27 @@ def render_pedagogy(run: dict) -> str:
         lines += ['## 2. Repertorio, fuentes y audiciones de trabajo', '']
         lines += ['- ' + plain(x) for x in plan.get('resources', [])]
         lines += ['', '## 3. Cuaderno de actividades y ejercicios prácticos', '']
+        time_suffix_rx = re.compile(
+            r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
+            re.IGNORECASE
+        )
         for idx, act in enumerate(plan.get('activities', []), 1):
-            title = plain(act.get('title', ''))
-            instr = str(act.get('instructions', '')).strip()
-            lines += [f"### Actividad {idx}: {title} ({act.get('minutes', 0)} min)", '',
-                      f"**Instrucciones:** {instr}", '',
-                      '*Espacio para notas, análisis o resolución del ejercicio:*', '',
-                      '```', '', '', '```', '']
+            raw_title = str(act.get('title', '')).strip()
+            clean_title = time_suffix_rx.sub('', raw_title).strip()
+            title = plain(clean_title)
+            grouping_key = act.get('grouping')
+            grouping_labels = {'individual': 'Individual', 'grupo': 'En grupo', 'colectivo': 'Colectivo'}
+            mode_tag = f" [{grouping_labels.get(grouping_key, grouping_key.capitalize())}]" if grouping_key else ""
+            task_text = act.get('student_task') or act.get('instructions', '')
+            lines += [f"### Actividad {idx}: {title}{mode_tag} ({act.get('minutes', 0)} min)", '']
+            if task_text:
+                lines += [f"**Tarea:** {plain(str(task_text).strip())}", '']
+            if act.get('deliverable'):
+                lines += [f"**Entregable:** {plain(str(act['deliverable']).strip())}", '']
+            lines += [
+                '*Espacio para notas, análisis o resolución del ejercicio:*', '',
+                '```', '', '', '```', ''
+            ]
 
     if run.get('omitted'):
         lines += ['', f"Fragmentos no enviados al modelo por presupuesto o duplicación: {len(run['omitted'])}."]

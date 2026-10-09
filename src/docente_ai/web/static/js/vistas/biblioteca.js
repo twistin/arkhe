@@ -38,6 +38,7 @@ export function library() {
           ['all', 'Todas las fuentes'],
           ['documental', 'Documentación'],
           ['profesor', 'Mis materiales'],
+          ['sin_clasificar', 'Sin clasificar'],
           ['pending', 'Por revisar']
         ].map(([id, text]) => [
           [
@@ -84,9 +85,12 @@ export function library() {
 export function libraryResults() {
   const docs = store.state.documents.filter(d => (!store.selected || d.shared || d.subjects.includes(store
     .selected)) && (!store.selectedPeriod || d.period === store.selectedPeriod) && (store.tab === 'all' ||
-    store.tab === 'pending' && !d.enabled || d.category === store.tab) && [
+    store.tab === 'pending' && !d.enabled ||
+    store.tab === 'sin_clasificar' && (d.metadata.origin === 'sin_clasificar' || d.metadata.origin === 'posible_generado_ia' || !d.metadata.origin) ||
+    d.category === store.tab) && [
     [
-      `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} ${(d.metadata.tags||[]).join(' ')} `
+      `${d.metadata.title} ${(d.metadata.authors||[]).join(' ')} `,
+      `${(d.metadata.tags||[]).join(' ')} ${d.metadata.origin||''} `
     ].join(''),
     `${d.period||''}`
   ].join('').toLocaleLowerCase().includes(store.query.toLocaleLowerCase()));
@@ -143,8 +147,16 @@ export function sourceModal() {
     `</select></div><div class="field"><label class="label" for="upload-category">`,
     `Tipo de contenido</label><select id="upload-category" name="category"><option `,
     `value="documental">Fuente documental</option><option value="profesor">Material `,
-    `propio</option></select></div></div><p class="field-note">Libros y artículos van `,
-    `en documentación. Tus apuntes y ejercicios, en material propio.</p><div `,
+    `propio</option></select></div><div class="field"><label class="label" for="upload-origin">`,
+    `Origen de la fuente</label><select id="upload-origin" name="origin">`,
+    `<option value="bibliografia">Bibliografía</option>`,
+    `<option value="fuente_primaria">Fuente primaria</option>`,
+    `<option value="programacion">Programación</option>`,
+    `<option value="notas_profesor">Notas del profesor</option>`,
+    `<option value="generado_ia">Generado por IA</option>`,
+    `<option value="sin_clasificar">Sin clasificar</option></select></div></div><p class="field-note">`,
+    `Libros y artículos van en documentación. Material propio para tus apuntes. `,
+    `Los documentos de IA no entrarán como evidencia.</p><div `,
     `class="dialog-actions"><button class="button ghost" type="button" `,
     `data-action="scan">Revisar carpeta</button><button class="button primary" `,
     `type="submit">Añadir y revisar ${icon('arrow')}</button></div></form>`
@@ -192,6 +204,15 @@ export async function showDocument(id) {
     ].join(''),
     `Materia</label><select id="doc-subject" name="subject" required>`,
     `${subjectOptions(doc.subjects[0]||'',true)}`,
+    `</select></div><div class="field"><label class="label" for="doc-origin">Origen</label>`,
+    `<select id="doc-origin" name="origin">`,
+    `${option('bibliografia', 'Bibliografía', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('fuente_primaria', 'Fuente primaria', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('programacion', 'Programación didáctica', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('notas_profesor', 'Notas del profesor', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('posible_generado_ia', 'Posible generado por IA (por confirmar)', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('generado_ia', 'Generado por IA', doc.metadata.origin||'sin_clasificar')}`,
+    `${option('sin_clasificar', 'Sin clasificar', doc.metadata.origin||'sin_clasificar')}`,
     `</select></div><button class="button small" type="submit">Guardar `,
     `cambios</button></form></details><div class="panel-header"><h3>Vista previa del `,
     [
@@ -329,6 +350,13 @@ function filaFuente(d) {
     `${d.metadata.year?' · '+e(d.metadata.year):''}`,
     `${
       d.period ? ` · <span class="period-tag">${e(formatPeriod(d.period))}</span>` : ''
+    }`,
+    `${
+      d.metadata.origin === 'generado_ia' ? ' · <span class="pill warning">Generado por IA</span>' :
+      d.metadata.origin === 'posible_generado_ia' ? ' · <span class="pill warning">Posible IA (por confirmar)</span>' :
+      d.metadata.origin === 'sin_clasificar' ? ' · <span class="pill danger">Sin clasificar</span>' :
+      d.metadata.origin === 'fuente_primaria' ? ' · <span class="pill">Fuente primaria</span>' :
+      d.metadata.origin === 'notas_profesor' ? ' · <span class="pill">Notas profesor</span>' : ''
     }`,
     [
       `</span></span><span class="source-area">${subjBadges}</span>${statusBadge(d)}${icon('arrow')}`
