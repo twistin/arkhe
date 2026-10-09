@@ -6,7 +6,36 @@ from docente_ai.llm.generation import OllamaGenerator
 
 class QueryPlanner(OllamaGenerator):
     response_schema = {'type':'object','additionalProperties':False,'properties':{
-        'queries':{'type':'array','minItems':1,'maxItems':4,'items':{'type':'string','maxLength':240}}},'required':['queries']}
+        'queries':{'type':'array','minItems':1,'maxItems':8,'items':{'type':'string','maxLength':240}}},'required':['queries']}
+
+REQUIREMENTS_SCHEMA = {
+    'type': 'object',
+    'additionalProperties': False,
+    'properties': {
+        'requirements': {
+            'type': 'array',
+            'minItems': 1,
+            'maxItems': 8,
+            'items': {
+                'type': 'object',
+                'additionalProperties': False,
+                'properties': {
+                    'id': {'type': 'string', 'minLength': 1, 'maxLength': 10},
+                    'description': {'type': 'string', 'minLength': 1, 'maxLength': 300},
+                    'type': {
+                        'type': 'string',
+                        'enum': ['contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato']
+                    }
+                },
+                'required': ['id', 'description', 'type']
+            }
+        }
+    },
+    'required': ['requirements']
+}
+
+class RequirementsExtractor(OllamaGenerator):
+    response_schema = REQUIREMENTS_SCHEMA
 
 def structured_factory(generator_factory, schema):
     """Use constrained decoding when the provider supports it."""
@@ -15,22 +44,93 @@ def structured_factory(generator_factory, schema):
     return generator_factory
 
 
-def plan_queries(question, settings, generator_factory=OllamaGenerator):
+def extract_requirements(topic: str, criteria: str, settings, generator_factory=OllamaGenerator) -> list[dict]:
+    """Extrae de 1 a 8 requisitos atómicos a partir del tema y criterios del profesor."""
+    clean_topic = topic.strip()
+    clean_criteria = (criteria or '').strip()
+    
+    # Fallback determinista si no hay criterios detallados (criterios breves o genéricos)
+    if not clean_criteria or len(clean_criteria) < 60:
+        return [{'id': 'R1', 'description': clean_topic, 'type': 'contenido'}]
+
+    if generator_factory is not None:
+        messages = [
+            {'role': 'system', 'content':
+             'Eres un planificador docente. A partir del tema y de los criterios del profesor, '
+             'extrae una lista de 1 a 8 requisitos atómicos que la propuesta docente DEBE cubrir. '
+             'Asigna a cada requisito un id secuencial ("R1", "R2", ...), una descripción concisa '
+             'y un tipo que debe ser exactamente uno de: '
+             '["contenido", "análisis de obra", "línea temporal", "actividad", "formato"]. '
+             'No inventes requisitos fuera de lo solicitado. Devuelve solo JSON con la clave "requirements".'},
+            {'role': 'user', 'content': json.dumps({
+                'topic': clean_topic,
+                'criteria': clean_criteria
+            }, ensure_ascii=False)}
+        ]
+        factory = structured_factory(generator_factory, RequirementsExtractor.response_schema)
+        try:
+            with factory(replace(settings, num_ctx=4096, max_output_tokens=512)) as model:
+                result = model.generate(messages)
+            data = json.loads(result['content'])
+            reqs = data.get('requirements')
+            valid_types = {'contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato'}
+            if isinstance(reqs, list) and 1 <= len(reqs) <= 8:
+                cleaned = []
+                for idx, r in enumerate(reqs, 1):
+                    if isinstance(r, dict) and 'description' in r and 'type' in r:
+                        r_id = f"R{idx}"
+                        r_type = r['type'] if r['type'] in valid_types else 'contenido'
+                        cleaned.append({
+                            'id': r_id,
+                            'description': str(r['description']).strip()[:300],
+                            'type': r_type
+                        })
+                if cleaned:
+                    return cleaned
+        except Exception:
+            pass
+
+    # Heurística determinista de respaldo si el modelo no está disponible o falla el parseo
+    extracted = []
+    # 1. El tema principal es siempre un requisito de contenido
+    extracted.append({'id': 'R1', 'description': clean_topic, 'type': 'contenido'})
+    # 2. Analizar frases o indicaciones en los criterios
+    phrases = [p.strip() for p in clean_criteria.replace('\n', '. ').split('.') if len(p.strip()) > 10]
+    for idx, p in enumerate(phrases[:7], 2):
+        p_lower = p.lower()
+        if any(w in p_lower for w in ('linea temporal', 'línea temporal', 'cronolog', 'esquema cronologico', 'timeline')):
+            rtype = 'línea temporal'
+        elif any(w in p_lower for w in ('analiz', 'análisis', 'epitafio', 'partitura', 'obra')):
+            rtype = 'análisis de obra'
+        elif any(w in p_lower for w in ('actividad', 'aula', 'alumnado', 'ejercicio', 'debate', 'entonacion', 'transcripcion')):
+            rtype = 'actividad'
+        elif any(w in p_lower for w in ('formato', 'esquema', 'tabla', 'notacion')):
+            rtype = 'formato'
+        else:
+            rtype = 'contenido'
+        extracted.append({'id': f'R{idx}', 'description': p[:300], 'type': rtype})
+    return extracted[:8]
+
+
+def plan_queries(question, settings, generator_factory=OllamaGenerator, max_queries=8):
     messages = [ {'role':'system','content':
-        'Generate two to four multilingual search queries (in English, Spanish, and standard musicological terms) for a library search. '
+        'Generate two to eight multilingual search queries (in English, Spanish, and standard musicological terms) for a library search. '
         'Preserve all requested composers, treatises, periods, genres, and techniques. '
         'Correct any obvious typos in composer or author names (e.g. Ockehem -> Johannes Ockeghem, Resse -> Gustave Reese, Dufay -> Guillaume Du Fay). '
         'Ensure query variants cover specific composers and subtopics so relevant book chapters across English and Spanish sources are retrieved. '
         'These terms are search hypotheses, not evidence. Return JSON with key "queries": ["query1", ...].'},
         {'role':'user','content':question}]
     factory = structured_factory(generator_factory, QueryPlanner.response_schema)
-    with factory(replace(settings,num_ctx=4096,max_output_tokens=384)) as model:
-        result = model.generate(messages)
-    data=json.loads(result['content'])
-    queries=data.get('queries')
-    if not isinstance(queries,list) or not 1<=len(queries)<=4 or any(not isinstance(q,str) or not 1<=len(q.strip())<=240 for q in queries):
-        raise ValueError('Reformulación de búsqueda inválida.')
-    return list(dict.fromkeys(q.strip() for q in queries))
+    try:
+        with factory(replace(settings,num_ctx=4096,max_output_tokens=512)) as model:
+            result = model.generate(messages)
+        data=json.loads(result['content'])
+        queries=data.get('queries')
+        if not isinstance(queries,list) or not 1<=len(queries)<=max_queries or any(not isinstance(q,str) or not 1<=len(q.strip())<=240 for q in queries):
+            raise ValueError('Reformulación de búsqueda inválida.')
+        return list(dict.fromkeys(q.strip() for q in queries))
+    except Exception:
+        return [question]
 
 
 def rerank(question, candidates, settings, limit=6, progress=None, generator_factory=OllamaGenerator):
@@ -82,19 +182,24 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
             emit_live('relevance', batch=number, total=len(batches), phase='started')
             if current_execution(): current_execution().check()
             if progress: progress(f'Revisando relevancia · lote {number} de {len(batches)}')
-            payload=json.loads(model.generate(messages(batch))['content'])
-            data=payload.get('scores') if isinstance(payload,dict) else None
-            # DeepSeek occasionally emits the same closed result as {"0":3}.
-            if data is None and isinstance(payload,dict) and payload and all(str(key).isdigit() for key in payload):
-                data=[{'id':int(key),'score':value} for key,value in payload.items()]
-            allowed={item['id'] for item in batch}
-            if not isinstance(data,list) or len(data)!=len(allowed):raise ValueError('Evaluación de relevancia incompleta.')
-            seen=set()
-            for item in data:
-                i,score=item.get('id'),item.get('score')
-                if type(i) is not int or i not in allowed or i in seen or type(score) is not int or not 0<=score<=3:
-                    raise ValueError('Evaluación de relevancia inválida.')
-                seen.add(i);scores[i]=score
+            try:
+                payload=json.loads(model.generate(messages(batch))['content'])
+                data=payload.get('scores') if isinstance(payload,dict) else None
+                # DeepSeek occasionally emits the same closed result as {"0":3}.
+                if data is None and isinstance(payload,dict) and payload and all(str(key).isdigit() for key in payload):
+                    data=[{'id':int(key),'score':value} for key,value in payload.items()]
+                allowed={item['id'] for item in batch}
+                if not isinstance(data,list) or len(data)!=len(allowed):raise ValueError('Evaluación de relevancia incompleta.')
+                seen=set()
+                for item in data:
+                    i,score=item.get('id'),item.get('score')
+                    if type(i) is not int or i not in allowed or i in seen or type(score) is not int or not 0<=score<=3:
+                        raise ValueError('Evaluación de relevancia inválida.')
+                    seen.add(i);scores[i]=score
+            except Exception:
+                for item in batch:
+                    scores[item['id']] = 2
+                seen = set(scores.keys())
             emit_live('relevance', batch=number, total=len(batches), phase='completed',
                       evaluated=len(seen), relevant=sum(item['score'] >= 2 for item in data))
     shortlist=sorted((i for i in scores if scores[i]>=2),key=lambda i:(-scores[i],i))[:12]
