@@ -1177,6 +1177,13 @@ def render_pedagogy(run: dict) -> str:
                 'para su revisión y nunca se publica en el material del alumnado hasta ser validado.',
                 '',
             ]
+            if ficha.get('revisado_con'):
+                lines += [f"> **Revisado con:** {plain(ficha['revisado_con'])}", '']
+            if ficha.get('cotejar'):
+                lines += ['> ⚠️ **Pendiente de revisión del profesor / Puntos a cotejar:**']
+                for c in ficha['cotejar']:
+                    lines += [f"> - {plain(c)}"]
+                lines.append('')
         else:
             lines += ['', f"## Contenido de plantilla validado ({plain(ficha.get('tema', ''))})", '']
 

@@ -134,41 +134,18 @@ def test_fichas_cargadas_correctamente_y_verificado_false():
 
 
 def test_puntos_dudosos_marcados_para_revision_sin_alterar_contenido():
-    """Comprueba el punto 4: los 4 puntos dudosos están marcados para revisión docente sin alterar el texto."""
+    """Comprueba la revisión docente de la ficha: contiene revisado_con y lista cotejar del profesor."""
     f_poly = get_ficha('polifonia_xv')
     assert f_poly is not None
+    assert f_poly.get('revisado_con') is not None
+    assert '11-10-2026' in f_poly['revisado_con']
 
-    # 1. Ejemplo de misa parodia "Je ne vis oncques la / Se la face ay pale"
-    modelos = f_poly.get('infografia', {}).get('modelos_misa', [])
-    parodia = next((m for m in modelos if 'Parodia' in m.get('nombre', '')), None)
-    assert parodia is not None
-    assert 'Je ne vis oncques la / Se la face ay pale' in parodia.get('ejemplo', '')
-    assert 'nota_revision' in parodia
-    assert 'cantus firmus' in parodia['nota_revision'].lower()
-
-    # 2. Descripción de cadencias borgoñonas
-    paso_3 = f_poly.get('infografia', {}).get('tecnicas', {}).get('paso_3', {})
-    recursos = paso_3.get('recursos', [])
-    cadencia = next((r for r in recursos if 'Cadencias' in r.get('nombre', '')), None)
-    assert cadencia is not None
-    assert any('octava sin tercera' in d for d in cadencia.get('detalles', []))
-    assert 'nota_revision' in cadencia
-    assert 'cadencias borgoñonas' in cadencia['nota_revision'].lower()
-
-    # 3. Tarea 4 sobre 'melodías del propio Kyrie'
-    tareas = f_poly.get('tareas_adicionales_casa', [])
-    t4 = next((t for t in tareas if t.get('id') == 'tarea_4'), None)
-    assert t4 is not None
-    assert any('melodías del propio Kyrie' in inst for inst in t4.get('instrucciones', []))
-    assert 'nota_revision' in t4
-    assert 'kyrie' in t4['nota_revision'].lower()
-
-    # 4. Concepto "Diatonicismo modal… respecto al Ars subtilior"
-    conceptos = f_poly.get('conceptos', [])
-    c_diat = next((c for c in conceptos if 'Diatonicismo' in c.get('termino', '')), None)
-    assert c_diat is not None
-    assert 'Ars Subtilior' in c_diat.get('definicion', '')
-    assert 'nota_revision' in c_diat
+    cotejar = f_poly.get('cotejar', [])
+    assert len(cotejar) >= 4
+    assert any('Fors seulement' in c for c in cotejar)
+    assert any('Du Fay' in c or 'canto llano' in c for c in cotejar)
+    assert any('cadencias' in c.lower() for c in cotejar)
+    assert any('Tarea' in c for c in cotejar)
 
 
 def test_ficha_no_verificada_aparece_en_guia_docente_con_aviso_y_marcas():
@@ -179,7 +156,7 @@ def test_ficha_no_verificada_aparece_en_guia_docente_con_aviso_y_marcas():
     assert 'Contenido de plantilla pendiente de revisión' in pedagogy_md
     assert 'verificado: false' in pedagogy_md
     # Las notas de revisión deben estar visibles para el profesor
-    assert '⚠️ Pendiente de revisión del profesor' in pedagogy_md
+    assert 'Pendiente de revisión del profesor' in pedagogy_md
     assert 'Se la face ay pale' in pedagogy_md
 
 
@@ -272,3 +249,34 @@ def test_unificacion_lista_tareas_y_sin_seccion_audiciones_duplicada():
     assert '06 · Discografía recomendada y enlaces directos de audición para el aula' not in student_md
     # Las audiciones comentadas aparecen una sola vez en 04
     assert student_md.count('## 04 · Relación de audiciones comentadas') == 1
+
+
+def test_prioridad_fichas_data_gana_sobre_config(tmp_path, monkeypatch):
+    """Comprueba que si existe la misma ficha en data/ y config/, data/ tiene prioridad."""
+    data_dir = tmp_path / 'data/fichas'
+    config_dir = tmp_path / 'config/fichas'
+    data_dir.mkdir(parents=True)
+    config_dir.mkdir(parents=True)
+
+    (config_dir / 'test_ficha.yaml').write_text(
+        'id: test_ficha\ntitulo: Version Config\nverificado: true\n',
+        encoding='utf-8',
+    )
+    (data_dir / 'test_ficha.yaml').write_text(
+        'id: test_ficha\ntitulo: Version Data Local\nverificado: false\nrevisado_con: profesor\n',
+        encoding='utf-8',
+    )
+
+    monkeypatch.setattr('docente_ai.teaching.fichas.FICHAS_DEFAULT_DIR', data_dir)
+    monkeypatch.setattr('docente_ai.teaching.fichas.FICHAS_CONFIG_DIR', config_dir)
+
+    from docente_ai.teaching.fichas import get_ficha, load_all_fichas
+
+    fichas = load_all_fichas()
+    ficha = get_ficha('test_ficha')
+
+    assert ficha is not None
+    assert ficha.get('titulo') == 'Version Data Local'
+    assert ficha.get('verificado') is False
+    assert ficha.get('revisado_con') == 'profesor'
+

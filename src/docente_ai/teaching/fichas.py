@@ -35,16 +35,16 @@ _NTAM_REGEXES = (
 
 
 def _resolve_fichas_dirs(directory: Path | str | None = None) -> list[Path]:
-    """Resuelve directorios de búsqueda de fichas (prioridad: directory, config/fichas, data/fichas)."""
+    """Resuelve directorios de búsqueda de fichas (prioridad: directory, data/fichas, config/fichas)."""
     dirs: list[Path] = []
     if directory:
         target = Path(directory)
         if target.is_dir():
             dirs.append(target)
-    if FICHAS_CONFIG_DIR.is_dir() and FICHAS_CONFIG_DIR not in dirs:
-        dirs.append(FICHAS_CONFIG_DIR)
     if FICHAS_DEFAULT_DIR.is_dir() and FICHAS_DEFAULT_DIR not in dirs:
         dirs.append(FICHAS_DEFAULT_DIR)
+    if FICHAS_CONFIG_DIR.is_dir() and FICHAS_CONFIG_DIR not in dirs:
+        dirs.append(FICHAS_CONFIG_DIR)
     return dirs
 
 
@@ -69,10 +69,6 @@ def load_all_fichas(directory: Path | str | None = None) -> list[dict[str, Any]]
                 if f_id not in fichas_by_id:
                     data['_source_file'] = str(yaml_file)
                     fichas_by_id[f_id] = data
-                else:
-                    existing = fichas_by_id[f_id]
-                    if data.get('verificado') is True:
-                        existing['verificado'] = True
 
     return list(fichas_by_id.values())
 
