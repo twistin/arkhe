@@ -525,12 +525,12 @@ async function accionPlayScoreSample({target}) {
   const btn = target.closest('.play-score-btn');
   if (!btn) return;
   const candidateId = btn.dataset.candidate;
-  const card = btn.closest('.score-candidate-item');
+  const card = btn.closest('.score-candidate-item, .cantus-firmus-box-wrapper');
   const runId = card?.querySelector('.adopt-score-btn')?.dataset.runId;
   const startInp = card?.querySelector('.score-start-input');
   const endInp = card?.querySelector('.score-end-input');
   const start = startInp ? parseInt(startInp.value, 10) || 1 : 1;
-  const end = endInp ? parseInt(endInp.value, 10) || 8 : 8;
+  const end = endInp ? parseInt(endInp.value, 10) || 12 : 12;
 
   if (!candidateId) {
     toast('No hay identificador de partitura para reproducir.');
@@ -567,12 +567,33 @@ async function accionToggleScoreMode({target}) {
   await loadScoreContent(box, mode);
 }
 
+async function accionDescargarEjemplosFicha({target}) {
+  const btn = target.closest('.descargar-ejemplos-ficha-btn');
+  if (!btn) return;
+  const runId = btn.dataset.runId;
+  btn.disabled = true;
+  btn.textContent = 'Descargando partituras del JRP…';
+  try {
+    const res = await api(`/runs/${encodeURIComponent(runId)}/descargar-ejemplos-ficha`, {}, { method: 'POST' });
+    if (store.currentRun && store.currentRun.id === runId) {
+      store.currentRun.ficha_ejemplos = res.ejemplos;
+    }
+    render();
+    toast(`Se han preparado ${res.total || 9} ejemplos del JRP.`);
+  } catch (err) {
+    toast(`Error al descargar partituras: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 export const actions = {
   'adopt-score': accionAdoptScore,
   'discard-score': accionDiscardScore,
   'search-open-repos': accionSearchOpenRepos,
   'play-score-sample': accionPlayScoreSample,
   'toggle-score-mode': accionToggleScoreMode,
+  'descargar-ejemplos-ficha': accionDescargarEjemplosFicha,
 };
 
 export const clickBindings = [
@@ -581,4 +602,9 @@ export const clickBindings = [
   { priority: 2, matches: target => !!target.closest('.open-repos-btn'), action: 'search-open-repos' },
   { priority: 2, matches: target => !!target.closest('.play-score-btn'), action: 'play-score-sample' },
   { priority: 2, matches: target => !!target.closest('.score-mode-btn'), action: 'toggle-score-mode' },
+  {
+    priority: 2,
+    matches: target => !!target.closest('.descargar-ejemplos-ficha-btn'),
+    action: 'descargar-ejemplos-ficha'
+  },
 ];

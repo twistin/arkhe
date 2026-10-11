@@ -422,9 +422,15 @@ export function resultHTML(run) {
             'Modelos y esquemas estructurales para el aula.'
         }`
       ].join(''),
-      [
-        `</p>\n        </div>\n      </div>\n      <div class="proposal-infographic-wrap">\n        `
-      ].join(''),
+      `</p>\n        </div>\n      </div>\n`,
+      run?.ficha?.ejemplos_musicales?.length ? (
+        '      <div class="ficha-ejemplos-actions" style="margin-bottom:12px">\n' +
+        '        <button type="button" class="button small secondary descargar-ejemplos-ficha-btn" ' +
+        `data-run-id="${e(run.id)}">` +
+        '📥 Descargar ejemplos de esta ficha (JRP · CC BY-NC 4.0)</button>\n' +
+        '      </div>\n'
+      ) : '',
+      `      <div class="proposal-infographic-wrap">\n        `,
       [
         `${
           isEgypt ? renderEgyptInfographic(run) : (isPolyphony ? renderStudentInfographic(run) : (

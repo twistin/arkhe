@@ -464,3 +464,69 @@ def test_error_explicito_si_recorte_compases_falla(score_client):
     with pytest.raises(ValueError, match="no contiene compases|excede"):
         slice_measures(score, 80, 90)
 
+
+# ── 8. Ejemplos musicales de fichas desde el JRP (CC BY-NC 4.0) ───────────────
+
+def test_ejemplos_musicales_ficha_jrp_descarga_y_verovio(score_client):
+    """Comprueba la descarga de ejemplos de la ficha polifonia_xv con Verovio y licencia CC BY-NC 4.0."""
+    client, ws = score_client
+
+    # 1. Endpoint GET /api/fichas/polifonia_xv devuelve la ficha y sus ejemplos
+    res_f = client.get('/api/fichas/polifonia_xv')
+    assert res_f.status_code == 200, res_f.text
+    f_data = res_f.json()
+    ejemplos_def = f_data.get('ejemplos_musicales', [])
+    assert len(ejemplos_def) == 9
+
+    # Verificar que los 9 archivos solicitados están presentes
+    archivos = [e['archivo'] for e in ejemplos_def]
+    assert any('Duf1005b-Missa_Se_la_face_ay_pale-Gloria.krn' in a for a in archivos)
+    assert any('Duf3015-Se_la_face_ay_pale.krn' in a for a in archivos)
+    assert any('Duf2027a-Ave_maris_stella_verse_2__Sumens_illud_ave-chant.krn' in a for a in archivos)
+    assert any('Duf2027b-Ave_maris_stella_verse_2__Sumens_illud_ave-hymn.krn' in a for a in archivos)
+    assert any('Oke1007a-Missa_Fors_seulement-Kyrie.krn' in a for a in archivos)
+    assert any('Oke3005-Fors_seulement_lattente.krn' in a for a in archivos)
+    assert any('Duf2054-Nuper_rosarum_flores__Terribilis_est_locus_iste.krn' in a for a in archivos)
+    assert any('Duf1004a-Missa_Lhomme_arme-Kyrie.krn' in a for a in archivos)
+    assert any('Oke1008a-Missa_Lhomme_arme-Kyrie.krn' in a for a in archivos)
+
+    # 2. Comprobar descarga / recuperación de ejemplos mediante la API
+    res_dl = client.post('/api/fichas/polifonia_xv/descargar-ejemplos')
+    assert res_dl.status_code == 200, res_dl.text
+    dl_data = res_dl.json()
+    assert dl_data.get('total') == 9
+    ejemplos = dl_data.get('ejemplos', [])
+    assert len(ejemplos) == 9
+
+    # Comprobar licencia CC BY-NC 4.0 y verificado: false
+    for ej in ejemplos:
+        assert ej['licencia'] == 'CC BY-NC 4.0'
+        assert 'Josquin Research Project' in ej['atribucion']
+        assert ej['verificado'] is False
+        assert ej['compases_defecto'] == [1, 12]
+
+    # 3. Comprobar renderizado con Verovio del Gloria de Du Fay (compases 1-12)
+    gloria_ej = next(e for e in ejemplos if 'Duf1005b' in e['archivo'])
+    res_svg = client.post('/api/scores/render-svg', json={
+        'id': gloria_ej['id'],
+        'start': 1,
+        'end': 12,
+    })
+    assert res_svg.status_code == 200, res_svg.text
+    svg_content = res_svg.json().get('svg', '')
+    assert '<svg' in svg_content
+    assert '</svg>' in svg_content
+
+    # 4. Comprobar renderizado de piano roll con el tenor resaltado
+    res_pr = client.post('/api/scores/render-pianoroll', json={
+        'id': gloria_ej['id'],
+        'start': 1,
+        'end': 12,
+        'voice': 'tenor',
+    })
+    assert res_pr.status_code == 200, res_pr.text
+    pr_svg = res_pr.json().get('svg', '')
+    assert '<svg' in pr_svg
+    assert 'class="pianoroll-svg"' in pr_svg
+
+

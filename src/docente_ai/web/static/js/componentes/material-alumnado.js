@@ -14,6 +14,7 @@ import {
   renderStudentDiscographySection,
 } from './audiciones.js';
 import { renderStudentInfographic } from '../infografias/musica.js';
+import { initScorePreviews } from './partituras.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function cleanStudentText(text, isConsigna = false) {
@@ -374,6 +375,7 @@ export async function studentMaterialModal(id) {
     `data-action="print-student">${icon('document')}Imprimir / Guardar PDF</button></div>`
   ].join(''));
   dialog.classList.add('student-dialog');
+  initScorePreviews();
 }
 
 // Acciones y formularios de este módulo; delegación central en main.js.

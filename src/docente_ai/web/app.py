@@ -268,7 +268,27 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         if request.query_params.get('download') == '1':
             filename = f"propuesta-{title_slug}.md" if title_slug else f"{result['id']}.md"
             return Response(render(result), media_type='text/markdown', headers={'Content-Disposition': f'attachment; filename="{filename}"'})
-        return JSONResponse({k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic', 'ficha')})
+        ficha_data = result.get('ficha')
+        if not ficha_data:
+            from docente_ai.teaching.fichas import get_ficha_for_run
+            ficha_data = get_ficha_for_run(result)
+        out = {k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
+        out['ficha'] = ficha_data
+        out['ficha_ejemplos'] = result.get('ficha_ejemplos') or []
+        return JSONResponse(out)
+
+    async def descargar_ejemplos_ficha_route(request):
+        run_id = request.path_params.get('id')
+        res = await run_in_threadpool(ws.descargar_ejemplos_ficha, run_id)
+        return JSONResponse(res)
+
+    async def ficha_get(request):
+        from docente_ai.teaching.fichas import get_ficha
+        f_id = request.path_params['id']
+        f = await run_in_threadpool(get_ficha, f_id)
+        if not f:
+            return JSONResponse({'error': f'Ficha no encontrada: {f_id}'}, status_code=404)
+        return JSONResponse(f)
 
     async def delete_run_route(request):
         return JSONResponse(await run_in_threadpool(ws.delete_run, request.path_params['id']))
@@ -516,6 +536,9 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/runs/{id}/review', review, methods=['POST']),
               Route('/api/runs/{id}/edit', edit, methods=['POST']),
               Route('/api/runs/{id}/title', set_title, methods=['POST']),
+              Route('/api/runs/{id}/descargar-ejemplos-ficha', descargar_ejemplos_ficha_route, methods=['POST']),
+              Route('/api/fichas/{id}/descargar-ejemplos', descargar_ejemplos_ficha_route, methods=['POST']),
+              Route('/api/fichas/{id}', ficha_get),
               Route('/api/runs/{id}/music_requests/{req_id}/adopt', adopt_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/discard', discard_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/search_open_repos', search_repos, methods=['POST']),

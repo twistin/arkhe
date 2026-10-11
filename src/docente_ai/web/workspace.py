@@ -17,6 +17,7 @@ import sys
 from threading import RLock
 import unicodedata
 from uuid import uuid4
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -935,7 +936,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                     resolved_path = candidate
                     break
 
-        # 5. Caché de JRP (prefijo jrp- o nombre en la carpeta de caché)
+        # 5. Caché de JRP (prefijo jrp-, ID de ejemplo en ficha o nombre de archivo)
         if not resolved_path:
             clean_jrp = score_id[4:] if score_id.startswith("jrp-") else score_id
             for cache_dir in (self.root / "data/cache/partituras/jrp", self.root / "data/cache/jrp"):
@@ -943,11 +944,41 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                     for f in cache_dir.iterdir():
                         if f.is_file():
                             cand_id = f"jrp-{f.stem}".replace(".", "-")
-                            if cand_id == score_id or f.stem == clean_jrp or f.name == clean_jrp:
+                            cand_id_lower = cand_id.lower()
+                            score_id_lower = score_id.lower()
+                            clean_lower = clean_jrp.lower()
+                            if (
+                                cand_id == score_id
+                                or cand_id_lower == score_id_lower
+                                or f.stem.lower() == clean_lower
+                                or f.name.lower() == clean_lower
+                                or f.stem.lower().startswith(clean_lower)
+                                or clean_lower in f.stem.lower()
+                            ):
                                 resolved_path = f.resolve()
                                 break
                     if resolved_path:
                         break
+
+            # Si aún no se resolvió, buscar si coincide con un ID en fichas
+            if not resolved_path:
+                try:
+                    from docente_ai.teaching.fichas import load_all_fichas
+                    for ficha in load_all_fichas():
+                        for ej in ficha.get("ejemplos_musicales", []):
+                            if ej.get("id") == score_id or ej.get("id", "").lower() == score_id.lower():
+                                fname = Path(ej["archivo"]).name
+                                for cache_dir in (self.root / "data/cache/partituras/jrp", self.root / "data/cache/jrp"):
+                                    cand_file = cache_dir / fname
+                                    if cand_file.is_file():
+                                        resolved_path = cand_file.resolve()
+                                        break
+                                if resolved_path:
+                                    break
+                        if resolved_path:
+                            break
+                except Exception:
+                    pass
 
         # 6. Caché de HfM Weimar (prefijo hfm-weimar- o hfm-)
         if not resolved_path:
@@ -1097,5 +1128,77 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             end_measure=end_measure,
             highlight_voice=highlight_voice,
         )
+
+    def descargar_ejemplos_ficha(self, ficha_id_o_run_id: str) -> dict[str, Any]:
+        """Descarga o recupera de caché los ejemplos musicales del JRP definidos en una ficha."""
+        from docente_ai.teaching.fichas import get_ficha, get_ficha_for_run
+        from docente_ai.teaching.score_parser import parse_score_file
+        import httpx
+
+        ficha = None
+        run_obj = None
+        if ficha_id_o_run_id.startswith("run_") or (len(ficha_id_o_run_id) == 36 and "-" in ficha_id_o_run_id):
+            try:
+                run_obj = _get_run(self.db, ficha_id_o_run_id)
+                ficha = (run_obj.get("ficha") if run_obj else None) or (get_ficha_for_run(run_obj) if run_obj else None)
+            except Exception:
+                pass
+        if not ficha:
+            ficha = get_ficha(ficha_id_o_run_id)
+        if not ficha:
+            raise ValueError(f"Ficha o propuesta no encontrada: {ficha_id_o_run_id}")
+
+        ejemplos_def = ficha.get("ejemplos_musicales", [])
+        if not ejemplos_def:
+            return {"ejemplos": [], "total": 0}
+
+        dest_dir = self.root / "data/cache/partituras/jrp"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        descargados = []
+        for item in ejemplos_def:
+            fname = Path(item["archivo"]).name
+            target = dest_dir / fname
+            if not target.is_file():
+                repo_cache = Path("data/cache/partituras/jrp") / fname
+                if repo_cache.is_file():
+                    target.write_bytes(repo_cache.read_bytes())
+                else:
+                    try:
+                        with httpx.Client(timeout=10.0) as client:
+                            resp = client.get(item["url"])
+                            if resp.status_code == 200:
+                                target.write_bytes(resp.content)
+                    except Exception:
+                        pass
+
+            meta = {}
+            if target.is_file():
+                try:
+                    meta = parse_score_file(target)
+                except Exception:
+                    meta = {}
+
+            ej_info = {
+                "id": item["id"],
+                "cand_id": f"jrp-{target.stem}".replace(".", "-"),
+                "titulo": item.get("titulo") or meta.get("titulo") or target.stem,
+                "compositor": item.get("compositor") or meta.get("compositor", ""),
+                "categoria": item.get("categoria", ""),
+                "seccion_caja": item.get("seccion_caja", ""),
+                "archivo": str(target.relative_to(self.root)),
+                "path": str(target.relative_to(self.root)),
+                "url": item.get("url", ""),
+                "licencia": item.get("licencia", "CC BY-NC 4.0"),
+                "atribucion": item.get("atribucion", "Josquin Research Project (CC BY-NC 4.0)"),
+                "verificado": False,
+                "compases_defecto": item.get("compases_defecto", [1, 12]),
+                "voz_destacada": item.get("voz_destacada", ""),
+                "voces": meta.get("voces", []),
+                "compases": meta.get("compases", 12),
+            }
+            descargados.append(ej_info)
+
+        return {"ejemplos": descargados, "total": len(descargados), "ficha_id": ficha.get("id")}
 
 

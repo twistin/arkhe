@@ -1,11 +1,58 @@
 import { e } from '../ui.js';
-// Módulo local: responsabilidad separada sin alterar el contenido.
+
+// Módulo de infografía musical: renderiza dinámicamente a partir de la ficha servida por la API.
 
 export function renderEjemploPendiente() {
   return [
     '<div class="ejemplo-pendiente-caja">',
     '  <span class="ejemplo-pendiente-icono">🎼</span>',
     '  <span class="ejemplo-pendiente-texto">Ejemplo musical pendiente de añadir al catálogo</span>',
+    '</div>'
+  ].join('\n');
+}
+
+export function renderFichaScoreBox(ej, runId = '') {
+  if (!ej) return renderEjemploPendiente();
+  const candId = ej.cand_id || ej.id;
+  const isTenor = ej.voz_destacada === 'tenor' || ej.categoria === 'cantus_firmus';
+  const compDef = ej.compases_defecto || [1, 12];
+  const startC = compDef[0] || 1;
+  const endC = compDef[1] || 12;
+
+  return [
+    `<div class="cantus-firmus-box-wrapper score-candidate-item" ` +
+    `data-candidate-id="${e(candId)}" data-voice="${e(ej.voz_destacada || '')}" ` +
+    `data-tenor-highlight="${isTenor ? 'true' : 'false'}">`,
+    '  <div class="cf-controls-header">',
+    '    <div class="cf-title-row">',
+    `      <strong>${e(ej.titulo || 'Ejemplo')}</strong>`,
+    isTenor ? '      <span class="badge accent-amber">★ Tenor resaltado</span>' : '',
+    ej.verificado
+      ? '      <span class="badge accent-green">✓ Verificado</span>'
+      : '      <span class="badge accent-muted">JRP · CC BY-NC 4.0 (Pendiente de usar)</span>',
+    '    </div>',
+    '    <div class="candidate-controls">',
+    '      <div class="score-mode-toggle">',
+    '        <button type="button" class="score-mode-btn active" data-mode="svg">🎼 Partitura</button>',
+    '        <button type="button" class="score-mode-btn" data-mode="pianoroll">🎹 Piano roll</button>',
+    '      </div>',
+    '      <label class="range-label">Compases: ',
+    `        <input type="number" class="score-start-input" min="1" max="99" value="${e(startC)}"> a `,
+    `        <input type="number" class="score-end-input" min="1" max="99" value="${e(endC)}">`,
+    '      </label>',
+    `      <button type="button" class="button small ghost play-score-btn" data-candidate="${e(candId)}">`,
+    '        ▶ Reproducir',
+    '      </button>',
+    !ej.verificado
+      ? `      <button type="button" class="button small primary adopt-score-btn" ` +
+        `data-run-id="${e(runId)}" data-candidate="${e(candId)}">Usar</button>`
+      : '',
+    '    </div>',
+    '  </div>',
+    `  <div class="score-preview-box" data-candidate-id="${e(candId)}" ` +
+    `data-current-mode="svg" data-voice="${e(ej.voz_destacada || '')}">`,
+    '    <div class="score-loading"><span class="spinner"></span> Renderizando partitura con Verovio…</div>',
+    '  </div>',
     '</div>'
   ].join('\n');
 }
@@ -28,221 +75,170 @@ export function renderCantusFirmusBox(cfEjemplo = null) {
       '</div>'
     ].join('\n');
   }
-
-  return [
-    `<div class="cantus-firmus-box-wrapper score-candidate-item" ` +
-    `data-candidate-id="${e(cfEjemplo.id)}" data-voice="tenor" data-tenor-highlight="true">`,
-    '  <div class="cf-controls-header">',
-    '    <div class="cf-title-row">',
-    `      <strong>${e(cfEjemplo.titulo || 'Cantus firmus')}</strong>`,
-    '      <span class="badge accent-amber">★ Tenor resaltado</span>',
-    '    </div>',
-    '    <div class="candidate-controls">',
-    '      <div class="score-mode-toggle">',
-    '        <button type="button" class="score-mode-btn" data-mode="svg">🎼 Partitura</button>',
-    '        <button type="button" class="score-mode-btn active" data-mode="pianoroll">🎹 Piano roll</button>',
-    '      </div>',
-    `      <button class="button small ghost play-score-btn" data-candidate="${e(cfEjemplo.id)}">`,
-    '        ▶ Reproducir',
-    '      </button>',
-    '    </div>',
-    '  </div>',
-    `  <div class="score-preview-box" data-candidate-id="${e(cfEjemplo.id)}" ` +
-    `data-current-mode="pianoroll" data-voice="tenor">`,
-    '    <div class="score-loading"><span class="spinner"></span> Generando vista con tenor resaltado…</div>',
-    '  </div>',
-    '</div>'
-  ].join('\n');
+  return renderFichaScoreBox(cfEjemplo);
 }
 
 export function renderStudentInfographic(run) {
-  const cfReq = (run?.result?.resolved_music_requests || []).find(
-    r => (r.request?.technique === 'cantus_firmus' || r.ejemplo?.tecnica === 'cantus_firmus') && r.ejemplo
-  );
-  const cfEjemplo = cfReq?.ejemplo || null;
+  const ficha = run?.ficha;
+  const infog = ficha?.infografia;
+  if (!infog) {
+    return '<div class="infographic-empty"><p>Sin contenido infográfico disponible.</p></div>';
+  }
+
+  const runId = run?.id || '';
+  const ejemplos = (run?.ficha_ejemplos && run.ficha_ejemplos.length)
+    ? run.ficha_ejemplos
+    : (ficha?.ejemplos_musicales || []);
+  const cfEj = ejemplos.find(x => x.categoria === 'cantus_firmus') || null;
+  const pfEj = ejemplos.find(x => x.categoria === 'parafrasis') || null;
+  const vvEj = ejemplos.find(x => x.categoria === 'varias_voces_chanson') || null;
+  const isorritmiaEj = ejemplos.find(x => x.categoria === 'isorritmia') || null;
+  const lhommeEj = ejemplos.find(x => x.categoria === 'lhomme_arme') || null;
+
+  const modelos = infog.modelos_misa || [];
+  const modelosEjemplos = [cfEj, pfEj, vvEj];
+
+  const tecnicas = infog.tecnicas || {};
+  const paso1 = tecnicas.paso_1 || {};
+  const paso2 = tecnicas.paso_2 || {};
+  const paso3 = tecnicas.paso_3 || {};
 
   return [
-    `\n    <div class="infographic-poster">\n      <div class="infographic-main-head">`,
-    `\n        <div class="info-tag-row">\n          <span class="info-badge">`,
-    `POLIFONÍA DEL SIGLO XV</span>\n          <span class="info-badge-sub">MODELOS DE `,
-    `MISA Y TÉCNICAS COMPOSITIVAS</span>\n        </div>\n        <h2>ARTE, FE Y `,
-    `MÚSICA EN EL RENACIMIENTO</h2>\n        <p class="info-subtitle">Del material `,
-    `preexistente a la misa cíclica · Dufay · Binchois · Ockeghem · Busnois · `,
-    `Josquin</p>\n      </div>\n\n      <div class="infographic-grid">\n        <!-- `,
-    `PANEL 1: DISTRIBUCIÓN VOCÁLICA Y EJEMPLOS DE NOTACIÓN -->\n        <div `,
-    `class="infographic-panel panel-left">\n          <div class="panel-header-bar">`,
-    `\n            <span class="panel-number">1</span>\n            <div>\n           `,
-    `   <h3>DISTRIBUCIÓN VOCÁLICA Y EJEMPLOS DE NOTACIÓN</h3>\n              <span `,
-    `class="panel-sub">Modelos de misa del siglo XV · Una melodía, tres caminos de `,
-    `creación</span>\n            </div>\n          </div>\n\n          <!-- MODELO `,
-    `1: MISA DE CANTUS FIRMUS -->\n          <div class="model-block">\n            `,
-    `<div class="model-header-row">\n              <div class="model-title-group">\n  `,
-    `              <span class="model-circle-badge">1</span>\n                <div>\n `,
-    `                 <h4>MISA DE CANTUS FIRMUS</h4>\n                  <small `,
-    `class="model-meta">Estructura rígida</small>\n                </div>\n           `,
-    `   </div>\n              <span class="model-quote">«La melodía permanece fija `,
-    `como eje de la misa»</span>\n            </div>\n\n            <div `,
-    `class="model-body-grid">\n`,
-    `${renderCantusFirmusBox(cfEjemplo)}`,
-    `\n              <div class="model-side-info">\n    `,
-    `            <div class="model-chars-card">\n                  <strong>`,
-    `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>La `,
-    `melodía preexistente se presenta en valores largos (aumentación).</li>\n         `,
-    `           <li>Normalmente situada en el Tenor.</li>\n                    <li>`,
-    `Las otras voces desarrollan contrapunto libre o imitativo.</li>\n                `,
-    `    <li>Estructura solemne y estable.</li>\n                  </ul>\n            `,
-    `    </div>\n                <div class="model-example-card">\n                  `,
-    `<span class="ex-badge">EJEMPLO</span>\n                  <strong>Missa Se `,
-    `la face ay pale (Du Fay)</strong>\n                  <p>Melodía del cantus firmus `,
-    `en el Tenor en valores aumentados.</p>\n                </div>\n              </div>\n  `,
-    `          </div>\n          </div>\n\n          <!-- MODELO 2: MISA DE `,
-    `PARÁFRASIS -->\n          <div class="model-block">\n            <div `,
-    `class="model-header-row">\n              <div class="model-title-group">\n       `,
-    `         <span class="model-circle-badge accent-amber">2</span>\n                `,
-    `<div>\n                  <h4>MISA DE PARÁFRASIS</h4>\n                  <small `,
-    `class="model-meta">Estructura fluida e imitativa</small>\n                </div>`,
-    `\n              </div>\n              <span class="model-quote">«La melodía `,
-    `viaja, se adorna y se transforma»</span>\n            </div>\n\n            <div `,
-    `class="model-body-grid">\n`,
-    `${renderEjemploPendiente()}`,
-    `\n              <div class="model-side-info">\n    `,
-    `            <div class="model-chars-card">\n                  <strong>`,
-    `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>La `,
-    `melodía original se mantiene reconocible, pero con adornos (glosas).</li>\n      `,
-    `              <li>Se reparte entre todas las voces mediante imitación.</li>\n    `,
-    `                <li>Hay mayor libertad rítmica y melódica.</li>\n                `,
-    `    <li>Textura más dinámica y expresiva.</li>\n                  </ul>\n        `,
-    `        </div>\n                <div class="model-example-card">\n               `,
-    `   <span class="ex-badge">EJEMPLO</span>\n                  <strong>Pange `,
-    `Lingua</strong>\n                  <p>Fragmento del himno gregoriano con `,
-    `ornamentos y tratamiento imitativo entre voces.</p>\n                </div>\n    `,
-    `          </div>\n            </div>\n          </div>\n\n          <!-- MODELO `,
-    `3: MISA PARODIA / IMITACIÓN -->\n          <div class="model-block">\n           `,
-    ` <div class="model-header-row">\n              <div class="model-title-group">\n `,
-    `               <span class="model-circle-badge accent-green">3</span>\n          `,
-    `      <div>\n                  <h4>MISA PARODIA / IMITACIÓN</h4>\n               `,
-    `   <small class="model-meta">Estructura en bloque</small>\n                </div>`,
-    `\n              </div>\n              <span class="model-quote">«Se toma el `,
-    `tejido polifónico completo y se reelabora»</span>\n            </div>\n\n        `,
-    `    <div class="model-body-grid">\n              <div class="parody-diagram-box">`,
-    `\n                <div class="parody-box-side original-piece">\n                 `,
-    ` <span class="parody-box-title">Obra original (Motete / Chanson a 4 voces)</span>`,
-    `\n                  <div class="p-voice v1">Voz 1 (Superius)</div>\n             `,
-    `     <div class="p-voice v2">Voz 2 (Altus)</div>\n                  <div `,
-    `class="p-voice v3">Voz 3 (Tenor)</div>\n                  <div class="p-voice `,
-    `v4">Voz 4 (Bassus)</div>\n                </div>\n\n                <div `,
-    `class="parody-arrow-center">\n                  <span>↳ Se copia, se adapta y se `,
-    `transforma ➔</span>\n                </div>\n\n                <div `,
-    `class="parody-box-side new-mass">\n                  <span `,
-    `class="parody-box-title">Misa nueva (Kyrie, Gloria, Credo...)</span>\n           `,
-    `       <div class="p-voice v1">Superius</div>\n                  <div `,
-    `class="p-voice v2">Altus</div>\n                  <div class="p-voice v3">`,
-    `Tenor</div>\n                  <div class="p-voice v4">Bassus</div>\n            `,
-    `    </div>\n              </div>\n\n              <div class="model-side-info">`,
-    `\n                <div class="model-chars-card">\n                  <strong>`,
-    `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>Se `,
-    `toma la obra original completa (las cuatro voces).</li>\n                    <li>`,
-    `Puede mantenerse el orden, invertirse o variar el ritmo.</li>\n                  `,
-    `  <li>Alternancia de texturas: contrapunto imitativo y pasajes más `,
-    `homofónicos.</li>\n                    <li>Inserción de nuevos motivos y `,
-    `adaptaciones al texto litúrgico.</li>\n                  </ul>\n                `,
-    `</div>\n                <div class="model-example-card">\n                  `,
-    `<span class="ex-badge">EJEMPLO</span>\n                  <strong>Je ne vis `,
-    `oncques la / Se la face ay pale</strong>\n                  <p>Inicio en `,
-    `imitación de las cuatro voces de la chanson en el Kyrie de la misa.</p>\n        `,
-    `        </div>\n              </div>\n            </div>\n          </div>\n     `,
-    `   </div>\n\n        <!-- PANEL 2: TÉCNICAS DE COMPOSICIÓN DEL SIGLO XV -->\n    `,
-    `    <div class="infographic-panel panel-right">\n          <div `,
-    `class="panel-header-bar accent-wine">\n            <span class="panel-number">`,
-    `2</span>\n            <div>\n              <h3>TÉCNICAS DE COMPOSICIÓN DEL SIGLO `,
-    `XV</h3>\n              <span class="panel-sub">Del material preexistente a la `,
-    `misa cíclica · Tradición · Invención · Unidad</span>\n            </div>\n       `,
-    `   </div>\n\n          <!-- PASO 1 -->\n          <div class="step-card">\n      `,
-    `      <div class="step-title-row">\n              <span class="step-badge">PASO `,
-    `1</span>\n              <div>\n                <strong>SELECCIÓN DEL MATERIAL `,
-    `PREEXISTENTE</strong>\n                <p>El compositor parte de una melodía o `,
-    `de una obra ya conocida.</p>\n              </div>\n            </div>\n\n       `,
-    `     <div class="source-branches-grid">\n              <div `,
-    `class="source-branch-card sacred">\n                <div class="branch-head">\n  `,
-    `                <span class="branch-icon">📜</span>\n                  <div>\n    `,
-    `                <strong>ORIGEN SACRO</strong>\n                    <small>Canto `,
-    `Llano / Gregoriano</small>\n                  </div>\n                </div>\n   `,
-    `             <ul>\n                  <li>Himnos</li>\n                  <li>`,
-    `Antífonas</li>\n                  <li>Cantos litúrgicos</li>\n                `,
-    `</ul>\n                <div class="branch-examples">\n                  <em>`,
-    `Ejemplos:</em> Ave Maris Stella, Pange Lingua, Veni Creator Spiritus\n           `,
-    `     </div>\n              </div>\n\n              <div `,
-    `class="source-branch-card secular">\n                <div class="branch-head">\n `,
-    `                 <span class="branch-icon">🪕</span>\n                  <div>\n   `,
-    `                 <strong>ORIGEN PROFANO</strong>\n                    <small>`,
-    `Chansons, canciones populares</small>\n                  </div>\n                `,
-    `</div>\n                <ul>\n                  <li>Chansons cortesanas</li>\n   `,
-    `               <li>Canciones de tradición oral</li>\n                  <li>`,
-    `Melodías de gran difusión</li>\n                </ul>\n                <div `,
-    `class="branch-examples">\n                  <em>Ejemplos:</em> L'homme armé, Se `,
-    `la face ay pale, Belle, bonne, sage\n                </div>\n              </div>`,
-    `\n            </div>\n          </div>\n\n          <div class="flow-arrow-down">`,
-    `⬇</div>\n\n          <!-- PASO 2 -->\n          <div class="step-card">\n        `,
-    `    <div class="step-title-row">\n              <span class="step-badge">PASO `,
-    `2</span>\n              <div>\n                <strong>ELECCIÓN DE LA TÉCNICA DE `,
-    `TRATAMIENTO</strong>\n                <p>Diferentes maneras de integrar el `,
-    `material en la misa.</p>\n              </div>\n            </div>\n\n           `,
-    ` <div class="treatment-cols-grid">\n              <div class="treatment-box `,
-    `col-cf">\n                <div class="treatment-icon">𝄡</div>\n                `,
-    `<strong>CANTUS FIRMUS</strong>\n                <ul>\n                  <li>`,
-    `Aislar la melodía.</li>\n                  <li>Estirar las notas `,
-    `(aumentación).</li>\n                  <li>Normalmente en el Tenor.</li>\n       `,
-    `           <li>Otras voces en contrapunto libre.</li>\n                  <li>`,
-    `Estructura solemne.</li>\n                </ul>\n                <div `,
-    `class="treatment-res">\n                  <small>Resultado:</small>\n            `,
-    `      <span>Melodía fija como columna vertebral de la obra.</span>\n             `,
-    `   </div>\n              </div>\n\n              <div class="treatment-box `,
-    `col-pf">\n                <div class="treatment-icon">〰</div>\n                `,
-    `<strong>PARÁFRASIS</strong>\n                <ul>\n                  <li>Alterar `,
-    `intervalos.</li>\n                  <li>Añadir ornamentos (glosas).</li>\n       `,
-    `           <li>Repartir la melodía entre todas las voces (imitación).</li>\n     `,
-    `             <li>Mayor libertad rítmica y melódica.</li>\n                  <li>`,
-    `Textura más fluida.</li>\n                </ul>\n                <div `,
-    `class="treatment-res">\n                  <small>Resultado:</small>\n            `,
-    `      <span>Melodía transformada y en constante movimiento.</span>\n             `,
-    `   </div>\n              </div>\n\n              <div class="treatment-box `,
-    `col-pd">\n                <div class="treatment-icon">♫</div>\n                `,
-    `<strong>PARODIA / IMITACIÓN</strong>\n                <ul>\n                  `,
-    `<li>Tomar el tejido polifónico completo.</li>\n                  <li>Variar el `,
-    `orden, el ritmo o la textura.</li>\n                  <li>Alternar contrapunto y `,
-    `pasajes homofónicos.</li>\n                  <li>Inserción de nuevos `,
-    `motivos.</li>\n                </ul>\n                <div class="treatment-res">`,
-    `\n                  <small>Resultado:</small>\n                  <span>Una nueva `,
-    `obra a partir de todo el material original.</span>\n                </div>\n     `,
-    `         </div>\n            </div>\n          </div>\n\n          <div `,
-    `class="flow-arrow-down">⬇</div>\n\n          <!-- PASO 3 -->\n          <div `,
-    `class="step-card">\n            <div class="step-title-row">\n              `,
-    `<span class="step-badge">PASO 3</span>\n              <div>\n                `,
-    `<strong>UNIFICACIÓN DE LA MISA CÍCLICA</strong>\n                <p>Recursos `,
-    `para dar coherencia a toda la obra (Kyrie, Gloria, Credo, Sanctus, Agnus `,
-    `Dei).</p>\n              </div>\n            </div>\n\n            <div `,
-    `class="unification-cards-grid">\n              <div class="unification-card `,
-    `motto">\n                <div class="u-card-head">\n                  <strong>`,
-    `TÉCNICA DEL MOTTO</strong>\n                  <small>(Motivo de cabeza)</small>`,
-    `\n                </div>\n`,
-    `${renderEjemploPendiente()}`,
-    `\n                <ul>\n                  <li>Todas las partes de la misa `,
-    `comienzan con las mismas 3 o 4 notas o células.</li>\n                  <li>`,
-    `Refuerza la unidad arquitectónica de la obra.</li>\n                  <li>Muy `,
-    `utilizada por Dufay, Josquin y sus contemporáneos.</li>\n                </ul>\n `,
-    `             </div>\n\n              <div class="unification-card cadence">\n    `,
-    `            <div class="u-card-head">\n                  <strong>CADENCIAS `,
-    `RENACENTISTAS</strong>\n                  <small>(Landini y borgoñonas)</small>`,
-    `\n                </div>\n`,
-    `${renderEjemploPendiente()}`,
-    `\n                <ul>\n                  <li>Uso de la cadencia de Landini o `,
-    `cadencias borgoñonas.</li>\n                  <li>Caracterizadas por la octava `,
-    `sin tercera (conducción 6ª a 8ª).</li>\n                  <li>Cierran secciones `,
-    `y articulan el texto litúrgico.</li>\n                </ul>\n              </div>`,
-    `\n            </div>\n          </div>\n        </div>\n      </div>\n\n      `,
-    `<div class="infographic-footer-banner">\n        <span>⚜ MISMA MÚSICA, NUEVOS `,
-    `SIGNIFICADOS: DEL MUNDO PROFANO AL ESPACIO SAGRADO ⚜</span>\n        <span `,
-    `class="footer-composers">DUFAY · BINCHOIS · OCKEGHEM · BUSNOIS · JOSQUIN</span>`,
-    `\n      </div>\n    </div>\n  `
-  ].join('');
+    '<div class="infographic-poster">',
+    '  <div class="infographic-main-head">',
+    '    <div class="info-tag-row">',
+    `      <span class="info-badge">${e(ficha.tema || 'TEMA')}</span>`,
+    `      <span class="info-badge-sub">${e(infog.titulo || '')}</span>`,
+    '    </div>',
+    `    <h2>${e(infog.titulo || '')}</h2>`,
+    infog.subtitulo ? `    <p class="info-subtitle">${e(infog.subtitulo)}</p>` : '',
+    '  </div>',
+    '  <div class="infographic-grid">',
+    '    <div class="infographic-panel panel-left">',
+    '      <div class="panel-header-bar">',
+    '        <span class="panel-number">1</span>',
+    '        <div>',
+    `          <h3>${e(infog.titulo || 'MODELOS DE MISA')}</h3>`,
+    '        </div>',
+    '      </div>',
+    modelos.map((m, idx) => {
+      const ejAsociado = modelosEjemplos[idx] || null;
+      return [
+        '      <div class="model-block">',
+        '        <div class="model-header-row">',
+        '          <div class="model-title-group">',
+        `            <span class="model-circle-badge">${e(idx + 1)}</span>`,
+        '            <div>',
+        `              <h4>${e(m.nombre || '')}</h4>`,
+        `              <small class="model-meta">${e(m.disposicion || '')}</small>`,
+        '            </div>',
+        '          </div>',
+        '        </div>',
+        '        <div class="model-body-grid">',
+        renderFichaScoreBox(ejAsociado, runId),
+        '          <div class="model-side-info">',
+        '            <div class="model-chars-card">',
+        '              <strong>CARACTERÍSTICAS</strong>',
+        '              <ul>',
+        (m.caracteristicas || []).map(c => `                <li>${e(c)}</li>`).join('\n'),
+        '              </ul>',
+        '            </div>',
+        m.ejemplo ? [
+          '            <div class="model-example-card">',
+          '              <span class="ex-badge">EJEMPLO</span>',
+          `              <strong>${e(m.ejemplo)}</strong>`,
+          m.ejemplo_descripcion ? `              <p>${e(m.ejemplo_descripcion)}</p>` : '',
+          '            </div>'
+        ].join('\n') : '',
+        '          </div>',
+        '        </div>',
+        '      </div>'
+      ].join('\n');
+    }).join('\n'),
+    '    </div>',
+    '    <div class="infographic-panel panel-right">',
+    '      <div class="panel-header-bar accent-wine">',
+    '        <span class="panel-number">2</span>',
+    '        <div>',
+    `          <h3>${e(paso2.titulo || 'TÉCNICAS DE COMPOSICIÓN')}</h3>`,
+    paso2.descripcion ? `          <span class="panel-sub">${e(paso2.descripcion)}</span>` : '',
+    '        </div>',
+    '      </div>',
+    '      <div class="step-card">',
+    '        <div class="step-title-row">',
+    '          <span class="step-badge">1</span>',
+    '          <div>',
+    `            <strong>${e(paso1.titulo || 'Selección del material')}</strong>`,
+    paso1.descripcion ? `            <p>${e(paso1.descripcion)}</p>` : '',
+    '          </div>',
+    '        </div>',
+    '        <div class="source-branches-grid">',
+    (paso1.procedimientos || []).map(p => [
+      '          <div class="source-branch-card">',
+      '            <div class="branch-head">',
+      `              <strong>${e(p.nombre || '')}</strong>`,
+      '            </div>',
+      '            <ul>',
+      (p.detalles || []).map(d => `              <li>${e(d)}</li>`).join('\n'),
+      '            </ul>',
+      p.resultado ? `            <div class="branch-examples"><em>${e(p.resultado)}</em></div>` : '',
+      '          </div>'
+    ].join('\n')).join('\n'),
+    '        </div>',
+    '      </div>',
+    '      <div class="flow-arrow-down">⬇</div>',
+    '      <div class="step-card">',
+    '        <div class="step-title-row">',
+    '          <span class="step-badge">2</span>',
+    '          <div>',
+    `            <strong>${e(paso2.titulo || 'Técnicas')}</strong>`,
+    paso2.descripcion ? `            <p>${e(paso2.descripcion)}</p>` : '',
+    '          </div>',
+    '        </div>',
+    '        <div class="treatment-cols-grid">',
+    (paso2.procedimientos || []).map(p => [
+      '          <div class="treatment-box">',
+      `            <strong>${e(p.nombre || '')}</strong>`,
+      '            <ul>',
+      (p.detalles || []).map(d => `              <li>${e(d)}</li>`).join('\n'),
+      '            </ul>',
+      p.resultado ? `            <div class="treatment-res"><small>${e(p.resultado)}</small></div>` : '',
+      '          </div>'
+    ].join('\n')).join('\n'),
+    '        </div>',
+    '      </div>',
+    '      <div class="flow-arrow-down">⬇</div>',
+    '      <div class="step-card">',
+    '        <div class="step-title-row">',
+    '          <span class="step-badge">3</span>',
+    '          <div>',
+    `            <strong>${e(paso3.titulo || 'Unificación')}</strong>`,
+    paso3.descripcion ? `            <p>${e(paso3.descripcion)}</p>` : '',
+    '          </div>',
+    '        </div>',
+    '        <div class="unification-cards-grid">',
+    (paso3.recursos || []).map((r, idx) => {
+      const extraScore = idx === 0 ? isorritmiaEj : lhommeEj;
+      return [
+        '          <div class="unification-card">',
+        '            <div class="u-card-head">',
+        `              <strong>${e(r.nombre || '')}</strong>`,
+        r.subtitulo ? `              <small>(${e(r.subtitulo)})</small>` : '',
+        '            </div>',
+        renderFichaScoreBox(extraScore, runId),
+        '            <ul>',
+        (r.detalles || []).map(d => `              <li>${e(d)}</li>`).join('\n'),
+        '            </ul>',
+        '          </div>'
+      ].join('\n');
+    }).join('\n'),
+    '        </div>',
+    '      </div>',
+    '    </div>',
+    '  </div>',
+    '  <div class="infographic-footer-banner">',
+    `    <span>${e(infog.subtitulo || ficha.tema || '')}</span>`,
+    '  </div>',
+    '</div>'
+  ].join('\n');
 }
