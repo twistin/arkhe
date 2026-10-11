@@ -343,7 +343,7 @@ export async function loadScoreContent(box, mode = 'svg') {
     box.innerHTML = '<div class="score-loading"><span class="spinner"></span> ' +
       'Renderizando partitura con Verovio…</div>';
     try {
-      const res = await api('/scores/render-svg', { id: candidateId, run_id: runId, start, end });
+      const res = await api('/scores/render-svg', { id: candidateId, run_id: runId, start, end, voice });
       if (res?.svg) {
         box.innerHTML = '<div class="verovio-score-svg"></div>';
         box.firstElementChild.innerHTML = res.svg;

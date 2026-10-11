@@ -1041,54 +1041,185 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
         return real_path
 
-    def render_score_svg(self, file_path: str, start_measure: int = 1, end_measure: int = 8) -> str:
-        """Renderiza un SVG real usando Verovio y recortando al rango de compases indicado."""
-        import verovio
-        from docente_ai.music import get_music21, slice_measures
+    def render_score_svg(
+        self,
+        file_path: str,
+        start_measure: int = 1,
+        end_measure: int = 8,
+        highlight_voice: str | None = None,
+    ) -> str:
+        """Renderiza un SVG usando Verovio y recortando al rango de compases indicado.
+
+        Para archivos Humdrum (.krn) y MEI (.mei), carga el archivo directamente en Verovio
+        y recorta con su propia selección de compases (tk.select con measureRange), conservando
+        los nombres originales de las voces y omitiendo cualquier conversión por music21.
+        Para MusicXML, elimina indicaciones metronómicas antes de renderizar.
+        """
+        import re
         import tempfile
+        import verovio
 
         p = Path(file_path)
         if not p.is_file():
             raise FileNotFoundError(f"Partitura no encontrada: {file_path}")
 
-        m21 = get_music21()
-        try:
-            score = m21.converter.parse(str(p))
-        except Exception as exc:
-            raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
-
-        recorte = slice_measures(score, start_measure, end_measure)
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            xml_path = Path(tmpdir) / "slice.musicxml"
-            recorte.write("musicxml", fp=str(xml_path))
-            xml_content = xml_path.read_text(encoding="utf-8")
-
         data_dir = Path(verovio.__file__).parent / "data"
         tk = verovio.toolkit(False)
         if data_dir.is_dir():
             tk.setResourcePath(str(data_dir))
+
         tk.setOptions({
-            "pageWidth": 1200,
-            "pageHeight": 800,
-            "scale": 45,
+            "pageWidth": 1800,
+            "pageHeight": max(25000, end_measure * 2200),
+            "scale": 38,
             "adjustPageHeight": True,
             "breaks": "auto",
         })
-        tk.loadData(xml_content)
+
+        ext = p.suffix.lower()
+        if ext in (".krn", ".mei"):
+            if not tk.loadFile(str(p)):
+                raise ValueError(f"Verovio no pudo cargar la partitura: {file_path}")
+            tk.select({"measureRange": f"{start_measure}-{end_measure}"})
+            tk.redoLayout()
+        else:
+            from docente_ai.music import get_music21, slice_measures
+
+            m21 = get_music21()
+            try:
+                score = m21.converter.parse(str(p))
+            except Exception as exc:
+                raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
+
+            recorte = slice_measures(score, start_measure, end_measure)
+            for el in list(recorte.recurse().getElementsByClass("MetronomeMark")):
+                if el.activeSite:
+                    el.activeSite.remove(el)
+            for el in list(recorte.recurse().getElementsByClass("TempoIndication")):
+                if el.activeSite:
+                    el.activeSite.remove(el)
+
+            with tempfile.TemporaryDirectory() as tmpdir:
+                xml_path = Path(tmpdir) / "slice.musicxml"
+                recorte.write("musicxml", fp=str(xml_path))
+                xml_content = xml_path.read_text(encoding="utf-8")
+                xml_content = re.sub(r"<metronome>[\s\S]*?</metronome>", "", xml_content)
+                xml_content = re.sub(r'<sound[^>]*tempo="[^"]*"[^>]*/>', "", xml_content)
+
+            tk.loadData(xml_content)
+
         if tk.getPageCount() < 1:
             return ""
-        return tk.renderToSVG(1)
+
+        svg = tk.renderToSVG(1)
+
+        # Eliminar cualquier indicación metronómica residual que pudiera existir en el SVG
+        svg = re.sub(
+            r'<g [^>]*class="tempo"[^>]*>[\s\S]*?(?:=\s*\d+|\b\d+\s*=\s*\d+)[\s\S]*?</g>',
+            "",
+            svg,
+        )
+
+        hl_target = (highlight_voice or "tenor").strip().lower() if highlight_voice else "tenor"
+        target_staff_n = None
+
+        try:
+            mei = tk.getMEI()
+            for m in re.finditer(r'<staffDef[^>]+n="([^"]+)"[^>]*>([\s\S]*?)</staffDef>', mei):
+                st_n = m.group(1)
+                labels = re.findall(r"<label[^>]*>([\s\S]*?)</label>", m.group(2))
+                lbl_str = " ".join(labels).lower()
+                if re.search(r"(?<!contra)\b" + re.escape(hl_target) + r"\b", lbl_str):
+                    target_staff_n = st_n
+                    break
+        except Exception:
+            pass
+
+        if not target_staff_n and ext == ".krn":
+            try:
+                krn_txt = p.read_text(encoding="utf-8", errors="ignore")
+                m_st = re.search(
+                    r'\*staff(\d+)[^\n]*\n[^\n]*\*I\"[^\n]*(?<!contra)\b' + re.escape(hl_target) + r'\b',
+                    krn_txt,
+                    re.IGNORECASE,
+                )
+                if m_st:
+                    target_staff_n = m_st.group(1)
+            except Exception:
+                pass
+
+        if not target_staff_n and hl_target == "tenor":
+            target_staff_n = "3"
+
+        if target_staff_n:
+            idx_staff = int(target_staff_n) - 1
+
+            def mark_staves(match):
+                block = match.group(0)
+                staves = list(re.finditer(r'<g (id="[^"]+") class="staff"', block))
+                if len(staves) > idx_staff:
+                    target = staves[idx_staff]
+                    span = target.span()
+                    repl = target.group(0).replace('class="staff"', 'class="staff cantus-firmus-highlight"')
+                    block = block[: span[0]] + repl + block[span[1] :]
+                return block
+
+            svg = re.sub(
+                r'<g [^>]*class="[^"]*measure[^"]*"[\s\S]*?(?=(?:<g [^>]*class="[^"]*measure[^"]*"|</g>\s*</svg>))',
+                mark_staves,
+                svg,
+            )
+
+            css = (
+                '<style type="text/css">\n'
+                '  g.staff.cantus-firmus-highlight {\n'
+                '    color: #d97706 !important;\n'
+                '  }\n'
+                '  g.staff.cantus-firmus-highlight path.staffLine {\n'
+                '    stroke: #d97706 !important;\n'
+                '    stroke-width: 14 !important;\n'
+                '  }\n'
+                '  g.staff.cantus-firmus-highlight use,\n'
+                '  g.staff.cantus-firmus-highlight path:not(.staffLine) {\n'
+                '    fill: #f59e0b !important;\n'
+                '    stroke: #f59e0b !important;\n'
+                '  }\n'
+                '  g.staff.cantus-firmus-highlight text {\n'
+                '    fill: #d97706 !important;\n'
+                '  }\n'
+                '</style>\n'
+            )
+            if "</desc>" in svg:
+                svg = svg.replace("</desc>", "</desc>\n" + css)
+            elif "<defs>" in svg:
+                svg = svg.replace("<defs>", css + "<defs>")
+            else:
+                svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + css, svg, count=1)
+
+        return svg
 
     def render_score_midi(self, file_path: str, start_measure: int = 1, end_measure: int = 8) -> str:
         """Genera el MIDI base64 real mediante Verovio para el rango de compases elegido."""
-        import verovio
-        from docente_ai.music import get_music21, slice_measures
         import tempfile
+        import verovio
 
         p = Path(file_path)
         if not p.is_file():
             raise FileNotFoundError(f"Partitura no encontrada: {file_path}")
+
+        data_dir = Path(verovio.__file__).parent / "data"
+        tk = verovio.toolkit(False)
+        if data_dir.is_dir():
+            tk.setResourcePath(str(data_dir))
+
+        ext = p.suffix.lower()
+        if ext in (".krn", ".mei"):
+            if not tk.loadFile(str(p)):
+                raise ValueError(f"Verovio no pudo cargar la partitura: {file_path}")
+            tk.select({"measureRange": f"{start_measure}-{end_measure}"})
+            return tk.renderToMIDI()
+
+        from docente_ai.music import get_music21, slice_measures
 
         m21 = get_music21()
         try:
@@ -1097,16 +1228,11 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
 
         recorte = slice_measures(score, start_measure, end_measure)
-
         with tempfile.TemporaryDirectory() as tmpdir:
             xml_path = Path(tmpdir) / "slice.musicxml"
             recorte.write("musicxml", fp=str(xml_path))
             xml_content = xml_path.read_text(encoding="utf-8")
 
-        data_dir = Path(verovio.__file__).parent / "data"
-        tk = verovio.toolkit(False)
-        if data_dir.is_dir():
-            tk.setResourcePath(str(data_dir))
         tk.loadData(xml_content)
         return tk.renderToMIDI()
 

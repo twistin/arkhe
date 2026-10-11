@@ -486,7 +486,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             return JSONResponse({'error': str(exc)}, status_code=404)
         except PermissionError as exc:
             return JSONResponse({'error': str(exc)}, status_code=400)
-        svg = await run_in_threadpool(ws.render_score_svg, str(resolved_file), start, end)
+        voice = data.get('voice') or data.get('highlight_voice')
+        svg = await run_in_threadpool(ws.render_score_svg, str(resolved_file), start, end, voice)
         if request.headers.get('accept') == 'image/svg+xml':
             return Response(svg, media_type='image/svg+xml')
         return JSONResponse({'svg': svg})

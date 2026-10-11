@@ -511,11 +511,25 @@ def test_ejemplos_musicales_ficha_jrp_descarga_y_verovio(score_client):
         'id': gloria_ej['id'],
         'start': 1,
         'end': 12,
+        'voice': 'tenor',
     })
     assert res_svg.status_code == 200, res_svg.text
     svg_content = res_svg.json().get('svg', '')
     assert '<svg' in svg_content
     assert '</svg>' in svg_content
+    # Debe contener exactamente 12 compases en el recorte
+    import re
+    compases = re.findall(r'<g [^>]*class="[^"]*measure[^"]*"', svg_content)
+    assert len(compases) == 12
+    # Debe conservar los 4 nombres de voz originales y nunca "Voice"
+    for voz in ('Cantus', 'Contratenor', 'Tenor', 'Bassus'):
+        assert voz in svg_content
+    assert 'Voice' not in svg_content
+    # Ninguna indicación metronómica
+    assert '384' not in svg_content
+    # Tenor resaltado del mismo color que el piano roll (#f59e0b / #d97706)
+    assert 'cantus-firmus-highlight' in svg_content
+    assert '#f59e0b' in svg_content
 
     # 4. Comprobar renderizado de piano roll con el tenor resaltado
     res_pr = client.post('/api/scores/render-pianoroll', json={
@@ -528,5 +542,38 @@ def test_ejemplos_musicales_ficha_jrp_descarga_y_verovio(score_client):
     pr_svg = res_pr.json().get('svg', '')
     assert '<svg' in pr_svg
     assert 'class="pianoroll-svg"' in pr_svg
+
+
+def test_gloria_dufay_recorte_directo_verovio_humdrum(tmp_path):
+    """Comprueba carga directa en Verovio de Humdrum, selección 1-12, 4 nombres de voz y sin tempo."""
+    import re
+    from docente_ai.web.workspace import Workspace
+    from test_generation import FakeEmbedder
+
+    ws = Workspace(tmp_path, embedder_factory=FakeEmbedder)
+    krn_path = Path('data/cache/partituras/jrp/Duf1005b-Missa_Se_la_face_ay_pale-Gloria.krn')
+    assert krn_path.is_file(), f'Falta archivo de prueba: {krn_path}'
+
+    svg = ws.render_score_svg(str(krn_path), start_measure=1, end_measure=12, highlight_voice='tenor')
+    assert '<svg' in svg
+    assert '</svg>' in svg
+
+    # 1. Contiene 12 compases
+    compases = re.findall(r'<g [^>]*class="[^"]*measure[^"]*"', svg)
+    assert len(compases) == 12, f'Se esperaban 12 compases y se encontraron {len(compases)}'
+
+    # 2. Conserva los cuatro nombres de voz del archivo (nunca "Voice")
+    for nombre in ('Cantus', 'Contratenor', 'Tenor', 'Bassus'):
+        assert nombre in svg, f'Falta el nombre original de la voz: {nombre}'
+    assert 'Voice' not in svg
+
+    # 3. Ninguna indicación de tempo metronómica
+    assert '384' not in svg
+    assert not re.search(r'=\s*384', svg)
+
+    # 4. Voz cantus firmus / Tenor resaltada
+    assert 'cantus-firmus-highlight' in svg
+    assert '#f59e0b' in svg or '#d97706' in svg
+
 
 
