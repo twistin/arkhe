@@ -60,7 +60,7 @@ def _make_dummy_polyphony_run(extra_claims=None, extra_evidence=None, extra_acti
             'minutes': 20,
             'grouping': 'individual',
             'instructions': 'Analiza los pasajes de S1 y subraya el tenor (S1, S2).',
-            'student_task': 'Sigue la partitura (pendiente de aportar por el profesor) y analiza los pasajes de S1.',
+            'student_task': 'Sigue la partitura y analiza los pasajes de S1.',
             'deliverable': 'Cuadro comparativo con Fuente: S1.',
         },
         {
@@ -89,7 +89,12 @@ def _make_dummy_polyphony_run(extra_claims=None, extra_evidence=None, extra_acti
             'plan': {
                 'objectives': ['Comprender la misa cíclica.', 'Identificar el cantus firmus.'],
                 'activities': activities,
-                'resources': ['Partitura del Kyrie (pendiente de aportar por el profesor).', 'Grabación de audio.'],
+                'resources': [
+                    {'recurso': 'Partitura del Kyrie', 'tipo': 'partitura', 'pendiente': True},
+                    {'recurso': 'Missa L\'homme armé', 'tipo': 'grabacion', 'pendiente': True},
+                    {'recurso': '1475 (fecha del manuscrito)', 'tipo': 'dato', 'pendiente': True},
+                    'Grabación de audio de referencia.',
+                ],
             },
             'claims': claims,
             'visualizations': [
@@ -205,13 +210,35 @@ def test_eliminacion_identificadores_fuente_internos_en_material_alumnado():
     assert 'S1' not in student_md.split('## Trabajo en clase')[1].split('## Material necesario')[0]
 
 
-def test_sustitucion_partitura_pendiente_por_partitura_que_te_entregara_el_profesor():
-    """Comprueba el punto 7: sustituye 'pendiente de aportar por el profesor' por 'partitura que te entregará el profesor'."""
+def test_recursos_estructurados_pendientes_redaccion_segun_tipo_y_omision_de_dato():
+    """Comprueba que los recursos pendientes se estructuran por tipo:
+    - grabacion: 'grabación que escucharemos en clase'
+    - partitura: 'partitura que te entregará el profesor'
+    - dato: nunca aparece en material del alumnado, solo en la guía docente
+    - se elimina la sustitución indiscriminada por expresiones regulares."""
     run = _make_dummy_polyphony_run()
     student_md = render_student(run)
+    pedagogy_md = render_pedagogy(run)
 
-    assert 'pendiente de aportar por el profesor' not in student_md.lower()
-    assert 'partitura que te entregará el profesor' in student_md.lower()
+    # 1. Grabación pendiente en material del alumno
+    assert "Missa L'homme armé (grabación que escucharemos en clase)" in student_md
+
+    # 2. Partitura pendiente en material del alumno
+    assert "Partitura del Kyrie (partitura que te entregará el profesor)" in student_md
+
+    # 3. Dato pendiente (fecha, cifra) NUNCA aparece en material del alumno
+    assert "1475" not in student_md
+    assert "fecha del manuscrito" not in student_md
+
+    # 4. Dato pendiente y grabación pendiente aparecen en la guía docente
+    assert "1475 (fecha del manuscrito) (dato) [Aportación del profesor pendiente]" in pedagogy_md
+    assert "Missa L'homme armé (grabacion) [Aportación del profesor pendiente]" in pedagogy_md
+    assert "Partitura del Kyrie (partitura) [Aportación del profesor pendiente]" in pedagogy_md
+
+    # 5. Sin sustitución por regex de texto libre de 'pendiente de aportar por el profesor'
+    from docente_ai.generation.render import clean_student_text
+    raw_texto = "Texto con pendiente de aportar por el profesor"
+    assert clean_student_text(raw_texto) == raw_texto
 
 
 def test_bibliografia_dinamica_y_sin_duplicados_de_autor():

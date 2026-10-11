@@ -720,3 +720,36 @@ def test_validate_rejects_source_meta_talk_in_student_materials():
     assert 'deliverable' in str(exc4.value) and 'fuentes' in str(exc4.value)
 
 
+def test_validacion_recursos_estructurados_en_plan():
+    from docente_ai.agents.pedagogy import validate, ValidationError
+    evidence_text = TEXT
+    evidence = [{'source_id': 'S1', 'text': evidence_text, 'passages': [{'quote': 'quote_001', 'text': evidence_text}]}]
+    context = {'duration_minutes': 30, 'topic': 'Teoría musical'}
+
+    # 1. Recursos estructurados válidos
+    p = proposal()
+    p['plan']['resources'] = [
+        {'recurso': 'Missa Se la face ay pale', 'tipo': 'grabacion', 'pendiente': True},
+        {'recurso': 'Partitura del Kyrie', 'tipo': 'partitura', 'pendiente': True},
+        {'recurso': '1475 (fecha del manuscrito)', 'tipo': 'dato', 'pendiente': True},
+        'Piano o teclado del aula',
+    ]
+    val = validate(json.dumps(p), evidence, context)
+    assert len(val['plan']['resources']) == 4
+
+    # 2. Tipo inválido rechazado
+    p_bad_type = proposal()
+    p_bad_type['plan']['resources'] = [{'recurso': 'Video explicativo', 'tipo': 'video'}]
+    with pytest.raises(ValidationError) as exc:
+        validate(json.dumps(p_bad_type), evidence, context)
+    assert 'Tipo de recurso inválido' in str(exc.value)
+
+    # 3. Falta campo obligatorio en objeto
+    p_missing = proposal()
+    p_missing['plan']['resources'] = [{'tipo': 'grabacion'}]
+    with pytest.raises(ValidationError) as exc2:
+        validate(json.dumps(p_missing), evidence, context)
+    assert 'requiere "recurso" y "tipo"' in str(exc2.value)
+
+
+

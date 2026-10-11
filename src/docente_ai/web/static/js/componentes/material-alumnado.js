@@ -19,13 +19,6 @@ import { renderStudentInfographic } from '../infografias/musica.js';
 export function cleanStudentText(text, isConsigna = false) {
   if (!text) return '';
   let res = String(text);
-  const pendingRx = new RegExp(
-    '\\b(?:partitura\\s+)?(?:pendiente\\s+de\\s+aportar\\s+por\\s+el\\s+profesor|' +
-    'aportaci[óo]n\\s+del\\s+profesor\\s+pendiente)\\b',
-    'gi'
-  );
-  res = res.replace(pendingRx, 'partitura que te entregará el profesor');
-  res = res.replace(/\bpendiente\s+de\s+aportar\s+por\s+el\s+profesor\b/gi, 'partitura que te entregará el profesor');
   if (isConsigna) {
     res = res.replace(/pasajes\s+de\s+S\d+/gi, 'pasajes de las fuentes');
     res = res.replace(/\(?\s*Fuente:\s*S\d+\s*\)?/gi, '');
@@ -39,6 +32,37 @@ export function cleanStudentText(text, isConsigna = false) {
   }
   res = res.replace(/\(\s*\)/g, '').replace(/ {2,}/g, ' ').trim();
   return res;
+}
+
+export function formatStudentResource(item) {
+  if (!item) return null;
+  if (typeof item === 'string') {
+    const cleaned = cleanStudentText(item, true);
+    return cleaned || null;
+  }
+  if (typeof item === 'object') {
+    const rec = cleanStudentText(item.recurso || '', true);
+    const tipo = (item.tipo || '').toLowerCase().trim();
+    const pendiente = Boolean(item.pendiente);
+    if (tipo === 'dato' && pendiente) {
+      return null;
+    }
+    if (pendiente) {
+      const descMap = {
+        partitura: 'partitura que te entregará el profesor',
+        grabacion: 'grabación que escucharemos en clase',
+        texto: 'texto que te entregará el profesor',
+        imagen: 'imagen que proyectará el profesor',
+      };
+      const desc = descMap[tipo] || 'material que te entregará el profesor';
+      if (rec) {
+        return `${rec} (${desc})`;
+      }
+      return desc.charAt(0).toUpperCase() + desc.slice(1);
+    }
+    return rec || null;
+  }
+  return cleanStudentText(String(item), true);
 }
 
 export function studentDocumentHTML(run) {

@@ -151,23 +151,9 @@ def replace_source_references(text: str, by_id: dict) -> str:
 
 
 def clean_student_text(text: str, by_id: dict | None = None, is_consigna: bool = False) -> str:
-    """Limpia texto para el alumnado: sustituye partituras pendientes y elimina o resuelve IDs de fuentes."""
+    """Limpia texto para el alumnado: elimina o resuelve IDs de fuentes."""
     if not text:
         return ''
-
-    # Requerimiento 7: Sustituir "pendiente de aportar por el profesor" por "partitura que te entregará el profesor"
-    text = re.sub(
-        r'\b(?:partitura\s+)?(?:pendiente\s+de\s+aportar\s+por\s+el\s+profesor|aportaci[óo]n\s+del\s+profesor\s+pendiente)\b',
-        'partitura que te entregará el profesor',
-        text,
-        flags=re.IGNORECASE
-    )
-    text = re.sub(
-        r'\bpendiente\s+de\s+aportar\s+por\s+el\s+profesor\b',
-        'partitura que te entregará el profesor',
-        text,
-        flags=re.IGNORECASE
-    )
 
     # Requerimiento 2: Eliminar del material del alumnado identificadores de fuentes internos
     # ("Fuente: S12", "pasajes de S9", "(S8, S10)"): sustituirlos por autor y página o eliminarlos en consignas.
@@ -214,6 +200,48 @@ def clean_student_text(text: str, by_id: dict | None = None, is_consigna: bool =
     text = re.sub(r'\(\s*\)', '', text)
     text = re.sub(r' {2,}', ' ', text)
     return text.strip()
+
+
+def format_student_resource(item: str | dict, by_id: dict | None = None) -> str | None:
+    """Redacta un recurso para el material del alumnado según su tipo o lo omite si es un dato pendiente."""
+    if not item:
+        return None
+    if isinstance(item, str):
+        cleaned = clean_student_text(item, by_id, is_consigna=True)
+        return cleaned if cleaned else None
+    if isinstance(item, dict):
+        rec = clean_student_text(str(item.get('recurso') or '').strip(), by_id, is_consigna=True)
+        tipo = str(item.get('tipo') or '').strip().lower()
+        pendiente = bool(item.get('pendiente'))
+        if tipo == 'dato' and pendiente:
+            return None
+        if pendiente:
+            desc_map = {
+                'partitura': 'partitura que te entregará el profesor',
+                'grabacion': 'grabación que escucharemos en clase',
+                'texto': 'texto que te entregará el profesor',
+                'imagen': 'imagen que proyectará el profesor',
+            }
+            desc = desc_map.get(tipo, 'material que te entregará el profesor')
+            if rec:
+                return f"{rec} ({desc})"
+            return desc[0].upper() + desc[1:]
+        return rec if rec else None
+    return clean_student_text(str(item), by_id, is_consigna=True)
+
+
+def format_teacher_resource(item: str | dict) -> str:
+    """Formatea un recurso para la guía docente, preservando tipos y etiquetas de pendiente."""
+    if isinstance(item, str):
+        return plain(item)
+    if isinstance(item, dict):
+        rec = plain(str(item.get('recurso') or '').strip())
+        tipo = plain(str(item.get('tipo') or '').strip())
+        pendiente = bool(item.get('pendiente'))
+        suffix = ' [Aportación del profesor pendiente]' if pendiente else ''
+        tipo_str = f" ({tipo})" if tipo else ''
+        return f"{rec}{tipo_str}{suffix}"
+    return plain(str(item))
 
 
 def sanitize_student_output(md: str) -> str:
@@ -765,7 +793,12 @@ def render_student(run: dict[str, Any]) -> str:
         lines.append('')
 
     lines += ['## Material necesario', '']
-    lines += ['- ' + plain(clean_student_text(item, by_id, is_consigna=True)) for item in plan.get('resources', [])]
+    rendered_resources = []
+    for item in plan.get('resources', []):
+        formatted = format_student_resource(item, by_id)
+        if formatted:
+            rendered_resources.append(formatted)
+    lines += ['- ' + plain(r) for r in rendered_resources]
 
     # Bibliografía del alumno generada solo con fuentes realmente citadas, deduplicadas por autor
     seen_authors = set()
@@ -1076,7 +1109,7 @@ def render_pedagogy(run: dict) -> str:
                 lines += [f"**Solución / Criterios de corrección:** {plain(replace_source_references(activity['solution'].strip(), by_id))}", '']
             lines += [f'Base documental: contenidos {links}.', '']
             elapsed = end
-        lines += ['### Recursos y partituras por preparar', ''] + ['- ' + plain(x) for x in plan.get('resources', [])]
+        lines += ['### Recursos y partituras por preparar', ''] + ['- ' + format_teacher_resource(x) for x in plan.get('resources', [])]
 
         music_reqs = result.get('music_requests') or []
         resolved_reqs = {r.get('request_id'): r for r in (result.get('resolved_music_requests') or [])}
@@ -1304,7 +1337,12 @@ def render_pedagogy(run: dict) -> str:
                 lines += ['', plain(visual.get('caption', '')), '']
 
         lines += ['## 2. Repertorio, fuentes y audiciones de trabajo', '']
-        lines += ['- ' + plain(x) for x in plan.get('resources', [])]
+        rendered_student_res = []
+        for item in plan.get('resources', []):
+            formatted = format_student_resource(item, by_id)
+            if formatted:
+                rendered_student_res.append(formatted)
+        lines += ['- ' + plain(r) for r in rendered_student_res]
         lines += ['', '## 3. Cuaderno de actividades y ejercicios prácticos', '']
         time_suffix_rx = re.compile(
             r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',

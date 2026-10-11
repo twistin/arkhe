@@ -106,9 +106,12 @@ verificación (`verificado: false` inicial). Mientras no cuenten con revisión y
 del profesor, estos contenidos se exhiben únicamente en la guía docente con avisos de
 revisión; el material del alumnado queda rigurosamente libre de cualquier contenido no
 verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
-internas o estados pendientes, sustituyendo menciones no confirmadas por redacciones
-pedagógicas limpias («partitura que te entregará el profesor»). La bibliografía del
-alumnado se genera de forma estrictamente dinámica según las fuentes citadas en la sesión.
+internas o estados pendientes. Los recursos pendientes se estructuran por tipo:
+el material del alumnado redacta partituras («partitura que te entregará el profesor»),
+grabaciones («grabación que escucharemos en clase») o textos («texto que te entregará el profesor»),
+mientras que los datos pendientes (fechas, cifras) nunca se muestran al alumnado y quedan
+exclusivamente en la guía docente. La bibliografía del alumnado se genera de forma estrictamente
+dinámica según las fuentes citadas en la sesión.
 
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes

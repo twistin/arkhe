@@ -17,18 +17,33 @@ from docente_ai.teaching.curriculum import show_curriculum
 ValidationError = ResponseValidationError
 
 PROMPT_VERSION = 'pedagogy:9'
-SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Las fuentes role="programming" son la programación didáctica: fijan objetivos, contenidos y evaluación; las demás documentan contenido técnico. Lagunas documentales van solo en coverage y observations de la guía docente; nunca inventes ni menciones fuentes ni autores ausentes en objetivos, student_summary ni tareas del alumno.
+SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Fuentes role="programming" son la programación didáctica; las demás son contenido técnico. Lagunas documentales van en coverage y observations; nunca inventes ni cites fuentes ausentes en objetivos, student_summary ni tareas.
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
-- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Cada claim vinculado a su requisito. Si piden cronología o autores no documentados en fuentes, declararlo expresamente aquí y en observations.
+- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Cada claim vinculado a su requisito. Cronología o autores no documentados se declaran aquí y en observations.
 - claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda), student_summary (2 a 4 frases directas al alumno en 2ª persona sin hablar de fuentes ni 'alumnado' en 3ª persona) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
-- plan: objectives (2-5, orientados al aprendizaje musical; sin hablar de fuentes ni autores ausentes), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title, teacher_notes, student_task (2ª persona, tarea práctica activa; sin hablar de fuentes ni verbos docentes), grouping ("individual", "grupo" o "colectivo"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based). En teacher_notes y solution, hechos sin respaldo indican "aportación del profesor pendiente". Temporización: si hay teoría nueva, reserva 15-20 min de exposición; no comprimir teoría y transcripción en 10 min.
+- plan: objectives (2-5, orientados al aprendizaje musical; sin hablar de fuentes ni autores ausentes), difficulty, activities (2-5), resources (1-5; texto u objetos {recurso,tipo,pendiente}), assessment y observations. Actividades: title, teacher_notes, student_task (2ª persona, tarea práctica activa; sin hablar de fuentes ni verbos docentes), grouping ("individual", "grupo" o "colectivo"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based). En teacher_notes y solution, hechos sin respaldo indican "aportación del profesor pendiente". Temporización: si hay teoría nueva, reserva 15-20 min de exposición; no comprimir teoría y transcripción en 10 min.
 - visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{"label":"...","detail":"..."}]), caption y evidence.
 - music_requests: 0 a 4 peticiones de ejemplos musicales con id ("MR1"-"MR4"), composer, work, section, voice (o null), technique (o null), activity_title y description (qué ilustra). Prohibido terminantemente escribir código o notación musical en la respuesta (el validador la rechaza).
 Devuelve solo JSON.'''
 
 TEXT = {'type': 'string'}
 STRINGS = {'type': 'array', 'items': TEXT}
+
+RESOURCE_ITEM_SCHEMA = {
+    'anyOf': [
+        TEXT,
+        {
+            'type': 'object',
+            'properties': {
+                'recurso': TEXT,
+                'tipo': {'enum': ['partitura', 'grabacion', 'texto', 'imagen', 'dato']},
+                'pendiente': {'type': 'boolean'},
+            },
+            'required': ['recurso', 'tipo'],
+        },
+    ],
+}
 
 ACTIVITY_SCHEMA = {
     'type': 'object',
@@ -75,7 +90,10 @@ RESPONSE_SCHEMA['properties']['plan'] = {
                     'type': 'array',
                     'items': ACTIVITY_SCHEMA
                 },
-                'resources': STRINGS,
+                'resources': {
+                    'type': 'array',
+                    'items': RESOURCE_ITEM_SCHEMA,
+                },
                 'assessment': TEXT,
                 'observations': TEXT,
             },
@@ -151,6 +169,8 @@ def context_for(db, group_id, duration, *, unit_id=None, criteria='', session_da
 def build_prompt(question, candidates, settings, context):
     if settings.is_remote:
         context = remote_context(context)
+    else:
+        context = compact_context(context)
     requirements = context.get('requirements') or []
     def messages(sources):
         return [{'role': 'system', 'content': SYSTEM}, {'role': 'user', 'content': grounded.compact({
@@ -209,6 +229,25 @@ def build_prompt(question, candidates, settings, context):
     if not selected:
         raise ValueError('Ningún fragmento completo cabe en el contexto pedagógico.')
     return {'messages': messages(selected), 'evidence': selected, 'omitted': omitted, 'estimated_input': size(selected)}
+
+
+def compact_context(context):
+    """Conserva la información pedagógica y experiencia previa pero omite infraestructura irrelevante."""
+    if not isinstance(context, dict):
+        return context
+    group = context.get('group') or {}
+    unit = context.get('unit')
+    res = {
+        'group': {k: group[k] for k in ('level', 'language', 'name', 'subject_id') if k in group},
+        'duration_minutes': context.get('duration_minutes'),
+        'teacher_criteria': context.get('teacher_criteria', ''),
+        'requirements': context.get('requirements', []),
+    }
+    if context.get('prior_experience'):
+        res['prior_experience'] = context['prior_experience']
+    if isinstance(unit, dict):
+        res['unit'] = {k: unit[k] for k in ('title', 'objectives', 'contents') if k in unit}
+    return res
 
 
 def remote_context(context):
@@ -330,11 +369,28 @@ def validate(content, evidence, context, *, retry: bool = True):
         if re.search(r'https?://|\b10\.\d{4,9}/|\b(?:p|pp|pág|página|páginas)\.?\s*\d+|\[S\d+\]', value, re.I):
             fail('Las referencias se añaden por código, no en el plan.')
 
-    for key in ('objectives', 'resources'):
-        if not isinstance(plan[key], list) or not 1 <= len(plan[key]) <= 5:
-            fail(f'{key} requiere entre uno y cinco elementos.')
-        for item in plan[key]:
-            text(item, label=f'Elemento de {key}', max_len=1500)
+    if not isinstance(plan.get('objectives'), list) or not 1 <= len(plan['objectives']) <= 5:
+        fail('objectives requiere entre uno y cinco elementos.')
+    for item in plan['objectives']:
+        text(item, label='Elemento de objectives', max_len=1500)
+
+    if not isinstance(plan.get('resources'), list) or not 1 <= len(plan['resources']) <= 5:
+        fail('resources requiere entre uno y cinco elementos.')
+    VALID_RESOURCE_TYPES = {'partitura', 'grabacion', 'texto', 'imagen', 'dato'}
+    for idx, item in enumerate(plan['resources']):
+        if isinstance(item, str):
+            text(item, label=f'Elemento de resources[{idx}]', max_len=1500)
+        elif isinstance(item, dict):
+            if 'recurso' not in item or 'tipo' not in item:
+                fail(f'Recurso estructurado en resources[{idx}] requiere "recurso" y "tipo".')
+            text(item['recurso'], label=f'resources[{idx}].recurso', max_len=1500)
+            if item['tipo'] not in VALID_RESOURCE_TYPES:
+                fail(f'Tipo de recurso inválido en resources[{idx}]: {item["tipo"]}. Debe ser uno de {VALID_RESOURCE_TYPES}.')
+            if 'pendiente' in item and not isinstance(item['pendiente'], bool):
+                fail(f'resources[{idx}].pendiente debe ser booleano.')
+        else:
+            fail(f'Elemento inválido en resources[{idx}]: debe ser texto u objeto estructurado con recurso y tipo.')
+
     for obj_idx, obj in enumerate(plan.get('objectives', [])):
         if SOURCE_META_TALK.search(obj):
             fail(

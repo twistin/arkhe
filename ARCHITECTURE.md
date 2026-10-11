@@ -935,8 +935,7 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
 - **Saneamiento automático del material del alumnado:**
   - Eliminación de identificadores internos de fuentes (`Fuente: S12`, `pasajes de S9`, `(S8, S10)`) en consignas y textos del estudiante, sustituidos por referencias a autor y página o por redacciones pedagógicas limpias.
   - La bibliografía y cabeceras de autor se generan dinámicamente de forma exclusiva a partir de las fuentes efectivamente citadas en las evidencias del plan, deduplicando por autor y eliminando entradas fijas no utilizadas.
-  - Unificación de tareas en una sola secuencia temporal (las actividades planificadas para los minutos de la clase; las tareas de ficha verificadas se ofrecen como tareas para casa opcionales sin sumar tiempo).
-  - Unificación de audiciones en un único bloque y normalización de la mención a partituras pendientes como *«partitura que te entregará el profesor»*.
+  - Unificación de audiciones en un único bloque y redacción estructurada de recursos pendientes: el modelo devuelve `{ recurso, tipo: partitura | grabacion | texto | imagen | dato, pendiente: true }`. El material del alumnado los redacta según el tipo («partitura que te entregará el profesor», «grabación que escucharemos en clase», «texto que te entregará el profesor», «imagen que proyectará el profesor»); los recursos de tipo «dato» pendientes (fechas, cifras) nunca se muestran al alumnado y quedan restringidos a la guía docente.
 
 
 
