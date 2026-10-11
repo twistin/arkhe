@@ -920,4 +920,21 @@ Para dotar al sistema de capacidad de análisis y cálculo musical sin depender 
 - **Grupo opcional para análisis y DSP (`[project.optional-dependencies] ntam`):**
   - Agrupa `librosa` y `pedalboard`. La aplicación funciona de manera completa e independiente sin este grupo instalado, verificando su presencia mediante `ntam_available()`.
 
+## Fichas didácticas modulares y saneamiento del material del alumnado (`teaching/fichas.py`)
+
+Para garantizar rigor pedagógico y eliminar contenido no contrastado en los entregables de los estudiantes:
+- **Estructura modular (`config/fichas/` y `data/fichas/`):**
+  - Los contenidos fijos y esquemas especializados de las materias (p. ej. *Polifonía del siglo XV*, *Antiguo Egipto*, *Nuevas Tecnologías Aplicadas a la Música*) se extraen a fichas YAML versionables (`id`, `tema`, `verificado`, `infografia`, `conceptos`, `tareas_adicionales_casa`, `bibliografia`).
+  - Cada ficha nace con `verificado: false` hasta que el profesor la valida explícitamente en su espacio local `data/fichas/`.
+  - Puntos dudosos de las plantillas (como atribuciones de modelos de misa, fórmulas cadenciales o preguntas de tareas) se marcan con `nota_revision` para supervisión docente sin alterar el texto original.
+- **Segregación estricta docente vs. alumnado:**
+  - Mientras `verificado: false`, los bloques de la ficha solo se renderizan en la guía docente (`render_pedagogy`) bajo un aviso destacado de *«Contenido de plantilla pendiente de revisión»*.
+  - En el material del alumnado (`render_student` y componente web `material-alumnado.js`), cualquier bloque no verificado queda suprimido, sustituyéndose las infografías no verificadas por esquemas derivados de los ejes y objetivos reales del plan de clase.
+- **Saneamiento automático del material del alumnado:**
+  - Eliminación de identificadores internos de fuentes (`Fuente: S12`, `pasajes de S9`, `(S8, S10)`) en consignas y textos del estudiante, sustituidos por referencias a autor y página o por redacciones pedagógicas limpias.
+  - La bibliografía y cabeceras de autor se generan dinámicamente de forma exclusiva a partir de las fuentes efectivamente citadas en las evidencias del plan, deduplicando por autor y eliminando entradas fijas no utilizadas.
+  - Unificación de tareas en una sola secuencia temporal (las actividades planificadas para los minutos de la clase; las tareas de ficha verificadas se ofrecen como tareas para casa opcionales sin sumar tiempo).
+  - Unificación de audiciones en un único bloque y normalización de la mención a partituras pendientes como *«partitura que te entregará el profesor»*.
+
+
 

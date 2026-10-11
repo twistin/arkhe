@@ -11,6 +11,8 @@ htmlcov/
 /data/
 /config/*
 !/config/*.example.yaml
+!/config/fichas/
+!/config/fichas/*.yaml
 .env
 .env.*
 !.env.example

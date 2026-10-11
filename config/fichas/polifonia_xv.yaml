@@ -1,0 +1,155 @@
+id: polifonia_xv
+tema: Polifonía del siglo XV
+verificado: false
+
+infografia:
+  titulo: "Modelos de misa y técnicas compositivas del siglo XV"
+  subtitulo: "Del material preexistente a la misa cíclica"
+  modelos_misa:
+    - nombre: "Misa de Cantus Firmus"
+      disposicion: "Superius, Altus, TENOR (Melodía en valores largos / aumentación), Bassus"
+      caracteristicas:
+        - "Melodía preexistente fija en valores largos."
+        - "Generalmente asignada al Tenor."
+        - "Otras voces tejen contrapunto libre o imitativo."
+        - "Estructura solemne y eje formal de la misa."
+      ejemplo: "L'homme armé"
+      ejemplo_descripcion: "Cantus firmus en el Tenor en valores de longa y máxima."
+    - nombre: "Misa de Paráfrasis"
+      disposicion: "Superius, Altus, Tenor, Bassus en imitación"
+      caracteristicas:
+        - "Melodía original reconocible pero con glosas/adornos."
+        - "Se reparte entre todas las voces por imitación."
+        - "Mayor libertad rítmica, melódica y expresiva."
+        - "Textura dinámica y homogénea."
+      ejemplo: "Pange Lingua"
+      ejemplo_descripcion: "Himno gregoriano ornamentado e imitado en todas las voces."
+    - nombre: "Misa Parodia / Imitación"
+      disposicion: "Obra Original (a 4 voces) -> Misa Nueva"
+      caracteristicas:
+        - "Se toma la obra original completa (las cuatro voces)."
+        - "Puede alterarse el orden, ritmo o métrica."
+        - "Alternancia de imitación polifónica y homofonía."
+        - "Inserción de nuevos motivos y adaptación al texto litúrgico."
+      ejemplo: "Je ne vis oncques la / Se la face ay pale"
+      ejemplo_descripcion: "Inicio en imitación de las cuatro voces de la chanson en el Kyrie de la misa."
+      nota_revision: "⚠️ Pendiente de revisión del profesor: el ejemplo cita 'Se la face ay pale' como misa parodia cuando es de cantus firmus."
+  tecnicas:
+    paso_1:
+      titulo: "Selección del material preexistente"
+      descripcion: "El compositor parte de una melodía o de una obra ya conocida."
+      origen_sacro:
+        tipo: "Canto Llano / Gregoriano"
+        generos: ["Himnos", "Antífonas", "Cantos litúrgicos"]
+        ejemplos: ["Ave Maris Stella", "Pange Lingua", "Veni Creator Spiritus"]
+      origen_profano:
+        tipo: "Chansons y canciones populares"
+        generos: ["Chansons cortesanas", "Canciones de tradición oral", "Melodías de gran difusión"]
+        ejemplos: ["L'homme armé", "Se la face ay pale", "Belle, bonne, sage"]
+    paso_2:
+      titulo: "Elección de la técnica de tratamiento"
+      descripcion: "Diferentes maneras de integrar el material en la misa."
+      procedimientos:
+        - nombre: "Cantus Firmus"
+          detalles: ["Aislar la melodía.", "Estirar las notas (aumentación).", "Normalmente en el Tenor.", "Otras voces en contrapunto libre."]
+          resultado: "Melodía fija como columna vertebral de la obra."
+        - nombre: "Paráfrasis"
+          detalles: ["Alterar intervalos.", "Añadir ornamentos (glosas).", "Repartir la melodía entre todas las voces (imitación)."]
+          resultado: "Melodía transformada y en constante movimiento."
+        - nombre: "Parodia / Imitación"
+          detalles: ["Tomar el tejido polifónico completo.", "Variar el orden, ritmo o textura.", "Alternar contrapunto y bloques homofónicos."]
+          resultado: "Una nueva obra a partir de todo el material original."
+    paso_3:
+      titulo: "Unificación de la misa cíclica"
+      descripcion: "Recursos para dar coherencia a toda la obra (Kyrie, Gloria, Credo, Sanctus, Agnus Dei)."
+      recursos:
+        - nombre: "Técnica del Motto"
+          subtitulo: "Motivo de cabeza"
+          detalles:
+            - "Todas las secciones del Ordinario comienzan con las mismas 3 o 4 notas o células motívicas en las voces superiores."
+            - "Refuerza la coherencia y unidad arquitectónica global (Dufay, Josquin)."
+        - nombre: "Cadencias Renacentistas"
+          subtitulo: "Landini y borgoñonas"
+          detalles:
+            - "Uso de la cadencia de Landini o cadencias borgoñonas."
+            - "Caracterizadas por la octava sin tercera (conducción 6ª a 8ª)."
+            - "Cierran secciones y articulan formalmente el texto litúrgico."
+          nota_revision: "⚠️ Pendiente de revisión del profesor: descripción de 'cadencias borgoñonas… octava sin tercera (conducción 6ª a 8ª)'."
+
+conceptos:
+  - termino: "Cantus Firmus"
+    categoria: "TÉCNICA"
+    definicion: "Melodía preexistente (canto gregoriano o canción profana) empleada como eje estructural de una nueva composición polifónica, asignada tradicionalmente al Tenor en notas de valores largos."
+  - termino: "Aumentación Rítmica"
+    categoria: "RITMO"
+    definicion: "Procedimiento consistente en alargar proporcionalmente las duraciones de las figuras de la melodía original (duplicar o triplicar su valor), confiriendo al Tenor un ritmo lento y solemne."
+  - termino: "Misa Cíclica"
+    categoria: "FORMA"
+    definicion: "Obra litúrgica polifónica monumental en la que los cinco movimientos del Ordinario (Kyrie, Gloria, Credo, Sanctus, Agnus Dei) comparten el mismo material temático unificador."
+  - termino: "Técnica del Motto"
+    categoria: "RECURSO"
+    definicion: "Recurso de unificación que consiste en iniciar cada uno de los movimientos del Ordinario con la misma frase melódica o contrapuntística en las voces superiores (motivo de cabeza)."
+  - termino: "Formes Fixes"
+    categoria: "GÉNERO"
+    definicion: "Estructuras poético-musicales cerradas del siglo XIV que dominaron la chanson cortesana del XV: rondeau (ABaAabAB), ballade (aabC) y virelai / bergerette (AbbaA)."
+  - termino: "Flujo Continuo y Asimetría"
+    categoria: "ESTILO"
+    definicion: "Técnica polifónica característica de Johannes Ockeghem que evita deliberadamente las cesuras cadenciales simultáneas mediante la superposición y encabalgamiento de frases melódicas independientes."
+  - termino: "Misa Parodia (Imitación)"
+    categoria: "TÉCNICA"
+    definicion: "Procedimiento compositivo renacentista que toma como modelo una obra polifónica preexistente completa a 3 o 4 voces, reelaborando y recombinando sus puntos de imitación y texturas."
+  - termino: "Diatonicismo Modal"
+    categoria: "LENGUAJE"
+    definicion: "Conducción melódica y polifónica basada estrictamente en los modos eclesiásticos tradicionales, con reducción deliberada de alteraciones cromáticas fictas respecto a la complejidad del Ars Subtilior."
+    nota_revision: "⚠️ Pendiente de revisión del profesor: formulación del concepto 'Diatonicismo modal… respecto al Ars subtilior'."
+
+tareas_adicionales_casa:
+  - id: "tarea_1"
+    tag: "PARTITURA"
+    titulo: "Rastreo auditivo y analítico del Cantus Firmus"
+    objetivo: "Seguir en la partitura el Kyrie de la Missa Se la face ay pale de Du Fay e identificar con precisión el Tenor."
+    instrucciones:
+      - "Subrayar en la partitura los compases exactos de entrada del Tenor."
+      - "Calcular cuántos compases dura cada nota del tenor en comparación con el ritmo activo de Superius y Altus."
+      - "Verificar en qué secciones secundarias (como el Christe) calla el cantus firmus."
+  - id: "tarea_2"
+    tag: "FORMA POÉTICA"
+    titulo: "Diagramación formal de la Chanson cortesana (Rondeau)"
+    objetivo: "Comprender la arquitectura de las formes fixes a partir de De plus en plus de Binchois."
+    instrucciones:
+      - "Esquematizar el desarrollo formal del rondeau aplicando el molde clásico ABaAabAB."
+      - "Señalar qué secciones reproducen el estribillo completo (música y texto idénticos) y cuáles repiten solo la música con nuevas rimas poéticas."
+  - id: "tarea_3"
+    tag: "ESTILO Y TEXTURA"
+    titulo: "Matriz comparativa de estilo: Du Fay vs. Ockeghem"
+    objetivo: "Contrastar la estética y técnica de la primera y segunda generación franco-flamenca."
+    instrucciones:
+      - "Completar una tabla comparativa analizando: 1) Formación de frases, 2) Tesituras y registro de voces, 3) Cadencias simultáneas y 4) Imitación contrapuntística."
+      - "Justificar por qué Reese califica el estilo de Ockeghem como «evitación deliberada de la articulación de frases»."
+  - id: "tarea_4"
+    tag: "CONSOLIDACIÓN"
+    titulo: "Cuestionario de conceptos clave del siglo XV"
+    objetivo: "Afianzar los conceptos teóricos obligatorios para el examen y el análisis."
+    instrucciones:
+      - "¿Qué diferencia técnica distingue a una misa de cantus firmus de una misa parodia?"
+      - "¿Por qué los compositores evitaban emplear melodías del propio Kyrie como cantus firmus de la misa cíclica?"
+      - "¿Qué función estructural desempeñaba la técnica del motto o motivo de cabeza?"
+    nota_revision: "⚠️ Pendiente de revisión del profesor: pregunta de la Tarea 4 sobre 'melodías del propio Kyrie'."
+
+bibliografia:
+  - autor: "Allan W. Atlas"
+    titulo: "La música del Renacimiento & Antología de la música del Renacimiento"
+    editorial: "Ediciones Akal / Norton"
+    anio: 2002
+  - autor: "Gustave Reese"
+    titulo: "La música en el Renacimiento"
+    editorial: "Alianza Música"
+    anio: 1988
+  - autor: "Ulrich Michels"
+    titulo: "Atlas de la Música (Vol. 1)"
+    editorial: "Alianza Editorial"
+    anio: 1982
+  - autor: "Manuscrito Chigi C.VIII.234"
+    titulo: "Misas y motetes de Johannes Ockeghem"
+    editorial: "Biblioteca Apostólica Vaticana"
+    anio: null

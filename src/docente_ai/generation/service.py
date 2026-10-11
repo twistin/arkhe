@@ -394,6 +394,8 @@ def get_run(db: Path, run_id: str):
             from docente_ai.teaching.terms import normalize_topic
             norm = normalize_topic(orig)
             disp = (norm[:1].upper() + norm[1:]) if norm else orig
+        from docente_ai.teaching.fichas import get_ficha_for_run
+        record['ficha'] = get_ficha_for_run(record, directory=db.parent / 'fichas')
         record['original_topic'] = orig
         record['display_title'] = disp
     return record

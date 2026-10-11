@@ -1,0 +1,50 @@
+id: ntam
+tema: Nuevas Tecnologías Aplicadas a la Música
+verificado: false
+
+infografia:
+  titulo: "Tecnología musical y flujo de producción en el aula"
+  subtitulo: "Cadena de señal de audio, MIDI, síntesis y DAW"
+  bloques:
+    - nombre: "Generación de Sonido"
+      descripcion: "Osciladores, síntesis sustractiva, síntesis aditiva y modulación FM."
+    - nombre: "Control y Secuenciación"
+      descripcion: "Protocolo MIDI, mensajes de nota, velocidad y controladores continuos."
+    - nombre: "Captura y Procesamiento"
+      descripcion: "Grabación digital, interfaces de audio, ecualización y dinámica."
+    - nombre: "Mezcla y Difusión"
+      descripcion: "Enrutamiento, panorámica, buses de efectos y formatos de exportación."
+
+conceptos:
+  - termino: "Síntesis Sustractiva"
+    categoria: "SÍNTESIS"
+    definicion: "Método de síntesis sonora que parte de una onda rica en armónicos (diente de sierra o cuadrada) y esculpe el timbre mediante el filtrado de frecuencias."
+  - termino: "Mensaje MIDI"
+    categoria: "PROTOCOLO"
+    definicion: "Estructura de datos binarios que transmite parámetros de interpretación musical (Note On, Note Off, pitch bend, CC) sin contener audio digital real."
+  - termino: "Frecuencia de Muestreo"
+    categoria: "AUDIO DIGITAL"
+    definicion: "Número de muestras de audio tomadas por segundo durante la conversión analógico-digital (según el teorema de Nyquist-Shannon)."
+  - termino: "Pista DAW (Audio vs. MIDI)"
+    categoria: "PRODUCCIÓN"
+    definicion: "Diferenciación estructural entre pistas que albergan formas de onda digitalizadas y pistas que contienen eventos de control para instrumentos virtuales."
+
+tareas_adicionales_casa:
+  - id: "tarea_ntam_1"
+    tag: "EXPLORACIÓN"
+    titulo: "Diseño tímbrico básico en sintetizador virtual"
+    objetivo: "Construir un sonido de bajo o lead controlando oscilador, filtro envolvente y resonancia."
+    instrucciones:
+      - "Seleccionar una forma de onda inicial (diente de sierra o pulso)."
+      - "Ajustar el punto de corte (cut-off) del filtro paso bajo."
+      - "Configurar la envolvente ADSR para regular el ataque y la caída del timbre."
+
+bibliografia:
+  - autor: "Curtis Roads"
+    titulo: "The Computer Music Tutorial"
+    editorial: "MIT Press"
+    anio: 1996
+  - autor: "Francis Rumsey & Tim McCormick"
+    titulo: "Sound and Recording"
+    editorial: "Focal Press"
+    anio: 2009

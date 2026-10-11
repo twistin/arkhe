@@ -35,6 +35,15 @@ def synthetic_ui(tmp_path, monkeypatch):
     """Cada API usa el servidor real en memoria, con modelos de prueba."""
     db = tmp_path / 'data/docente.sqlite3'
     import_config(db, load(EXAMPLE))
+    fichas_dir = tmp_path / 'data/fichas'
+    fichas_dir.mkdir(parents=True, exist_ok=True)
+    from docente_ai.teaching.fichas import FICHAS_CONFIG_DIR
+    template = FICHAS_CONFIG_DIR / 'egipto.yaml'
+    if template.is_file():
+        (fichas_dir / 'egipto.yaml').write_text(
+            template.read_text(encoding='utf-8').replace('verificado: false', 'verificado: true'),
+            encoding='utf-8',
+        )
     config = tmp_path / 'config'
     config.mkdir()
     (config / 'rag.yaml').write_text('schema_version: 1\nembeddings:\n  model: embed:1\n')

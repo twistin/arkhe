@@ -268,7 +268,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         if request.query_params.get('download') == '1':
             filename = f"propuesta-{title_slug}.md" if title_slug else f"{result['id']}.md"
             return Response(render(result), media_type='text/markdown', headers={'Content-Disposition': f'attachment; filename="{filename}"'})
-        return JSONResponse({k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')})
+        return JSONResponse({k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic', 'ficha')})
 
     async def delete_run_route(request):
         return JSONResponse(await run_in_threadpool(ws.delete_run, request.path_params['id']))

@@ -100,6 +100,16 @@ al catálogo verificado) o «Descartar». En el material del alumnado solo se in
 ejemplos con verificación confirmada (`verificado: true`), impidiendo que aparezcan
 pentagramas o notas inventadas a mano en HTML o CSS.
 
+Los esquemas especializados, infografías complejas y baterías de ejercicios fijos
+se organizan en fichas modulares (`config/fichas/` y `data/fichas/`) con control de
+verificación (`verificado: false` inicial). Mientras no cuenten con revisión y verificación
+del profesor, estos contenidos se exhiben únicamente en la guía docente con avisos de
+revisión; el material del alumnado queda rigurosamente libre de cualquier contenido no
+verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
+internas o estados pendientes, sustituyendo menciones no confirmadas por redacciones
+pedagógicas limpias («partitura que te entregará el profesor»). La bibliografía del
+alumnado se genera de forma estrictamente dinámica según las fuentes citadas en la sesión.
+
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes
 con el modelo seleccionado. La interfaz sirve sus recursos localmente, sin fuentes

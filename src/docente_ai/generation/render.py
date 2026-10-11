@@ -150,6 +150,82 @@ def replace_source_references(text: str, by_id: dict) -> str:
     return res
 
 
+def clean_student_text(text: str, by_id: dict | None = None, is_consigna: bool = False) -> str:
+    """Limpia texto para el alumnado: sustituye partituras pendientes y elimina o resuelve IDs de fuentes."""
+    if not text:
+        return ''
+
+    # Requerimiento 7: Sustituir "pendiente de aportar por el profesor" por "partitura que te entregará el profesor"
+    text = re.sub(
+        r'\b(?:partitura\s+)?(?:pendiente\s+de\s+aportar\s+por\s+el\s+profesor|aportaci[óo]n\s+del\s+profesor\s+pendiente)\b',
+        'partitura que te entregará el profesor',
+        text,
+        flags=re.IGNORECASE
+    )
+    text = re.sub(
+        r'\bpendiente\s+de\s+aportar\s+por\s+el\s+profesor\b',
+        'partitura que te entregará el profesor',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # Requerimiento 2: Eliminar del material del alumnado identificadores de fuentes internos
+    # ("Fuente: S12", "pasajes de S9", "(S8, S10)"): sustituirlos por autor y página o eliminarlos en consignas.
+    if is_consigna:
+        text = re.sub(r'pasajes\s+de\s+S\d+', 'pasajes de las fuentes', text, flags=re.IGNORECASE)
+        text = re.sub(r'\(?\s*Fuente:\s*S\d+\s*\)?', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\(\s*(?:S\d+(?:\s*,\s*S\d+)*)\s*\)', '', text)
+        text = re.sub(r'\bS\d+(?:\s+quote[_\s-]?\d+)?\b', '', text)
+    else:
+        def _get_cit(sid: str) -> str:
+            if by_id and sid in by_id:
+                src = by_id[sid]
+                meta = src.get('metadata') or {}
+                authors = meta.get('authors') or []
+                author = authors[0].split(',')[0].strip() if authors else 'la fuente documental'
+                loc = format_locator(src.get('locator') or {})
+                return f"{author}, {loc}" if loc and loc != 'sin localizador' else author
+            return ''
+
+        text = re.sub(
+            r'pasajes\s+de\s+S(\d+)',
+            lambda m: f"pasajes de {_get_cit(f'S{m.group(1)}') or 'las fuentes documentales'}",
+            text,
+            flags=re.IGNORECASE
+        )
+        text = re.sub(
+            r'Fuente:\s*S(\d+)',
+            lambda m: f"Fuente: {_get_cit(f'S{m.group(1)}')}" if _get_cit(f"S{m.group(1)}") else '',
+            text,
+            flags=re.IGNORECASE
+        )
+
+        def _rep_parens(match):
+            inner = match.group(1)
+            parts = [p.strip() for p in inner.split(',') if p.strip()]
+            cits = [_get_cit(p) for p in parts if _get_cit(p)]
+            if cits:
+                return f"({'; '.join(cits)})"
+            return ''
+
+        text = re.sub(r'\(\s*(S\d+(?:\s*,\s*S\d+)*)\s*\)', _rep_parens, text)
+        text = re.sub(r'\bS(\d+)\b', lambda m: _get_cit(f"S{m.group(1)}"), text)
+
+    text = re.sub(r'\(\s*\)', '', text)
+    text = re.sub(r' {2,}', ' ', text)
+    return text.strip()
+
+
+def sanitize_student_output(md: str) -> str:
+    """Asegura que ningún bloque no verificado, ruta interna ni etiqueta de estado aparezca en el material del alumno."""
+    # Requerimiento 1: Ningún bloque no verificado, ninguna ruta interna y ninguna etiqueta de estado
+    md = re.sub(r'`?data/ejemplos/[^\s`"]+`?', 'ejemplo musical', md)
+    md = re.sub(r'\bverificado:\s*false\b', '', md, flags=re.IGNORECASE)
+    md = re.sub(r'\[Pendiente de revisión[^\]]*\]', '', md, flags=re.IGNORECASE)
+    md = re.sub(r'⚠️\s*\[[^\]]+\]', '', md)
+    return md
+
+
 ENGLISH_QUOTE_TRANSLATIONS = {
     'epitaph of seikilos is a brief song':
         'El Epitafio de Seikilos es una breve canción inscrita en una estela funeraria (c. siglo I d. C.).',
@@ -478,6 +554,11 @@ def render_student(run: dict[str, Any]) -> str:
     is_polyphony = _is_15th_century_topic(run)
     is_egypt = _is_ancient_egypt_topic(run)
 
+    from docente_ai.teaching.fichas import get_ficha_for_run, is_ficha_verified
+    ficha = get_ficha_for_run(run)
+    ficha_verified = is_ficha_verified(ficha)
+    by_id = {item['source_id']: item for item in (run.get('evidence') or []) if 'source_id' in item}
+
     lines = [
         '# Material de la sesión', '',
         f'## {topic}', '',
@@ -491,77 +572,55 @@ def render_student(run: dict[str, Any]) -> str:
         lines.append(f"**Fecha:** {plain(session['date'])}")
 
     lines += ['', '## Qué vamos a aprender', '']
-    lines += ['- ' + plain(item) for item in plan.get('objectives', [])]
+    lines += ['- ' + plain(clean_student_text(item, by_id, is_consigna=True)) for item in plan.get('objectives', [])]
 
     # --- SECCIÓN 01: CONTENIDO TEÓRICO DE LAS FUENTES ---
     claims = result.get('claims') or []
     lines += ['', '## 01 · Contenido teórico de las fuentes', '']
-    if is_polyphony:
+
+    # Cabecera de autores derivada dinámicamente de las fuentes reales citadas
+    cited_authors: list[str] = []
+    for item in (run.get('evidence') or []):
+        meta = item.get('metadata') or {}
+        stitle = str(meta.get('title') or '')
+        if 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
+            continue
+        for a in (meta.get('authors') or []):
+            if a and a not in cited_authors:
+                cited_authors.append(a)
+    if cited_authors:
+        if len(cited_authors) == 1:
+            auth_str = cited_authors[0]
+        elif len(cited_authors) == 2:
+            auth_str = f"{cited_authors[0]} y {cited_authors[1]}"
+        else:
+            auth_str = f"{', '.join(cited_authors[:-1])} y {cited_authors[-1]}"
         lines += [
-            '*Análisis musicológico e histórico basado en las fuentes de Allan Atlas, Gustave Reese y Ulrich Michels.*', ''
+            f'*Análisis musicológico e histórico basado en las fuentes de {plain(auth_str)}.*', ''
         ]
-    elif is_egypt:
+    else:
         lines += [
-            '*Análisis histórico, organológico e iconográfico basado en Marcelle Duchesne-Guillemin, J. Peter Burkholder y Enrico Fubini.*', ''
+            '*Análisis musicológico e histórico basado en las fuentes documentales autorizadas.*', ''
         ]
+
     for index, claim in enumerate(claims, 1):
         summary_text = str(claim.get('student_summary') or claim.get('text', '')).strip()
-        lines += [f"### {index}. Punto clave", '', plain(summary_text), '']
+        cleaned_summary = clean_student_text(summary_text, by_id, is_consigna=False)
+        lines += [f"### {index}. Punto clave", '', plain(cleaned_summary), '']
 
     # --- SECCIÓN 02: ESQUEMAS ---
-    sec02_title = '## 02 · Esquema gráfico: Modelos y técnicas de composición' if is_polyphony else '## 02 · Esquemas de estudio'
-    lines += ['', sec02_title, '']
-    if is_polyphony:
-        lines += [
-            '### 1. Distribución vocálica y modelos de misa del siglo XV',
-            '*Una melodía, tres caminos de creación.*', '',
-            '| Modelo de Misa | Disposición de Voces | Características Esenciales | Obra de Ejemplo |',
-            '| --- | --- | --- | --- |',
-            '| **1. Misa de Cantus Firmus** (Estructura rígida) | **Superius** (Soprano)<br>**Altus** (Contralto)<br>**TENOR (Melodía en valores largos / aumentación)**<br>**Bassus** (Bajo) | • Melodía preexistente fija en valores largos.<br>• Generalmente asignada al Tenor.<br>• Otras voces tejen contrapunto libre o imitativo.<br>• Estructura solemne y eje formal de la misa. | *L\'homme armé* (Cantus firmus en el Tenor en valores de longa y máxima). |',
-            '| **2. Misa de Paráfrasis** (Estructura fluida) | **Superius** (Fragmento A)<br>↳ **Altus** (Imitación)<br>↳ **Tenor** (Imitación)<br>↳ **Bassus** (Imitación) | • Melodía original reconocible pero con glosas/adornos.<br>• Se reparte entre todas las voces por imitación.<br>• Mayor libertad rítmica, melódica y expresiva.<br>• Textura dinámica y homogénea. | *Pange Lingua* (Himno gregoriano ornamentado e imitado en todas las voces). |',
-            '| **3. Misa Parodia / Imitación** (Estructura en bloque) | **Obra Original (Chanson/Motete a 4 voces)**<br>⇊ *Se copia, se adapta y se transforma* ⇊<br>**Misa Nueva (Superius, Altus, Tenor, Bassus)** | • Se toma la obra original completa (las cuatro voces).<br>• Puede alterarse el orden, ritmo o métrica.<br>• Alternancia de imitación polifónica y homofonía.<br>• Inserción de nuevos motivos y adaptación al texto litúrgico. | *Je ne vis oncques la* / *Missa Se la face ay pale*. |',
-            '',
-            '### 2. Técnicas de composición: Del material preexistente a la misa cíclica',
-            '*Tradición · Invención · Unidad*', '',
-            '#### PASO 1: Selección del material preexistente',
-            '- **Origen Sacro (Canto Llano / Gregoriano):** Himnos, antífonas, cantos litúrgicos (*Ave Maris Stella*, *Pange Lingua*, *Veni Creator Spiritus*).',
-            '- **Origen Profano (Chansons y canciones populares):** Chansons cortesanas borgoñonas, canciones de tradición oral y difusión popular (*L\'homme armé*, *Se la face ay pale*, *Belle, bonne, sage*).',
-            '',
-            '#### PASO 2: Elección de la técnica de tratamiento',
-            '1. **CANTUS FIRMUS:** Aislar la melodía; estirar las notas en aumentación; situarla en el Tenor; otras voces en contrapunto libre. → **Resultado:** *Melodía fija como columna vertebral de la obra.*',
-            '2. **PARÁFRASIS:** Alterar intervalos; añadir ornamentos (glosas); repartir la melodía entre todas las voces en imitación; mayor libertad rítmica. → **Resultado:** *Melodía transformada y en constante movimiento.*',
-            '3. **PARODIA / IMITACIÓN:** Tomar el tejido polifónico completo; variar orden, ritmo o textura; alternar contrapunto y bloques homofónicos. → **Resultado:** *Una nueva obra a partir de todo el material original.*',
-            '',
-            '#### PASO 3: Unificación de la misa cíclica',
-            '- **Técnica del Motto (Motivo de cabeza):** Todas las secciones del Ordinario (Kyrie, Gloria, Credo, Sanctus, Agnus Dei) comienzan con las mismas 3 o 4 notas o células motívicas en las voces superiores, reforzando la coherencia global (Dufay, Josquin).',
-            '- **Cadencias Renacentistas:** Uso de la cadencia de Landini y cadencias borgoñonas caracterizadas por la octava sin tercera en los puntos de articulación formal.',
-            ''
-        ]
-    elif is_egypt:
-        lines += [
-            '### 1. Marco histórico y funciones sociales de la música egipcia',
-            '*Una civilización, un río, una música milenaria (Imperio Antiguo c. 2700 a. C. a época grecorromana).*', '',
-            '| Función Social | Ámbito y Contexto | Práctica y Repertorio | Divinidad / Símbolo |',
-            '| --- | --- | --- | --- |',
-            '| **1. Religiosa y Ritual** | Culto en templos, himnos, procesiones | Sacerdotisas y músicos del templo, ofrendas | Hathor (música y danza) e Isis (protección) |',
-            '| **2. Funeraria** | Acompañamiento en el viaje al Más Allá | Cantos de enterramiento, honra y renacimiento del difunto | Ojo de Horus / Osiris |',
-            '| **3. Cortesana y Festiva** | Banquetes, recepciones y palacios de la élite | Piezas instrumentales, danza, entretenimiento de prestigio | Flor de Loto / Realeza |',
-            '| **4. Popular y Laboral** | Faenas agrícolas, talleres, remeros en el Nilo | Canciones rítmicas de trabajo para coordinar el esfuerzo, coplas populares | Vida cotidiana y trabajo |',
-            '',
-            '### 2. Clasificación organológica de los instrumentos del Antiguo Egipto',
-            '*Sonido, técnica y clasificación según la iconografía y hallazgos arqueológicos.*', '',
-            '| Familia Organológica | Instrumentos Principales | Materiales y Construcción | Contexto de Uso |',
-            '| --- | --- | --- | --- |',
-            '| **Cordófonos** (Cuerdas pulsadas) | **Arpa arqueada**, **Laúd** (mástil largo), **Lira** (en U) | Cajas de madera, tripas o fibras vegetales | Ámbitos cortesanos, recepciones íntimas y acompañamiento poético |',
-            '| **Aerófonos** (Viento y aire) | **Flautas rectas**, **Clarinetes dobles** (lengüeta), **Trompetas** (bronce) | Caña, madera labrada y metal | Procesiones, ceremonias solemnes y ámbito militar |',
-            '| **Percusión e Idiófonos** (Agitados / percutidos) | **Sistros** (anillas de metal), **Collar Menat**, **Tambores**, **Crótalos** | Bronce, fayenza, parches de cuero y madera | Rituales sagrados de Hathor, marcación de danza y pulso |',
-            '',
-            '### 3. Agrupaciones, fuentes e iconografía (Tumba de Nebamun, c. 1350 a. C.)',
-            '- **Práctica de conjunto:** Solistas íntimos (arpa y canto), pequeños conjuntos de cámara (arpa, flauta, percusión) y conjuntos para la danza.',
-            '- **Quironimia:** Sistema de dirección mediante gestos manuales del cantor/director que indicaba alturas y contorno melódico.',
-            '- **Fuentes de estudio:** Iconografía (murales y relieves), Textos (himnos e inscripciones), Arqueología (instrumentos en tumbas) y Comparación etnomusicológica.',
-            ''
-        ]
+    lines += ['', '## 02 · Esquemas de estudio', '']
+    if ficha_verified and ficha and ficha.get('infografia'):
+        infog = ficha['infografia']
+        lines += [f"### 1. {plain(infog.get('titulo', 'Esquema gráfico'))}", '']
+        if infog.get('subtitulo'):
+            lines += [f"*{plain(infog['subtitulo'])}*", '']
+        for m in infog.get('modelos_misa', []):
+            lines += [
+                f"- **{plain(m.get('nombre', ''))}:** {plain(m.get('disposicion', ''))}",
+                f"  - Características: {' '.join(plain(c) for c in m.get('caracteristicas', []))}",
+                f"  - Ejemplo: *{plain(m.get('ejemplo', ''))}* ({plain(m.get('ejemplo_descripcion', ''))})",
+            ]
     else:
         visualizations = result.get('visualizations') or []
         for visual in visualizations:
@@ -572,22 +631,38 @@ def render_student(run: dict[str, Any]) -> str:
             for item in visual.get('items', []):
                 lines.append(f"| **{plain(item.get('label', ''))}** | {plain(item.get('detail', ''))} |")
             lines.append('')
+        if not visualizations:
+            lines += [
+                '### 1. Esquema conceptual y estructural', '',
+                '| Eje temático | Contenido y desarrollo |',
+                '| --- | --- |',
+            ]
+            for i, c in enumerate(claims[:4], 1):
+                clean_c = clean_student_text(str(c.get('text', '')).strip(), by_id, is_consigna=False)
+                lines.append(f"| **Eje {i}** | {plain(clean_c)} |")
+            lines.append('')
 
-    # --- CHEAT SHEET DE PRÁCTICA (Conservado para consulta y síntesis rápida) ---
+    # --- CHEAT SHEET DE PRÁCTICA ---
     lines += ['## Cheat sheet de práctica', '',
               'Consulta rápida para tener a mano durante el trabajo de hoy.', '']
-    cheat_items = [
-        item
-        for visual in (result.get('visualizations') or [])
-        for item in (visual.get('items') or [])
-    ][:10]
-    if cheat_items:
-        lines += ['| Elemento | Para qué sirve |', '| --- | --- |']
-        lines += [f"| {plain(item.get('label', ''))} | {plain(item.get('detail', ''))} |"
-                  for item in cheat_items]
+    if ficha_verified and ficha and ficha.get('conceptos'):
+        lines += ['| Concepto | Definición |', '| --- | --- |']
+        for c in ficha['conceptos']:
+            lines.append(f"| **{plain(c.get('termino', ''))}** | {plain(c.get('definicion', ''))} |")
     else:
-        for index, claim in enumerate(claims[:4], 1):
-            lines.append(f"- **Clave {index}:** {plain(str(claim.get('text', '')).strip())}")
+        cheat_items = [
+            item
+            for visual in (result.get('visualizations') or [])
+            for item in (visual.get('items') or [])
+        ][:10]
+        if cheat_items:
+            lines += ['| Elemento | Para qué sirve |', '| --- | --- |']
+            lines += [f"| {plain(item.get('label', ''))} | {plain(item.get('detail', ''))} |"
+                      for item in cheat_items]
+        else:
+            for index, claim in enumerate(claims[:4], 1):
+                clean_c = clean_student_text(str(claim.get('text', '')).strip(), by_id, is_consigna=False)
+                lines.append(f"- **Clave {index}:** {plain(clean_c)}")
 
     lines += ['', '### Secuencia rápida de hoy', '']
     time_suffix_rx = re.compile(
@@ -603,8 +678,6 @@ def render_student(run: dict[str, Any]) -> str:
         )
 
     # --- SECCIÓN DE AUDICIONES COMENTADAS ---
-    # Solo aparece si hay audiciones vinculadas en el run o encontradas en el catálogo verificado.
-    # Nunca inventa "Obra representativa N" a partir de las actividades.
     listenings_to_render = []
     if is_polyphony:
         listenings_to_render = POLYPHONY_15TH_CENTURY_LISTENINGS
@@ -652,7 +725,7 @@ def render_student(run: dict[str, Any]) -> str:
                 lines.append(f"- **Guía de escucha activa:** " + ' '.join(plain(p) for p in item['points']))
             lines.append('')
 
-    # --- TRABAJO EN CLASE ---
+    # --- TRABAJO EN CLASE (Única lista de tareas de aula) ---
     lines += ['', '## Trabajo en clase', '']
     elapsed = 0
     time_suffix_rx = re.compile(
@@ -673,63 +746,50 @@ def render_student(run: dict[str, Any]) -> str:
         lines += [
             f"### {index}. {plain(clean_title)}{mode_tag} · {elapsed}–{elapsed + minutes} min", '',
         ]
-        task_text = activity.get('student_task') or activity.get('instructions', '')
+        task_text = clean_student_text(activity.get('student_task') or activity.get('instructions', ''), by_id, is_consigna=True)
         if task_text:
-            lines += [f"- **Tarea:** {plain(task_text.strip())}"]
+            lines += [f"- **Tarea:** {plain(task_text)}"]
         if activity.get('deliverable'):
-            lines += [f"- **Entregable:** {plain(str(activity['deliverable']).strip())}"]
+            deliv_text = clean_student_text(str(activity['deliverable']), by_id, is_consigna=True)
+            lines += [f"- **Entregable:** {plain(deliv_text)}"]
         lines.append('')
         elapsed += minutes
 
-    lines += ['## Material necesario', '']
-    lines += ['- ' + plain(item) for item in plan.get('resources', [])]
+    # Tareas adicionales para casa solo si la ficha está verificada (sin sumar a los 60 minutos de clase)
+    if ficha_verified and ficha and ficha.get('tareas_adicionales_casa'):
+        lines += ['### Tareas adicionales para casa', '']
+        for t in ficha.get('tareas_adicionales_casa', []):
+            lines += [
+                f"- **{plain(t.get('titulo', ''))}** [{plain(t.get('tag', ''))}]: {plain(t.get('objetivo', ''))}",
+            ]
+        lines.append('')
 
-    sources = []
+    lines += ['## Material necesario', '']
+    lines += ['- ' + plain(clean_student_text(item, by_id, is_consigna=True)) for item in plan.get('resources', [])]
+
+    # Bibliografía del alumno generada solo con fuentes realmente citadas, deduplicadas por autor
+    seen_authors = set()
+    student_sources = []
     for item in run.get('evidence') or []:
         meta = item.get('metadata') or {}
         stitle = str(meta.get('title') or '')
-        # Filtrar fuentes sintéticas de evaluación
-        if 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
+        if not stitle or 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
             continue
-        key = (stitle, tuple(meta.get('authors') or []), meta.get('year'))
-        if key not in sources and stitle:
-            sources.append(key)
-    if is_polyphony:
-        key_atlas = ('La música del Renacimiento & Antología', ('Allan W. Atlas',), 2002)
-        key_reese = ('La música en el Renacimiento', ('Gustave Reese',), 1988)
-        key_michels = ('Atlas de la Música', ('Ulrich Michels',), 1982)
-        for k in (key_atlas, key_reese, key_michels):
-            if k not in sources:
-                sources.append(k)
-    elif is_egypt:
-        key_duchesne = ('Music in Ancient Mesopotamia and Egypt', ('Marcelle Duchesne-Guillemin',), 1981)
-        key_burkholder = ('Norton Anthology of Western Music (Ancient to Baroque)', ('J. Peter Burkholder', 'Claude V. Palisca'), 2014)
-        key_fubini = ('Historia de la estética musical: desde la Antigüedad hasta el siglo XX', ('Enrico Fubini',), 1988)
-        for k in (key_duchesne, key_burkholder, key_fubini):
-            if k not in sources:
-                sources.append(k)
+        authors = tuple(meta.get('authors') or [])
+        primary_author = authors[0].lower().strip() if authors else None
+        if primary_author and primary_author in seen_authors:
+            continue
+        if primary_author:
+            seen_authors.add(primary_author)
+        student_sources.append((stitle, authors, meta.get('year')))
 
-    if sources:
+    if student_sources:
         lines += ['', '## Fuentes de consulta', '']
-        for title, authors, year in sources:
+        for title, authors, year in student_sources:
             detail = ', '.join(authors) if authors else ''
             if year:
                 detail += (' · ' if detail else '') + str(year)
             lines.append(f"- {plain(title or 'Fuente sin título')}{' — ' + plain(detail) if detail else ''}")
-
-    if is_polyphony:
-        lines += [
-            '',
-            '## 06 · Discografía recomendada y enlaces directos de audición para el aula',
-            '',
-            '| Obra y partes | Grabación e Intérpretes | Enlace de audición | Criterio docente |',
-            '| --- | --- | --- | --- |',
-            "| **Guillaume Du Fay**<br>*Missa Se la face ay pale* (Kyrie y Gloria) | Early Music Consort of London<br>dir. David Munrow | [▶ Kyrie en YouTube](https://www.youtube.com/watch?v=izy4bDPp23k)<br>[▶ Gloria en YouTube](https://www.youtube.com/watch?v=McyAlOZ4JjQ) | Misma grabación de referencia; interpretación homogénea. |",
-            "| **Gilles Binchois**<br>*De plus en plus se renouvelle* | Ensemble Gilles Binchois<br>dir. Dominique Vellard | [▶ De plus en plus en YouTube](https://www.youtube.com/watch?v=cw_V53noTUg) | Carácter lírico y claridad meridiana de las 3 voces. |",
-            "| **Johannes Ockeghem**<br>*Missa L'homme armé* (Kyrie y Agnus Dei) | Oxford Camerata<br>dir. Jeremy Summerly | [▶ Kyrie en YouTube](https://www.youtube.com/watch?v=KgV3cxc1NEI)<br>[▶ Agnus Dei en YouTube](https://www.youtube.com/watch?v=xDFKOKWzpI0) | Misma interpretación para ambos movimientos; claridad en el grave. |",
-            "| **Johannes Ockeghem**<br>*Mort, tu as navré* (Déploration) | Graindelavoix<br>dir. Björn Schmelzer | [▶ Mort, tu as navré en YouTube](https://www.youtube.com/watch?v=R9tcg1VfKPs) | Gran expresividad, contraste luctuoso y clima sombrío. |",
-            ''
-        ]
 
     # --- ANEXO: TEXTOS PARA TRABAJAR ---
     candidate_quotes = []
@@ -761,11 +821,11 @@ def render_student(run: dict[str, Any]) -> str:
             trans_tag = ' *(Traducción del original inglés)*' if was_trans else ''
             lines += [
                 f"### Texto {idx}: {plain(cit)}",
-                f"> «{plain(trans_text)}»{trans_tag}",
+                f"> «{plain(clean_student_text(trans_text, by_id, is_consigna=False))}»{trans_tag}",
                 ''
             ]
 
-    return clean_terminologia_output('\n'.join(lines).rstrip() + '\n')
+    return clean_terminologia_output(sanitize_student_output('\n'.join(lines).rstrip() + '\n'))
 
 
 def clean_terminologia_output(text: str) -> str:
@@ -1070,65 +1130,98 @@ def render_pedagogy(run: dict) -> str:
         lines += ['- ' + plain(item) for item in example.get('explanation', [])]
         lines += ['', f'Base documental: contenidos {links}.', '']
 
-    is_polyphony = _is_15th_century_topic(run)
-    is_egypt = _is_ancient_egypt_topic(run)
+    from docente_ai.teaching.fichas import get_ficha_for_run, is_ficha_verified
+    ficha = get_ficha_for_run(run)
+    if ficha:
+        is_verified = is_ficha_verified(ficha)
+        if not is_verified:
+            lines += [
+                '',
+                f"## Contenido de plantilla pendiente de revisión ({plain(ficha.get('tema', ''))})",
+                '',
+                '> ⚠️ **Aviso para el profesor:** El siguiente contenido procede de la plantilla temática '
+                'y está marcado como `verificado: false`. Permanece visible únicamente en esta guía docente '
+                'para su revisión y nunca se publica en el material del alumnado hasta ser validado.',
+                '',
+            ]
+        else:
+            lines += ['', f"## Contenido de plantilla validado ({plain(ficha.get('tema', ''))})", '']
 
-    if is_polyphony:
-        lines += [
-            '## 3. Esquema gráfico y modelos compositivos (Polifonía del siglo XV)', '',
-            '### Panel 1: Distribución vocálica y modelos de misa',
-            '- **Misa de Cantus Firmus (Estructura rígida):**',
-            '  - *Superius (Soprano):* Contrapunto libre y florido.',
-            '  - *Altus (Contralto):* Relleno armónico intermedio.',
-            '  - *Tenor (Cantus Firmus):* Melodía preexistente fija en valores largos (aumentación).',
-            '  - *Bassus (Bajo):* Base armónica, descenso a graves.',
-            '  - *Ejemplo canónico:* *L\'homme armé*.',
-            '- **Misa de Paráfrasis (Estructura fluida e imitativa):**',
-            '  - La melodía preexistente se glosa y adorna, repartiéndose en imitación por todas las voces.',
-            '  - *Ejemplo canónico:* *Pange Lingua*.',
-            '- **Misa Parodia / Imitación (Estructura en bloque):**',
-            '  - Reelaboración de todas las voces del modelo polifónico preexistente.',
-            '  - *Ejemplo canónico:* *Je ne vis oncques la* / *Se la face ay pale*.', '',
-            '### Panel 2: Técnicas de composición: del material preexistente a la misa cíclica',
-            '- **Paso 1 · Selección del material:** Origen Sacro (Canto gregoriano: *Ave Maris Stella*, *Pange Lingua*) u Origen Profano (Chansons: *L\'homme armé*, *Se la face ay pale*).',
-            '- **Paso 2 · Técnicas de tratamiento:** *Cantus Firmus* (columna vertebral fija), *Paráfrasis* (elaboración imitativa) o *Parodia / Imitación* (adaptación del tejido completo).',
-            '- **Paso 3 · Unificación cíclica:** Técnica del *motto* (motivo de cabeza idéntico en los 5 movimientos) y cadencias renacentistas (cadencia Landini con salto de 6ª a 8ª sin 3ª).', '',
-            '## 4. Discografía de aula y repertorio de audiciones con enlaces', '',
-            '| Obra y partes | Grabación e Intérpretes | Enlace de audición | Criterio docente |',
-            '| --- | --- | --- | --- |',
-            "| **Guillaume Du Fay**<br>*Missa Se la face ay pale* (Kyrie y Gloria) | Early Music Consort of London<br>dir. David Munrow | [▶ Kyrie en YouTube](https://www.youtube.com/watch?v=izy4bDPp23k)<br>[▶ Gloria en YouTube](https://www.youtube.com/watch?v=McyAlOZ4JjQ) | Misma grabación de referencia; interpretación homogénea. |",
-            "| **Gilles Binchois**<br>*De plus en plus se renouvelle* | Ensemble Gilles Binchois<br>dir. Dominique Vellard | [▶ De plus en plus en YouTube](https://www.youtube.com/watch?v=cw_V53noTUg) | Carácter lírico y claridad meridiana de las 3 voces. |",
-            "| **Johannes Ockeghem**<br>*Missa L'homme armé* (Kyrie y Agnus Dei) | Oxford Camerata<br>dir. Jeremy Summerly | [▶ Kyrie en YouTube](https://www.youtube.com/watch?v=KgV3cxc1NEI)<br>[▶ Agnus Dei en YouTube](https://www.youtube.com/watch?v=xDFKOKWzpI0) | Misma interpretación para ambos movimientos; claridad en el grave. |",
-            "| **Johannes Ockeghem**<br>*Mort, tu as navré* (Déploration) | Graindelavoix<br>dir. Björn Schmelzer | [▶ Mort, tu as navré en YouTube](https://www.youtube.com/watch?v=R9tcg1VfKPs) | Gran expresividad, contraste luctuoso y clima sombrío. |",
-            ''
-        ]
-    elif is_egypt:
-        lines += [
-            '## 3. Esquema gráfico: Marco histórico, funciones y organología del Antiguo Egipto', '',
-            '### Lámina 1: Contexto, funciones y rasgos generales',
-            '- **Marco geográfico-histórico:** Eje del Nilo; desde el Imperio Antiguo (c. 2686 a. C.) hasta la época grecorromana (c. 30 a. C.).',
-            '- **4 Funciones de la música:**',
-            '  1. *Religiosa y ritual:* Culto en templos (Hathor, Isis, Osiris) para apaciguar a los dioses.',
-            '  2. *Funeraria:* Protección y tránsito al más allá en tumbas y pirámides.',
-            '  3. *Cortesana y festiva:* Banquetes regios y celebraciones de la nobleza.',
-            '  4. *Popular y laboral:* Canciones de siega y cantos de trabajo de remeros en el Nilo.',
-            '- **Rasgos:** Unión indisoluble de música, danza y gesto; figura de la **quironimia** y protagonismo femenino.', '',
-            '### Lámina 2: Organología, práctica musical y fuentes',
-            '- **Cordófonos:** Arpas arqueadas (de pie y suelo), laúd de mástil largo, liras.',
-            '- **Aerófonos:** Flautas rectas longitudinales, clarinetes dobles de caña con lengüeta batiente, trompetas ceremoniales.',
-            '- **Percusión e idiófonos:** Sistro de Hathor, collar sonajero Menat, crótalos, tambores.',
-            '- **Práctica de conjunto:** Fresco de la Tumba de Nebamun (Tebas, c. 1350 a. C.).',
-            '- **4 Fuentes de estudio:** Iconografía, textos, arqueología musical y etnomusicología comparada.', '',
-            '## 4. Discografía de aula y repertorio de audiciones con enlaces', '',
-            '| Audición | Obra y Grabación | Enlaces de audición | Criterio docente y límites metodológicos |',
-            '| --- | --- | --- | --- |',
-            "| **Audición 1A**<br>Michael Levy | *Ancient Harps of Kemet* (2011)<br>Arpa arqueada de tipo arcaico | [▶ Levy: Arpa en YouTube](https://www.youtube.com/watch?v=mqxB34z4tyw) | Recreación tímbrica e improvisación moderna; timbre organológico vs. obra original. |",
-            "| **Audición 1B**<br>Michael Levy | *Reconstructed Ancient Egyptian Melody*<br>Arreglo para lira (banquete tebano) | [▶ Levy: Melodía en YouTube](https://www.youtube.com/watch?v=nBmWXmn11YE) | Procedimiento de reconstrucción a partir de flauta conservada e hipótesis sonora. |",
-            "| **Audición 2**<br>De Organographia | *Isis Sistrum Rhythm, after Apuleius*<br>Reconstrucción breve (0:31) | [▶ Sistro en YouTube](https://www.youtube.com/watch?v=599YEae4DYA) | Ritmo ritual de sistro a partir de Apuleyo; función sacra sin melodía inventada. |",
-            "| **Audición 3**<br>Descarte metodológico | *Canto colectivo de labor*<br>Análisis crítico de fuentes iconográficas | *(Descartada como audición)* | Sin base documental suficiente para un audio fiable; se analiza iconografía. |",
-            "| **Audición 4**<br>Grabación BBC 1939 | *King Tutankhamun's Trumpets*<br>Trompetas originales de la tumba KV62 | [▶ Trompetas BBC en YouTube](https://www.youtube.com/watch?v=Qt9AyV3hnlc)<br>[BBC Ghost Music](https://www.bbc.co.uk/programmes/b010dp0s) | Instrumentos auténticos de c. 1323 a. C.; técnica militar del siglo XX con boquilla moderna. |",
-            ''
-        ]
+        infog = ficha.get('infografia') or {}
+        if infog:
+            lines += [f"### 1. Esquema gráfico: {plain(infog.get('titulo', ''))}", '']
+            if infog.get('subtitulo'):
+                lines += [f"*{plain(infog['subtitulo'])}*", '']
+            for m in infog.get('modelos_misa', []):
+                rev_mark = f"\n  - **{plain(m['nota_revision'])}**" if m.get('nota_revision') else ""
+                lines += [
+                    f"- **{plain(m.get('nombre', ''))}:** {plain(m.get('disposicion', ''))}",
+                    f"  - Características: {' '.join(plain(c) for c in m.get('caracteristicas', []))}",
+                    f"  - Ejemplo: *{plain(m.get('ejemplo', ''))}* ({plain(m.get('ejemplo_descripcion', ''))}){rev_mark}",
+                ]
+            tecn = infog.get('tecnicas') or {}
+            for paso_key in ('paso_1', 'paso_2', 'paso_3'):
+                paso = tecn.get(paso_key)
+                if not paso:
+                    continue
+                lines += ['', f"#### {plain(paso.get('titulo', ''))}", plain(paso.get('descripcion', ''))]
+                for proc in paso.get('procedimientos', []):
+                    lines += [f"- **{plain(proc.get('nombre', ''))}:** {' '.join(plain(d) for d in proc.get('detalles', []))} → *{plain(proc.get('resultado', ''))}*"]
+                for rec in paso.get('recursos', []):
+                    rev_mark = f" — **{plain(rec['nota_revision'])}**" if rec.get('nota_revision') else ""
+                    lines += [f"- **{plain(rec.get('nombre', ''))}** ({plain(rec.get('subtitulo', ''))}): {' '.join(plain(d) for d in rec.get('detalles', []))}{rev_mark}"]
+
+            for f_soc in infog.get('funciones_sociales', []):
+                lines += [f"- **{plain(f_soc.get('funcion', ''))}:** {plain(f_soc.get('contexto', ''))} ({plain(f_soc.get('repertorio', ''))})"]
+            for org in infog.get('organologia', []):
+                lines += [f"- **{plain(org.get('familia', ''))}:** {plain(org.get('instrumentos', ''))} — {plain(org.get('contexto', ''))}"]
+            for fi in infog.get('fuentes_e_iconografia', []):
+                lines += [f"- {plain(fi)}"]
+
+        conceptos = ficha.get('conceptos') or []
+        if conceptos:
+            lines += ['', '### 2. Conceptos de plantilla', '']
+            for c in conceptos:
+                rev_mark = f" — **{plain(c['nota_revision'])}**" if c.get('nota_revision') else ""
+                lines += [f"- **{plain(c.get('termino', ''))}** [{plain(c.get('categoria', ''))}]: {plain(c.get('definicion', ''))}{rev_mark}"]
+
+        tareas = ficha.get('tareas_adicionales_casa') or []
+        if tareas:
+            lines += ['', '### 3. Tareas adicionales de plantilla', '']
+            for t in tareas:
+                rev_mark = f"\n  - **{plain(t['nota_revision'])}**" if t.get('nota_revision') else ""
+                lines += [
+                    f"- **{plain(t.get('titulo', ''))}** [{plain(t.get('tag', ''))}]: {plain(t.get('objetivo', ''))}",
+                    f"  - Pautas: {' '.join(plain(i) for i in t.get('instrucciones', []))}{rev_mark}",
+                ]
+
+        bib = ficha.get('bibliografia') or []
+        if bib:
+            lines += ['', '### 4. Bibliografía de plantilla', '']
+            for b in bib:
+                detail = f"{b.get('editorial', '')}"
+                if b.get('anio'):
+                    detail += f" ({b['anio']})"
+                lines += [f"- **{plain(b.get('autor', ''))}**: *{plain(b.get('titulo', ''))}* — {plain(detail)}"]
+
+        lines.append('')
+
+    # Discografía y repertorio de audiciones
+    listenings_to_render = []
+    if _is_15th_century_topic(run):
+        listenings_to_render = POLYPHONY_15TH_CENTURY_LISTENINGS
+    elif _is_ancient_egypt_topic(run):
+        listenings_to_render = ANCIENT_EGYPT_LISTENINGS
+    if listenings_to_render:
+        lines += ['', '## 4. Discografía de aula y repertorio de audiciones con enlaces', '',
+                  '| Obra y partes | Grabación e Intérpretes | Enlace de audición | Criterio docente |',
+                  '| --- | --- | --- | --- |']
+        for item in listenings_to_render:
+            links_str = '<br>'.join(f"[{plain(l['label'])}]({l['url']})" for l in item.get('links', []))
+            lines.append(
+                f"| **{plain(item['composer'])}**<br>*{plain(item['title'])}* | {plain(item.get('performer', ''))} | {links_str} | {plain(item.get('teacher_note', ''))} |"
+            )
+        lines.append('')
 
     for visual in (run.get('result') or {}).get('visualizations', []):
         lines += ['## Esquema documentado', '', f"### {plain(visual.get('title', ''))}", '']

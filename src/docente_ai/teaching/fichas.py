@@ -1,4 +1,4 @@
-"""Gestión, parseo e indexación de fichas temáticas curadas en Markdown."""
+"""Gestión y consulta de fichas modulares de contenido pedagógico."""
 
 from pathlib import Path
 import re
@@ -6,129 +6,135 @@ from typing import Any
 import yaml
 
 FICHAS_DEFAULT_DIR = Path('data/fichas')
-FICHAS_EXAMPLE_DIR = Path('config/fichas')
+FICHAS_CONFIG_DIR = Path('config/fichas')
 
-FRONTMATTER_REGEX = re.compile(r'^---\s*\n(.*?)\n---\s*\n', re.DOTALL)
+_POLYPHONY_REGEXES = (
+    re.compile(r'\bpolifon[ií]a\b', re.IGNORECASE),
+    re.compile(r'\bsiglo\s*xv\b|\bs\.\s*xv\b|\b15th\s*century\b', re.IGNORECASE),
+    re.compile(r'\bcantus\s+firmus\b', re.IGNORECASE),
+    re.compile(r'\bmisa\s+c[ií]clica\b', re.IGNORECASE),
+    re.compile(r'\bmisa\s+parodia\b', re.IGNORECASE),
+    re.compile(r'\bmisa\s+par[aá]frasis\b', re.IGNORECASE),
+    re.compile(r'\bdu\s*fay\b|\bdufay\b', re.IGNORECASE),
+    re.compile(r'\bockeghem\b|\bbinchois\b|\bbusno[iy]s\b', re.IGNORECASE),
+    re.compile(r'\bse\s+la\s+face\s+ay\s+pale\b', re.IGNORECASE),
+    re.compile(r'\bl[\'\’]?homme\s+arm[eé]\b', re.IGNORECASE),
+)
+
+_EGYPT_REGEXES = (
+    re.compile(r'\begipto\b|\begipci[ao]s?\b', re.IGNORECASE),
+    re.compile(r'\bhathor\b|\bsistro\b|\bsistrum\b|\bmenat\b', re.IGNORECASE),
+    re.compile(r'\bquironimia\b|\bnebamun\b|\btutankam[oó]n\b', re.IGNORECASE),
+)
+
+_NTAM_REGEXES = (
+    re.compile(r'\bntam\b', re.IGNORECASE),
+    re.compile(r'\bnuevas\s+tecnolog[ií]as\b', re.IGNORECASE),
+    re.compile(r'\bnovas\s+tecnolox[ií]as\b', re.IGNORECASE),
+)
 
 
-def parse_ficha_file(path: Path) -> dict[str, Any] | None:
-    """Lee y parsea un archivo de ficha Markdown con frontmatter YAML."""
-    if not path.is_file() or path.suffix.lower() != '.md':
-        return None
-    try:
-        raw = path.read_text(encoding='utf-8')
-    except Exception:
-        return None
-    
-    match = FRONTMATTER_REGEX.match(raw)
-    if not match:
-        return None
-    
-    fm_text = match.group(1)
-    body = raw[match.end():].strip()
-    
-    try:
-        metadata = yaml.safe_load(fm_text)
-    except Exception:
-        return None
-    
-    if not isinstance(metadata, dict):
-        return None
-        
-    return {
-        'path': str(path),
-        'filename': path.name,
-        'metadata': metadata,
-        'body': body,
-        'full_text': raw,
-    }
+def _resolve_fichas_dirs(directory: Path | str | None = None) -> list[Path]:
+    """Resuelve directorios de búsqueda de fichas (prioridad: directory, data/fichas, config/fichas)."""
+    dirs: list[Path] = []
+    if directory:
+        target = Path(directory)
+        if target.is_dir():
+            dirs.append(target)
+    if FICHAS_DEFAULT_DIR.is_dir() and FICHAS_DEFAULT_DIR not in dirs:
+        dirs.append(FICHAS_DEFAULT_DIR)
+    if FICHAS_CONFIG_DIR.is_dir() and FICHAS_CONFIG_DIR not in dirs:
+        dirs.append(FICHAS_CONFIG_DIR)
+    return dirs
 
 
 def load_all_fichas(directory: Path | str | None = None) -> list[dict[str, Any]]:
-    """Carga todas las fichas disponibles en el directorio."""
-    target_dir = Path(directory) if directory else FICHAS_DEFAULT_DIR
-    if not target_dir.exists() or not any(target_dir.glob('*.md')):
-        if FICHAS_EXAMPLE_DIR.exists() and any(FICHAS_EXAMPLE_DIR.glob('*.md')):
-            target_dir = FICHAS_EXAMPLE_DIR
-        else:
-            return []
-            
-    fichas = []
-    for p in sorted(target_dir.glob('*.md')):
-        if p.name.startswith('00_'):
-            continue  # Saltar plantilla base
-        ficha = parse_ficha_file(p)
-        if ficha:
-            fichas.append(ficha)
-    return fichas
-
-
-def find_relevant_fichas(topic: str, criteria: str = '', directory: Path | str | None = None, limit: int = 3) -> list[dict[str, Any]]:
-    """Encuentra fichas curadas relevantes para un tema y criterios dados."""
-    fichas = load_all_fichas(directory)
-    if not fichas:
+    """Carga todas las fichas disponibles en los directorios configurados."""
+    dirs = _resolve_fichas_dirs(directory)
+    if not dirs:
         return []
-    
-    query = f"{topic} {criteria}".lower()
-    scored = []
-    for f in fichas:
-        score = 0
-        meta = f['metadata']
-        f_tema = str(meta.get('tema', '')).lower()
-        f_titulo = str(meta.get('titulo', '')).lower()
-        keywords = [str(k).lower() for k in (meta.get('palabras_clave') or [])]
-        
-        for kw in keywords:
-            if kw in query:
-                score += 4
-        if f_tema and f_tema in query:
-            score += 5
-        if f_titulo and any(w in query for w in f_titulo.split() if len(w) > 4):
-            score += 3
-        # Búsqueda también en el texto del cuerpo si no hay match directo
-        if score == 0:
-            words = [w for w in re.findall(r'\b[A-Za-zÀ-ÿ]{5,}\b', query)]
-            matches = sum(1 for w in words if w in f['body'].lower())
-            if matches >= 2:
-                score = matches
-                
-        if score > 0:
-            scored.append((score, f))
-            
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return [f for _, f in scored[:limit]]
+
+    fichas_by_id: dict[str, dict[str, Any]] = {}
+    for d in dirs:
+        for yaml_file in sorted(d.glob('*.yaml')):
+            if yaml_file.name.endswith('.example.yaml'):
+                continue
+            try:
+                raw = yaml_file.read_text(encoding='utf-8')
+                data = yaml.safe_load(raw)
+            except Exception:
+                continue
+            if isinstance(data, dict) and 'id' in data:
+                f_id = str(data['id'])
+                if f_id not in fichas_by_id:
+                    data['_source_file'] = str(yaml_file)
+                    fichas_by_id[f_id] = data
+
+    return list(fichas_by_id.values())
 
 
-def index_fichas_to_library(db_path: Path | str, directory: Path | str | None = None) -> list[str]:
-    """Indexa las fichas Markdown en la biblioteca SQLite según su frontmatter."""
-    from docente_ai.library.service import import_document, authorize_document
+def get_ficha(ficha_id: str, directory: Path | str | None = None) -> dict[str, Any] | None:
+    """Busca una ficha por su ID exacto."""
     fichas = load_all_fichas(directory)
-    imported_ids = []
-    for ficha in fichas:
-        p = Path(ficha['path'])
-        meta = ficha['metadata']
-        origen = meta.get('origen') or 'bibliografia'
-        categoria = 'profesor' if origen == 'notas_profesor' else 'documental'
-        
-        # Extraer autores de la fuente bibliográfica o frontmatter
-        fuente_bib = meta.get('fuente_bibliografica') or ''
-        authors = meta.get('autores') or []
-        if not authors and fuente_bib:
-            authors = [fuente_bib.split('(')[0].strip()] if '(' in fuente_bib else [fuente_bib.split('.')[0].strip()]
-        if not authors:
-            authors = ['Profesor' if categoria == 'profesor' else 'Musicología']
-            
-        doc_values = {
-            'title': meta.get('titulo') or meta.get('tema') or p.stem,
-            'authors': authors,
-            'origin': origen,
-            'tags': meta.get('palabras_clave') or [],
-            'document_type': meta.get('tipo') or 'ficha_curricular'
-        }
-        try:
-            doc = import_document(db_path, p, category=categoria, subjects=['historia-i'], values=doc_values)
-            authorize_document(db_path, doc['document_id'], enabled=True)
-            imported_ids.append(doc['document_id'])
-        except Exception:
-            pass
-    return imported_ids
+    for f in fichas:
+        if f.get('id') == ficha_id:
+            return f
+    return None
+
+
+def is_ficha_verified(ficha: dict[str, Any] | None) -> bool:
+    """Comprueba si una ficha está marcada como verificada por el profesor."""
+    if not ficha or not isinstance(ficha, dict):
+        return False
+    return bool(ficha.get('verificado') is True)
+
+
+def get_ficha_for_topic(topic: str, directory: Path | str | None = None) -> dict[str, Any] | None:
+    """Obtiene la ficha correspondiente a un tema de estudio según patrones canónicos."""
+    if not topic:
+        return None
+    t = str(topic).strip()
+
+    # 1. Comprobación de polifonía del siglo XV
+    if any(rx.search(t) for rx in _POLYPHONY_REGEXES):
+        return get_ficha('polifonia_xv', directory)
+
+    # 2. Comprobación de Antiguo Egipto
+    if any(rx.search(t) for rx in _EGYPT_REGEXES):
+        return get_ficha('egipto', directory)
+
+    # 3. Comprobación de NTAM
+    if any(rx.search(t) for rx in _NTAM_REGEXES):
+        return get_ficha('ntam', directory)
+
+    # 4. Búsqueda por coincidencia en el campo 'tema'
+    fichas = load_all_fichas(directory)
+    for f in fichas:
+        tema = str(f.get('tema') or '').lower()
+        if tema and tema in t.lower():
+            return f
+
+    return None
+
+
+def get_ficha_for_run(run: dict[str, Any], directory: Path | str | None = None) -> dict[str, Any] | None:
+    """Determina si un run tiene asignada una ficha temática."""
+    if not run or not isinstance(run, dict):
+        return None
+
+    # Si el run ya tiene ficha inyectada, devolverla
+    if 'ficha' in run and isinstance(run['ficha'], dict):
+        return run['ficha']
+
+    req = run.get('request') or {}
+    ped = req.get('pedagogy') or {}
+    group = ped.get('group') or {}
+    unit = ped.get('unit') or {}
+    subj = str(req.get('subject') or group.get('subject_id') or '')
+    q = str(run.get('original_topic') or req.get('original_topic') or req.get('question') or '')
+    disp = str(run.get('display_title') or req.get('display_title') or '')
+    crit = str(ped.get('teacher_criteria') or '')
+
+    combined = f"{disp} {q} {crit} {subj} {group.get('name', '')} {unit.get('id', '')} {ped.get('unit_id', '')}"
+
+    return get_ficha_for_topic(combined, directory)
