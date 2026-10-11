@@ -372,3 +372,95 @@ def test_exclusion_ejemplos_no_verificados_en_material_alumnado():
     assert "\\relative" not in student_md
     assert "**kern" not in student_md
     assert "Candidato no verificado" not in student_md
+
+
+# ── 6. Seguridad: rechazo de rutas y traversal en endpoints de partituras ─────
+
+@pytest.fixture
+def score_client(tmp_path):
+    """Cliente HTTP local autenticado para probar endpoints de partituras."""
+    import re
+    from starlette.testclient import TestClient
+    from docente_ai.config import load
+    from docente_ai.storage import import_config
+    from docente_ai.web.app import create_app
+    from docente_ai.web.workspace import Workspace
+    from test_generation import EXAMPLE, FakeEmbedder
+
+    db = tmp_path / 'data/docente.sqlite3'
+    import_config(db, load(EXAMPLE))
+    ws = Workspace(tmp_path, embedder_factory=FakeEmbedder)
+    app = create_app(tmp_path, workspace=ws)
+    with TestClient(app, base_url='http://127.0.0.1:8765') as client:
+        html = client.get('/').text
+        token = re.search(r'name="docente-token" content="([^"]+)"', html).group(1)
+        client.headers['X-Docente-Token'] = token
+        yield client, ws
+
+
+def test_endpoints_scores_seguridad_rechazan_rutas_y_traversal(score_client):
+    """Comprueba que /api/scores/render-svg y /api/scores/render-midi rechacen rutas del cliente y traversal."""
+    client, ws = score_client
+
+    for endpoint in ('/api/scores/render-svg', '/api/scores/render-midi'):
+        # 1. Envío explícito de 'path' debe ser rechazado
+        r_path_passwd = client.post(endpoint, json={'path': '/etc/passwd'})
+        assert r_path_passwd.status_code in (400, 404), f"{endpoint} no rechazó path /etc/passwd: {r_path_passwd.status_code}"
+
+        r_path_db = client.post(endpoint, json={'path': '../../data/docente.sqlite3'})
+        assert r_path_db.status_code in (400, 404), f"{endpoint} no rechazó path relativo: {r_path_db.status_code}"
+
+        # 2. Intento de traversal a través de 'id'
+        r_id_passwd = client.post(endpoint, json={'id': '/etc/passwd'})
+        assert r_id_passwd.status_code in (400, 404), f"{endpoint} no rechazó id /etc/passwd: {r_id_passwd.status_code}"
+
+        r_id_db = client.post(endpoint, json={'id': '../../data/docente.sqlite3'})
+        assert r_id_db.status_code in (400, 404), f"{endpoint} no rechazó id con escape de directorio: {r_id_db.status_code}"
+
+        # 3. ID inexistente
+        r_inexistente = client.post(endpoint, json={'id': 'obra_inexistente_123'})
+        assert r_inexistente.status_code in (400, 404)
+
+    # 4. Solicitud legítima con ID de corpus music21 (sin ruta de cliente)
+    r_svg = client.post('/api/scores/render-svg', json={'id': 'm21-bwv66-6', 'start': 1, 'end': 4})
+    assert r_svg.status_code == 200, r_svg.text
+    assert '<svg' in r_svg.json().get('svg', '')
+
+    r_midi = client.post('/api/scores/render-midi', json={'id': 'm21-bwv66-6', 'start': 1, 'end': 4})
+    assert r_midi.status_code == 200, r_midi.text
+    assert len(r_midi.json().get('midi', '')) > 0
+
+
+# ── 7. Error explícito si falla el recorte de compases ────────────────────────
+
+def test_error_explicito_si_recorte_compases_falla(score_client):
+    """Si el recorte de compases falla, devuelve un error explícito con el motivo en vez de la partitura completa."""
+    from docente_ai.music import slice_measures, get_music21
+
+    client, ws = score_client
+
+    # 1. Endpoint devuelve error 400 con motivo si el rango excede la partitura
+    res_out = client.post('/api/scores/render-svg', json={'id': 'm21-bwv66-6', 'start': 50, 'end': 60})
+    assert res_out.status_code == 400
+    err_msg = res_out.json().get('error', '').lower()
+    assert 'rango' in err_msg or 'compás' in err_msg or 'excede' in err_msg
+
+    # 2. Endpoint devuelve error 400 con motivo si el compás final es menor al inicial
+    res_inv = client.post('/api/scores/render-svg', json={'id': 'm21-bwv66-6', 'start': 5, 'end': 2})
+    assert res_inv.status_code == 400
+    err_inv = res_inv.json().get('error', '').lower()
+    assert 'menor' in err_inv or 'inicial' in err_inv
+
+    # 3. Prueba unitaria de slice_measures: debe lanzar ValueError explícito, no devolver la partitura completa
+    m21 = get_music21()
+    score = m21.corpus.parse('bach/bwv66.6')
+
+    with pytest.raises(ValueError, match="menor que el inicial"):
+        slice_measures(score, 5, 2)
+
+    with pytest.raises(ValueError, match="mayor o igual a 1"):
+        slice_measures(score, 0, 4)
+
+    with pytest.raises(ValueError, match="no contiene compases|excede"):
+        slice_measures(score, 80, 90)
+

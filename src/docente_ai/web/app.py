@@ -420,24 +420,42 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
 
     async def render_verovio_svg(request):
         data = await body(request)
-        file_path = data.get('path')
-        if not file_path:
-            raise ValueError('Se requiere la ruta del archivo de partitura.')
+        if 'path' in data:
+            raise ValueError('No se admiten rutas del cliente. Proporciona el identificador del candidato o ejemplo.')
+        score_id = data.get('id') or data.get('candidate_id') or data.get('ejemplo_id')
+        if not score_id:
+            raise ValueError('Se requiere el identificador del candidato o ejemplo del catálogo.')
+        run_id = data.get('run_id')
         start = int(data.get('start', 1))
         end = int(data.get('end', 8))
-        svg = await run_in_threadpool(ws.render_score_svg, file_path, start, end)
+        try:
+            resolved_file = await run_in_threadpool(ws.resolve_score_path, score_id, run_id)
+        except FileNotFoundError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=404)
+        except PermissionError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+        svg = await run_in_threadpool(ws.render_score_svg, str(resolved_file), start, end)
         if request.headers.get('accept') == 'image/svg+xml':
             return Response(svg, media_type='image/svg+xml')
         return JSONResponse({'svg': svg})
 
     async def render_verovio_midi(request):
         data = await body(request)
-        file_path = data.get('path')
-        if not file_path:
-            raise ValueError('Se requiere la ruta del archivo de partitura.')
+        if 'path' in data:
+            raise ValueError('No se admiten rutas del cliente. Proporciona el identificador del candidato o ejemplo.')
+        score_id = data.get('id') or data.get('candidate_id') or data.get('ejemplo_id')
+        if not score_id:
+            raise ValueError('Se requiere el identificador del candidato o ejemplo del catálogo.')
+        run_id = data.get('run_id')
         start = int(data.get('start', 1))
         end = int(data.get('end', 8))
-        midi_base64 = await run_in_threadpool(ws.render_score_midi, file_path, start, end)
+        try:
+            resolved_file = await run_in_threadpool(ws.resolve_score_path, score_id, run_id)
+        except FileNotFoundError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=404)
+        except PermissionError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+        midi_base64 = await run_in_threadpool(ws.render_score_midi, str(resolved_file), start, end)
         return JSONResponse({'midi': midi_base64})
 
     async def shutdown(request):

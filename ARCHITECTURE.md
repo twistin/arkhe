@@ -908,7 +908,9 @@ Para dotar al sistema de capacidad de análisis y cálculo musical sin depender 
 - **Carga perezosa de dependencias pesadas (`music.lazy: get_music21`):** `music21` solo se importa bajo demanda durante el análisis o manipulación de una partitura, evitando el retardo de ~2.8 s en el arranque de la aplicación web y de la CLI.
 - **Manipulación y análisis determinista de partituras (`music.score`, `music.analysis`):**
   - Soporte de formatos estándar: MusicXML, MXL, MEI, Humdrum (**kern) y ABC.
-  - Recorte de compases (`measures(start, end)`) y transposición por intervalo.
+  - Recorte de compases (`measures(start, end)`) estricto (con error explícito ante rangos fuera de extensión o inválidos, sin fallback a partitura completa) y transposición por intervalo.
+  - Renderizado SVG y MIDI en backend con `verovio` (Python): se elimina el bundle WebAssembly/JavaScript en cliente (`vendor/verovio/`), centralizando la generación determinista en el servidor.
+  - Resolución segura de partituras: los endpoints `/api/scores/render-svg` y `/api/scores/render-midi` resuelven exclusivamente mediante ID del candidato o ejemplo, rechazando rutas directas del cliente y verificando que la ruta real resuelta resida en las raíces autorizadas (`data/ejemplos/`, partituras del profesor, caché JRP o corpus music21).
   - Cálculo de ámbito por voz (nota mínima, máxima e intervalo), finalis / notas finales por voz y del conjunto, e intervalos melódicos más frecuentes.
   - Detección de aumentación rítmica mediante comparación proporcional de duraciones entre melodías (relación 2:1, 3:1, 4:1 o disminución 1:2).
   - Todos los resultados se etiquetan automáticamente como *«calculado a partir de la partitura»*, eximiéndose del requisito de cita documental.

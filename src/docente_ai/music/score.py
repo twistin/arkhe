@@ -88,7 +88,29 @@ def slice_measures(score, start_measure: int, end_measure: int):
     Devuelve:
         Nuevo objeto Score recortado.
     """
-    return score.measures(start_measure, end_measure)
+    if start_measure < 1:
+        raise ValueError(f"El compás inicial debe ser mayor o igual a 1 (recibido: {start_measure}).")
+    if end_measure < start_measure:
+        raise ValueError(f"El compás final ({end_measure}) no puede ser menor que el inicial ({start_measure}).")
+
+    try:
+        sliced = score.measures(start_measure, end_measure)
+    except Exception as exc:
+        raise ValueError(f"Error al recortar compases {start_measure}–{end_measure}: {exc}") from exc
+
+    measures_count = 0
+    if hasattr(sliced, "parts") and len(sliced.parts) > 0:
+        measures_count = len(sliced.parts[0].getElementsByClass("Measure"))
+    elif hasattr(sliced, "getElementsByClass"):
+        measures_count = len(sliced.getElementsByClass("Measure"))
+
+    if measures_count == 0:
+        raise ValueError(
+            f"El rango solicitado ({start_measure}–{end_measure}) no contiene compases en la partitura "
+            "o excede su extensión."
+        )
+
+    return sliced
 
 
 def transpose_score(score, semitones_or_interval: int | str):

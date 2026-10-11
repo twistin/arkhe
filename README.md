@@ -1026,9 +1026,11 @@ Para evitar la inclusión de contenido estático y tablas fijas en el código:
 
 El módulo `docente_ai.music` proporciona un conjunto de herramientas musicales deterministas sin dependencias nativas obligatorias:
 
-1. **Manipulación y metadatos de partituras:**
+1. **Manipulación, renderizado y metadatos de partituras:**
    - Importa y valida MusicXML (`.xml`, `.musicxml`), comprimido (`.mxl`), MEI (`.mei`), Humdrum (`.krn`) y ABC (`.abc`) usando `music21` bajo demanda (carga perezosa para no penalizar el arranque).
-   - Recorte de compases (`measures(start, end)`) y transposición determinista.
+   - **Renderizado determinista con Verovio (Python):** La generación de SVG vectoriales y secuencias MIDI base64 para previsualización y reproducción polifónica se procesa íntegramente en el backend mediante el paquete Python `verovio`. No se emplean librerías WebAssembly ni bundles en el navegador (`vendor/verovio/` eliminado del repositorio).
+   - **Seguridad en endpoints de partituras:** Los endpoints `/api/scores/render-svg` y `/api/scores/render-midi` no admiten rutas del cliente. Resuelven el identificador (`id`) exclusivamente en el servidor y validan que la ruta canónica (tras resolver enlaces simbólicos) resida estrictamente dentro de `data/ejemplos/`, la carpeta de partituras del profesor (`Conocimiento/Partituras/`), la caché de JRP o el corpus de `music21`; cualquier intento de escape o acceso a archivos del sistema devuelve error 400 o 404.
+   - **Recorte estricto de compases:** El recorte (`measures(start, end)`) valida los límites solicitados. Si el rango falla o excede la extensión de la partitura, el servicio devuelve un error explícito con el motivo en lugar de servir la partitura completa sin recortar. Transposición determinista por intervalo o semitonos.
 2. **Análisis musical calculado:**
    - Ámbito por voz (nota más grave, más aguda e intervalo).
    - Nota final / finalis por voz y del conjunto.

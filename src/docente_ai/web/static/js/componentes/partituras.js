@@ -264,16 +264,17 @@ export function playMidiBase64(midiBase64) {
 }
 
 export async function loadScoreSvg(box) {
-  const path = box.dataset.path;
-  if (!path) return;
   const card = box.closest('.score-candidate-item');
+  const candidateId = box.dataset.candidateId || card?.dataset.candidateId || box.dataset.id;
+  if (!candidateId) return;
+  const runId = card?.querySelector('.adopt-score-btn')?.dataset.runId;
   const startInp = card?.querySelector('.score-start-input');
   const endInp = card?.querySelector('.score-end-input');
   const start = startInp ? parseInt(startInp.value, 10) || 1 : 1;
   const end = endInp ? parseInt(endInp.value, 10) || 8 : 8;
 
   try {
-    const res = await api('/scores/render-svg', { path, start, end });
+    const res = await api('/scores/render-svg', { id: candidateId, run_id: runId, start, end });
     if (res?.svg) {
       box.innerHTML = '<div class="verovio-score-svg"></div>';
       box.firstElementChild.innerHTML = res.svg;
@@ -286,7 +287,7 @@ export async function loadScoreSvg(box) {
 }
 
 export function initScorePreviews() {
-  const boxes = document.querySelectorAll('.score-preview-box[data-path]:not([data-rendered])');
+  const boxes = document.querySelectorAll('.score-preview-box[data-candidate-id]:not([data-rendered])');
   boxes.forEach(box => {
     box.dataset.rendered = 'true';
     loadScoreSvg(box);
@@ -441,22 +442,23 @@ async function accionSearchOpenRepos({target}) {
 async function accionPlayScoreSample({target}) {
   const btn = target.closest('.play-score-btn');
   if (!btn) return;
+  const candidateId = btn.dataset.candidate;
   const card = btn.closest('.score-candidate-item');
-  const candPath = card?.dataset.path;
+  const runId = card?.querySelector('.adopt-score-btn')?.dataset.runId;
   const startInp = card?.querySelector('.score-start-input');
   const endInp = card?.querySelector('.score-end-input');
   const start = startInp ? parseInt(startInp.value, 10) || 1 : 1;
   const end = endInp ? parseInt(endInp.value, 10) || 8 : 8;
 
-  if (!candPath) {
-    toast('No hay archivo disponible para reproducir.');
+  if (!candidateId) {
+    toast('No hay identificador de partitura para reproducir.');
     return;
   }
 
   btn.disabled = true;
   try {
     toast('Generando MIDI con Verovio...');
-    const res = await api('/scores/render-midi', { path: candPath, start, end });
+    const res = await api('/scores/render-midi', { id: candidateId, run_id: runId, start, end });
     if (res?.midi) {
       playMidiBase64(res.midi);
     } else {

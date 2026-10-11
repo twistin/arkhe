@@ -833,6 +833,145 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 raise RuntimeError("Error al generar el archivo WAV con FluidSynth.")
             return tmp_wav.read_bytes()
 
+    def get_allowed_score_roots(self) -> list[Path]:
+        """Devuelve las rutas autorizadas del sistema para partituras seguras."""
+        from docente_ai.music.lazy import get_music21
+        roots: list[Path] = []
+        # 1. Catálogo local data/ejemplos/ y config/ejemplos/
+        for p in (self.root / "data/ejemplos", self.root / "config/ejemplos"):
+            roots.append(p.resolve())
+
+        # 2. Carpeta de partituras del profesor
+        for p in (self.knowledge / "Partituras", self.root / "config/partituras"):
+            roots.append(p.resolve())
+
+        # 3. Caché de JRP
+        for p in (self.root / "data/cache/partituras/jrp", self.root / "data/cache/jrp"):
+            roots.append(p.resolve())
+
+        # 4. Corpus de music21
+        try:
+            m21 = get_music21()
+            corpus_root = Path(m21.corpus.__file__).parent.resolve()
+            roots.append(corpus_root)
+        except Exception:
+            pass
+
+        return roots
+
+    def resolve_score_path(self, score_id: str, run_id: str | None = None) -> Path:
+        """Resuelve el identificador de un candidato o ejemplo a una ruta de archivo validada y segura."""
+        if not isinstance(score_id, str) or not score_id.strip():
+            raise ValueError("Se requiere el identificador del candidato o ejemplo del catálogo.")
+
+        score_id = score_id.strip()
+        allowed_roots = self.get_allowed_score_roots()
+
+        resolved_path: Path | None = None
+
+        # 1. Catálogo de ejemplos locales (data/ejemplos/ y config/ejemplos/)
+        from docente_ai.teaching.ejemplos import get_ejemplo
+        ej = get_ejemplo(score_id, directory=self.root / "data/ejemplos") or get_ejemplo(
+            score_id, directory=self.root / "config/ejemplos"
+        )
+        if ej and ej.get("archivo_path"):
+            resolved_path = Path(ej["archivo_path"])
+
+        # 2. Propuesta específica por run_id si se especificó
+        if not resolved_path and run_id:
+            try:
+                from docente_ai.generation.service import get_run
+                run_data = get_run(self.db, run_id)
+                resolved_reqs = run_data.get("result", {}).get("resolved_music_requests", [])
+                for req in resolved_reqs:
+                    for cand in req.get("candidatos", []):
+                        if cand.get("id") == score_id and cand.get("path"):
+                            resolved_path = Path(cand["path"])
+                            break
+                    if resolved_path:
+                        break
+                    cand_ej = req.get("ejemplo")
+                    if cand_ej and cand_ej.get("id") == score_id and cand_ej.get("archivo_path"):
+                        resolved_path = Path(cand_ej["archivo_path"])
+                        break
+            except Exception:
+                pass
+
+        # 3. Propuestas recientes en la base de datos
+        if not resolved_path:
+            try:
+                from docente_ai.generation.service import list_runs, get_run
+                for r_meta in list_runs(self.db, limit=20):
+                    r_full = get_run(self.db, r_meta["id"])
+                    resolved_reqs = (r_full.get("result") or {}).get("resolved_music_requests", [])
+                    for req in resolved_reqs:
+                        for cand in req.get("candidatos", []):
+                            if cand.get("id") == score_id and cand.get("path"):
+                                resolved_path = Path(cand["path"])
+                                break
+                        if resolved_path:
+                            break
+                    if resolved_path:
+                        break
+            except Exception:
+                pass
+
+        # 4. Carpeta de partituras del profesor (prefijo local- o nombre de archivo directo)
+        if not resolved_path:
+            clean_name = score_id[6:] if score_id.startswith("local-") else score_id
+            for base_dir in (self.knowledge / "Partituras", self.root / "config/partituras"):
+                candidate = (base_dir / clean_name).resolve()
+                if candidate.is_file():
+                    resolved_path = candidate
+                    break
+
+        # 5. Caché de JRP (prefijo jrp- o nombre en la carpeta de caché)
+        if not resolved_path:
+            clean_jrp = score_id[4:] if score_id.startswith("jrp-") else score_id
+            for cache_dir in (self.root / "data/cache/partituras/jrp", self.root / "data/cache/jrp"):
+                if cache_dir.is_dir():
+                    for f in cache_dir.iterdir():
+                        if f.is_file():
+                            cand_id = f"jrp-{f.stem}".replace(".", "-")
+                            if cand_id == score_id or f.stem == clean_jrp or f.name == clean_jrp:
+                                resolved_path = f.resolve()
+                                break
+                    if resolved_path:
+                        break
+
+        # 6. Corpus de music21 (prefijo m21- o identificador de corpus)
+        if not resolved_path:
+            try:
+                from docente_ai.music.lazy import get_music21
+                m21 = get_music21()
+                clean_m21 = score_id[4:] if score_id.startswith("m21-") else score_id
+                for p in m21.corpus.getCorePaths():
+                    cand_id = f"m21-{p.stem}".replace(" ", "-").replace(".", "-")
+                    if cand_id == score_id or p.stem == clean_m21 or p.stem == score_id:
+                        resolved_path = p.resolve()
+                        break
+            except Exception:
+                pass
+
+        if not resolved_path:
+            # Si se proporcionó una ruta que existe en el sistema de archivos
+            try_direct = (self.root / score_id).resolve()
+            if try_direct.is_file():
+                resolved_path = try_direct
+
+        if not resolved_path or not resolved_path.is_file():
+            raise FileNotFoundError(f"Partitura no encontrada para el identificador: {score_id}")
+
+        # Comprobación de seguridad: la ruta real tras resolver symlinks debe ser relativa a allowed_roots
+        real_path = resolved_path.resolve()
+        is_safe = any(real_path.is_relative_to(root) for root in allowed_roots)
+        if not is_safe:
+            raise PermissionError(
+                f"Acceso denegado: el archivo {real_path} no está dentro de los directorios de partituras permitidos."
+            )
+
+        return real_path
+
     def render_score_svg(self, file_path: str, start_measure: int = 1, end_measure: int = 8) -> str:
         """Renderiza un SVG real usando Verovio y recortando al rango de compases indicado."""
         import verovio
@@ -846,10 +985,10 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         m21 = get_music21()
         try:
             score = m21.converter.parse(str(p))
-            recorte = slice_measures(score, start_measure, end_measure)
-        except Exception:
-            # Si no se puede recortar directamente, usar la partitura completa
-            recorte = score
+        except Exception as exc:
+            raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
+
+        recorte = slice_measures(score, start_measure, end_measure)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             xml_path = Path(tmpdir) / "slice.musicxml"
@@ -885,9 +1024,10 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         m21 = get_music21()
         try:
             score = m21.converter.parse(str(p))
-            recorte = slice_measures(score, start_measure, end_measure)
-        except Exception:
-            recorte = score
+        except Exception as exc:
+            raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
+
+        recorte = slice_measures(score, start_measure, end_measure)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             xml_path = Path(tmpdir) / "slice.musicxml"
