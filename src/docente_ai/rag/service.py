@@ -39,7 +39,8 @@ def eligible(connection, *, subject=None, category='all', document_ids=None):
                p.original_path AS parent_path,p.sha256 AS parent_sha256
                FROM documents d JOIN document_versions v ON v.id=d.current_version_id
                LEFT JOIN document_versions p ON p.id=json_extract(v.metadata_snapshot, '$.extraction.derived_from_version_id') AND p.document_id=d.id
-               WHERE d.enabled=1 AND v.status IN ('ready','needs_review')'''
+               WHERE d.enabled=1 AND v.status IN ('ready','needs_review')
+               AND coalesce(json_extract(d.metadata, '$.origin'), '') != 'generado_ia' '''
     args = []
     if subject:
         query += ' AND (d.shared=1 OR EXISTS(SELECT 1 FROM document_subjects ds WHERE ds.document_id=d.id AND ds.subject_id=?))'
@@ -200,7 +201,7 @@ def search(db: Path, settings: RagSettings, embedder, query: str, *, subject: st
             if not connection.execute('SELECT 1 FROM rag_indexes WHERE version_id=? AND profile_id=?', (source['version_id'], profile['id'])).fetchone():
                 raise ValueError('Hay fuentes autorizadas sin indexar para este perfil. Ejecuta library index; no se usará un corpus parcial silenciosamente.')
     queries = list(dict.fromkeys([query, *(query_variants or [])]))
-    if len(queries)>6 or any(not isinstance(q,str) or not q.strip() or len(q)>4000 for q in queries):
+    if len(queries) > 12 or any(not isinstance(q, str) or not q.strip() or len(q) > 4000 for q in queries):
         raise ValueError('Consultas de recuperación inválidas.')
     vectors = embedder.embed(queries, query=True)
     if len(vectors) != len(queries) or any(len(v) != profile['dimensions'] for v in vectors):

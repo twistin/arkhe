@@ -51,7 +51,7 @@ export function recordModal(runId, run) {
       `" required></div>\n      <div class="field"><label class="label" for="rec-topic">`,
       `Qué se impartió</label><textarea id="rec-topic" name="topic" maxlength="2000" `,
       `rows="3" required placeholder="Tema o contenido impartido realmente en la sesión…">`,
-      `${e(run?.request?.question||'')}`,
+      `${e(run?.display_title || run?.title || run?.request?.display_title || run?.request?.question || '')}`,
       `</textarea></div>\n      <div class="field"><label class="label" for="rec-notes">`,
       `Notas de la sesión (opcional)</label><textarea id="rec-notes" name="notes" `,
       `maxlength="4000" rows="2" placeholder="Asistencia, incidencias o cambios sobre `,

@@ -90,7 +90,7 @@ export function expandProposalModal(run) {
   const ctx = run.request?.pedagogy;
   const groups = store.state.config.groups || [];
   const currentGroupId = ctx?.group?.id || groups[0]?.id || '';
-  const currentTopic = run.request?.question || '';
+  const currentTopic = run.display_title || run.title || run.request?.display_title || run.request?.question || '';
   const currentDuration = ctx?.duration_minutes || 60;
   const priorCriteria = ctx?.teacher_criteria || '';
 
@@ -164,7 +164,7 @@ function tarjetaPropuesta(r) {
       `</button>\n          </div>\n          <button class="proposal-card-body" data-run="${e(r.id)}`
     ].join(''),
     `">\n            <h3 class="proposal-card-title">`,
-    `${e(r.title || r.request?.question || 'Propuesta sin título')}`,
+    `${e(r.display_title || r.title || r.request?.display_title || r.request?.question || 'Propuesta sin título')}`,
     [
       `</h3>\n            <div class="proposal-card-meta">\n              <span>${e(metaParts.join(' · '))}`
     ].join(''),

@@ -1,163 +1,13 @@
 import { e } from '../ui.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
-export function renderStaffSvg(type) {
-  const lines = [8, 14, 20, 26, 32].map(y => [
-    `<line x1="24" y1="${e(y)}" x2="315" y2="${e(y)}" stroke="#cbd5e1" stroke-width="1.2"/>`
-  ].join('')).join('');
-  let content = '';
-  switch (type) {
-    case 'superius_cf':
-      content = [
-        `\n        <text x="6" y="27" font-size="22" font-family="serif" fill="#475569">`,
-        `𝄞</text>\n        <ellipse cx="48" cy="20" rx="4.5" ry="3.5" fill="#1e293b" `,
-        `transform="rotate(-15 48 20)"/><line x1="52" y1="20" x2="52" y2="6" `,
-        `stroke="#1e293b" stroke-width="1.5"/>\n        <ellipse cx="78" cy="14" rx="4.5" `,
-        `ry="3.5" fill="#1e293b" transform="rotate(-15 78 14)"/><line x1="82" y1="14" `,
-        `x2="82" y2="2" stroke="#1e293b" stroke-width="1.5"/>\n        <ellipse cx="108" `,
-        `cy="17" rx="4.5" ry="3.5" fill="#1e293b" transform="rotate(-15 108 17)"/><line `,
-        `x1="112" y1="17" x2="112" y2="4" stroke="#1e293b" stroke-width="1.5"/>\n        `,
-        `<ellipse cx="138" cy="23" rx="4.5" ry="3.5" fill="#1e293b" transform="rotate(-15 `,
-        `138 23)"/><line x1="142" y1="23" x2="142" y2="9" stroke="#1e293b" `,
-        `stroke-width="1.5"/>\n        <ellipse cx="172" cy="20" rx="4.5" ry="3.5" `,
-        `fill="#1e293b" transform="rotate(-15 172 20)"/><line x1="176" y1="20" x2="176" `,
-        `y2="6" stroke="#1e293b" stroke-width="1.5"/>\n        <ellipse cx="206" cy="14" `,
-        `rx="4.5" ry="3.5" fill="#1e293b" transform="rotate(-15 206 14)"/><line x1="210" `,
-        `y1="14" x2="210" y2="2" stroke="#1e293b" stroke-width="1.5"/>\n        <ellipse `,
-        `cx="240" cy="8" rx="5" ry="4" fill="#ffffff" stroke="#1e293b" stroke-width="1.8" `,
-        `transform="rotate(-15 240 8)"/><line x1="244" y1="8" x2="244" y2="-4" `,
-        `stroke="#1e293b" stroke-width="1.5"/>\n        <ellipse cx="280" cy="14" `,
-        `rx="5.5" ry="4" fill="#ffffff" stroke="#1e293b" stroke-width="2"/>\n      `
-      ].join('');
-      break;
-    case 'altus_cf':
-      content = [
-        `\n        <text x="6" y="25" font-size="18" font-family="serif" fill="#475569">`,
-        `𝄡</text>\n        <ellipse cx="54" cy="26" rx="4.5" ry="3.5" fill="#334155" `,
-        `transform="rotate(-15 54 26)"/><line x1="58" y1="26" x2="58" y2="12" `,
-        `stroke="#334155" stroke-width="1.5"/>\n        <ellipse cx="94" cy="20" rx="4.5" `,
-        `ry="3.5" fill="#334155" transform="rotate(-15 94 20)"/><line x1="98" y1="20" `,
-        `x2="98" y2="6" stroke="#334155" stroke-width="1.5"/>\n        <ellipse cx="134" `,
-        `cy="23" rx="4.5" ry="3.5" fill="#334155" transform="rotate(-15 134 23)"/><line `,
-        `x1="138" y1="23" x2="138" y2="9" stroke="#334155" stroke-width="1.5"/>\n        `,
-        `<ellipse cx="180" cy="26" rx="5" ry="4" fill="#ffffff" stroke="#334155" `,
-        `stroke-width="1.8"/>\n        <ellipse cx="230" cy="20" rx="5" ry="4" `,
-        `fill="#ffffff" stroke="#334155" stroke-width="1.8"/>\n        <ellipse cx="280" `,
-        `cy="23" rx="5.5" ry="4" fill="#ffffff" stroke="#334155" stroke-width="2"/>\n      `
-      ].join('');
-      break;
-    case 'tenor_cf':
-      content = [
-        `\n        <text x="6" y="25" font-size="18" font-family="serif" fill="#b45309">`,
-        `𝄡</text>\n        <rect x="55" y="16" width="16" height="8" fill="#ffffff" `,
-        `stroke="#b45309" stroke-width="2.2" rx="1.5"/><line x1="71" y1="16" x2="71" `,
-        `y2="35" stroke="#b45309" stroke-width="2.2"/>\n        <rect x="135" y="13" `,
-        `width="16" height="8" fill="#ffffff" stroke="#b45309" stroke-width="2.2" `,
-        `rx="1.5"/><line x1="151" y1="13" x2="151" y2="32" stroke="#b45309" `,
-        `stroke-width="2.2"/>\n        <rect x="215" y="19" width="16" height="8" `,
-        `fill="#ffffff" stroke="#b45309" stroke-width="2.2" rx="1.5"/><line x1="231" `,
-        `y1="19" x2="231" y2="38" stroke="#b45309" stroke-width="2.2"/>\n        <rect `,
-        `x="280" y="16" width="20" height="8" fill="#ffffff" stroke="#b45309" `,
-        `stroke-width="2.5" rx="1.5"/><line x1="300" y1="16" x2="300" y2="35" `,
-        `stroke="#b45309" stroke-width="2.2"/>\n      `
-      ].join('');
-      break;
-    case 'bassus_cf':
-      content = [
-        `\n        <text x="6" y="24" font-size="18" font-family="serif" fill="#475569">`,
-        `𝄢</text>\n        <ellipse cx="60" cy="26" rx="5" ry="4" fill="#ffffff" `,
-        `stroke="#334155" stroke-width="1.8"/><line x1="56" y1="26" x2="56" y2="40" `,
-        `stroke="#334155" stroke-width="1.5"/>\n        <ellipse cx="120" cy="32" rx="5" `,
-        `ry="4" fill="#ffffff" stroke="#334155" stroke-width="1.8"/><line x1="116" `,
-        `y1="32" x2="116" y2="44" stroke="#334155" stroke-width="1.5"/>\n        <ellipse `,
-        `cx="180" cy="26" rx="5" ry="4" fill="#ffffff" stroke="#334155" `,
-        `stroke-width="1.8"/><line x1="176" y1="26" x2="176" y2="40" stroke="#334155" `,
-        `stroke-width="1.5"/>\n        <ellipse cx="250" cy="20" rx="5.5" ry="4" `,
-        `fill="#ffffff" stroke="#334155" stroke-width="2"/>\n      `
-      ].join('');
-      break;
-    case 'paraphrase_s':
-      content = [
-        `\n        <text x="6" y="27" font-size="22" font-family="serif" fill="#dc2626">`,
-        `𝄞</text>\n        <rect x="42" y="3" width="76" height="30" fill="rgba(239, 68, `,
-        `68, 0.12)" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="3,2" rx="4"/>\n `,
-        `       <text x="47" y="12" font-size="8" font-weight="bold" fill="#dc2626">`,
-        `Fragmento A</text>\n        <ellipse cx="62" cy="20" rx="4" ry="3" `,
-        `fill="#dc2626"/><ellipse cx="82" cy="14" rx="4" ry="3" fill="#dc2626"/><ellipse `,
-        `cx="102" cy="17" rx="4" ry="3" fill="#dc2626"/>\n        <ellipse cx="150" `,
-        `cy="14" rx="4" ry="3" fill="#334155"/><ellipse cx="180" cy="20" rx="4" ry="3" `,
-        `fill="#334155"/><ellipse cx="230" cy="26" rx="4.5" ry="3.5" fill="#ffffff" `,
-        `stroke="#334155" stroke-width="1.5"/>\n      `
-      ].join('');
-      break;
-    case 'paraphrase_a':
-      content = [
-        `\n        <text x="6" y="25" font-size="18" font-family="serif" fill="#d97706">`,
-        `𝄡</text>\n        <rect x="95" y="3" width="76" height="30" fill="rgba(245, 158, `,
-        `11, 0.12)" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,2" rx="4"/>\n `,
-        `       <text x="100" y="12" font-size="8" font-weight="bold" fill="#b45309">↳ `,
-        `Imitación</text>\n        <ellipse cx="115" cy="26" rx="4" ry="3" `,
-        `fill="#d97706"/><ellipse cx="135" cy="20" rx="4" ry="3" fill="#d97706"/><ellipse `,
-        `cx="155" cy="23" rx="4" ry="3" fill="#d97706"/>\n        <ellipse cx="200" `,
-        `cy="20" rx="4" ry="3" fill="#334155"/><ellipse cx="240" cy="14" rx="4.5" `,
-        `ry="3.5" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>\n      `
-      ].join('');
-      break;
-    case 'paraphrase_t':
-      content = [
-        `\n        <text x="6" y="25" font-size="18" font-family="serif" fill="#059669">`,
-        `𝄡</text>\n        <rect x="145" y="3" width="76" height="30" fill="rgba(16, 185, `,
-        `129, 0.12)" stroke="#10b981" stroke-width="1.2" stroke-dasharray="3,2" rx="4"/>`,
-        `\n        <text x="150" y="12" font-size="8" font-weight="bold" fill="#047857">↳ `,
-        `Imitación</text>\n        <ellipse cx="165" cy="20" rx="4" ry="3" `,
-        `fill="#059669"/><ellipse cx="185" cy="14" rx="4" ry="3" fill="#059669"/><ellipse `,
-        `cx="205" cy="17" rx="4" ry="3" fill="#059669"/>\n        <ellipse cx="250" `,
-        `cy="20" rx="4.5" ry="3.5" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>\n      `
-      ].join('');
-      break;
-    case 'paraphrase_b':
-      content = [
-        `\n        <text x="6" y="24" font-size="18" font-family="serif" fill="#2563eb">`,
-        `𝄢</text>\n        <rect x="195" y="3" width="76" height="30" fill="rgba(37, 99, `,
-        `235, 0.12)" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="3,2" rx="4"/>`,
-        `\n        <text x="200" y="12" font-size="8" font-weight="bold" fill="#1d4ed8">↳ `,
-        `Imitación</text>\n        <ellipse cx="215" cy="26" rx="4" ry="3" `,
-        `fill="#2563eb"/><ellipse cx="235" cy="20" rx="4" ry="3" fill="#2563eb"/><ellipse `,
-        `cx="255" cy="23" rx="4" ry="3" fill="#2563eb"/>\n      `
-      ].join('');
-      break;
-    case 'motto':
-      content = [
-        `\n        <text x="6" y="27" font-size="22" font-family="serif" fill="#6366f1">`,
-        `𝄞</text>\n        <circle cx="50" cy="20" r="4.2" fill="#6366f1"/><line x1="54" `,
-        `y1="20" x2="54" y2="7" stroke="#6366f1" stroke-width="1.5"/>\n        <circle `,
-        `cx="85" cy="14" r="4.2" fill="#6366f1"/><line x1="89" y1="14" x2="89" y2="2" `,
-        `stroke="#6366f1" stroke-width="1.5"/>\n        <circle cx="120" cy="17" r="4.2" `,
-        `fill="#6366f1"/><line x1="124" y1="17" x2="124" y2="4" stroke="#6366f1" `,
-        `stroke-width="1.5"/>\n        <circle cx="155" cy="20" r="4.2" fill="#6366f1"/>`,
-        `<line x1="159" y1="20" x2="159" y2="7" stroke="#6366f1" stroke-width="1.5"/>\n   `,
-        `     <text x="180" y="22" font-size="10" font-weight="bold" fill="#4338ca">Kyrie `,
-        `/ Gloria / Credo...</text>\n      `
-      ].join('');
-      break;
-    case 'cadence':
-      content = [
-        `\n        <text x="6" y="27" font-size="22" font-family="serif" fill="#0f766e">`,
-        `𝄞</text>\n        <ellipse cx="55" cy="23" rx="4" ry="3" fill="#0f766e"/>`,
-        `<ellipse cx="55" cy="14" rx="4" ry="3" fill="#0f766e"/>\n        <text x="80" `,
-        `y="21" font-size="9" fill="#64748b">➔ 6ª a 8ª (Landini) ➔</text>\n        `,
-        `<ellipse cx="200" cy="26" rx="5.5" ry="4" fill="#ffffff" stroke="#0f766e" `,
-        `stroke-width="2"/>\n        <ellipse cx="200" cy="8" rx="5.5" ry="4" `,
-        `fill="#ffffff" stroke="#0f766e" stroke-width="2"/>\n        <text x="216" y="20" `,
-        `font-size="8.5" font-weight="bold" fill="#0f766e">8ª sin 3ª</text>\n      `
-      ].join('');
-      break;
-    default:
-      content = `<text x="6" y="27" font-size="22" font-family="serif" fill="#64748b">𝄞</text>`;
-  }
+export function renderEjemploPendiente() {
   return [
-    `<svg class="staff-svg" viewBox="0 0 320 38" preserveAspectRatio="none">${lines}${content}</svg>`
-  ].join('');
+    '<div class="ejemplo-pendiente-caja">',
+    '  <span class="ejemplo-pendiente-icono">🎼</span>',
+    '  <span class="ejemplo-pendiente-texto">Ejemplo musical pendiente de añadir al catálogo</span>',
+    '</div>'
+  ].join('\n');
 }
 
 export function renderStudentInfographic(run) {
@@ -182,22 +32,9 @@ export function renderStudentInfographic(run) {
     `class="model-meta">Estructura rígida</small>\n                </div>\n           `,
     `   </div>\n              <span class="model-quote">«La melodía permanece fija `,
     `como eje de la misa»</span>\n            </div>\n\n            <div `,
-    `class="model-body-grid">\n              <div class="voice-staves-box">\n         `,
-    `       <div class="voice-row"><span class="voice-tag">Superius (Soprano)</span>`,
-    `${renderStaffSvg('superius_cf')}`,
-    [
-      `</div>\n                <div class="voice-row"><span class="voice-tag">Altus (Contralto)</span>`
-    ].join(''),
-    `${renderStaffSvg('altus_cf')}`,
-    `</div>\n                <div class="voice-row voice-tenor-highlight">\n          `,
-    [
-      `        <span class="voice-tag voice-tenor-badge">Tenor (Cantus Firmus)</span>\n                  `
-    ].join(''),
-    [
-      `${renderStaffSvg('tenor_cf')}\n                </div>\n                <div class="voice-row"><span `
-    ].join(''),
-    `class="voice-tag">Bassus (Bajo)</span>${renderStaffSvg('bassus_cf')}`,
-    `</div>\n              </div>\n\n              <div class="model-side-info">\n    `,
+    `class="model-body-grid">\n`,
+    `${renderEjemploPendiente()}`,
+    `\n              <div class="model-side-info">\n    `,
     `            <div class="model-chars-card">\n                  <strong>`,
     `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>La `,
     `melodía preexistente se presenta en valores largos (aumentación).</li>\n         `,
@@ -205,9 +42,9 @@ export function renderStudentInfographic(run) {
     `Las otras voces desarrollan contrapunto libre o imitativo.</li>\n                `,
     `    <li>Estructura solemne y estable.</li>\n                  </ul>\n            `,
     `    </div>\n                <div class="model-example-card">\n                  `,
-    `<span class="ex-badge">EJEMPLO</span>\n                  <strong>L'homme `,
-    `armé</strong>\n                  <p>Melodía del cantus firmus en el Tenor (en `,
-    `valores de longa y máxima).</p>\n                </div>\n              </div>\n  `,
+    `<span class="ex-badge">EJEMPLO</span>\n                  <strong>Missa Se `,
+    `la face ay pale (Du Fay)</strong>\n                  <p>Melodía del cantus firmus `,
+    `en el Tenor en valores aumentados.</p>\n                </div>\n              </div>\n  `,
     `          </div>\n          </div>\n\n          <!-- MODELO 2: MISA DE `,
     `PARÁFRASIS -->\n          <div class="model-block">\n            <div `,
     `class="model-header-row">\n              <div class="model-title-group">\n       `,
@@ -216,20 +53,9 @@ export function renderStudentInfographic(run) {
     `class="model-meta">Estructura fluida e imitativa</small>\n                </div>`,
     `\n              </div>\n              <span class="model-quote">«La melodía `,
     `viaja, se adorna y se transforma»</span>\n            </div>\n\n            <div `,
-    `class="model-body-grid">\n              <div class="voice-staves-box">\n         `,
-    `       <div class="voice-row"><span class="voice-tag">Superius (Soprano)</span>`,
-    `${renderStaffSvg('paraphrase_s')}`,
-    [
-      `</div>\n                <div class="voice-row"><span class="voice-tag">Altus (Contralto)</span>`
-    ].join(''),
-    `${renderStaffSvg('paraphrase_a')}`,
-    `</div>\n                <div class="voice-row"><span class="voice-tag">Tenor</span>`,
-    `${renderStaffSvg('paraphrase_t')}`,
-    [
-      `</div>\n                <div class="voice-row"><span class="voice-tag">Bassus (Bajo)</span>`
-    ].join(''),
-    `${renderStaffSvg('paraphrase_b')}`,
-    `</div>\n              </div>\n\n              <div class="model-side-info">\n    `,
+    `class="model-body-grid">\n`,
+    `${renderEjemploPendiente()}`,
+    `\n              <div class="model-side-info">\n    `,
     `            <div class="model-chars-card">\n                  <strong>`,
     `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>La `,
     `melodía original se mantiene reconocible, pero con adornos (glosas).</li>\n      `,
@@ -348,7 +174,8 @@ export function renderStudentInfographic(run) {
     `class="unification-cards-grid">\n              <div class="unification-card `,
     `motto">\n                <div class="u-card-head">\n                  <strong>`,
     `TÉCNICA DEL MOTTO</strong>\n                  <small>(Motivo de cabeza)</small>`,
-    `\n                </div>\n                ${renderStaffSvg('motto')}`,
+    `\n                </div>\n`,
+    `${renderEjemploPendiente()}`,
     `\n                <ul>\n                  <li>Todas las partes de la misa `,
     `comienzan con las mismas 3 o 4 notas o células.</li>\n                  <li>`,
     `Refuerza la unidad arquitectónica de la obra.</li>\n                  <li>Muy `,
@@ -356,7 +183,8 @@ export function renderStudentInfographic(run) {
     `             </div>\n\n              <div class="unification-card cadence">\n    `,
     `            <div class="u-card-head">\n                  <strong>CADENCIAS `,
     `RENACENTISTAS</strong>\n                  <small>(Landini y borgoñonas)</small>`,
-    `\n                </div>\n                ${renderStaffSvg('cadence')}`,
+    `\n                </div>\n`,
+    `${renderEjemploPendiente()}`,
     `\n                <ul>\n                  <li>Uso de la cadencia de Landini o `,
     `cadencias borgoñonas.</li>\n                  <li>Caracterizadas por la octava `,
     `sin tercera (conducción 6ª a 8ª).</li>\n                  <li>Cierran secciones `,

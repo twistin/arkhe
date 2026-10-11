@@ -1,0 +1,290 @@
+{
+  "id": "run-50df7dd07cfe45abb8d7afe5d1708ebb",
+  "created_at": "2026-10-07T14:14:42.944666+00:00",
+  "finished_at": "2026-10-07T14:14:42.955941+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:8",
+  "model": "gen:1",
+  "digest": "generation-digest",
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "qwen3:14b",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 12288,
+      "max_output_tokens": 1536,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "ollama",
+      "base_url": "",
+      "data_residency": "local",
+      "response_format": "",
+      "remote_consent": "",
+      "api_key_configured": false
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem.\n",
+      "prior_experience": null,
+      "session": null
+    }
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON y usa solo los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación. Las demás documentan el contenido técnico o académico. Si un elemento solicitado no aparece en las fuentes, indícalo en observations y no lo inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[]).\n- claims: 2 a 8 bloques con kind (summary o inference), text, student_summary y evidence.\n  * text: Explicación teórica profunda para fundamentar la sesión docente.\n  * student_summary: Síntesis de 2 a 4 frases directas para el cuaderno del alumnado, sin hablar del \"alumnado\" o de los estudiantes en 3ª persona ni incluir pautas metodológicas.\n  * evidence: Lista de 1 a 30 objetos {\"source_id\":\"S1\",\"quote\":\"quote_001\"}; nunca uses citas libres.\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations.\n  * assessment: Cómo se comprueba lo aprendido en la sesión.\n  * activities: Cada actividad lleva:\n    - title: Título sin minutos ni rangos de tiempo como \"(0–10 min)\".\n    - teacher_notes: Pautas metodológicas docentes.\n    - student_task: Consigna directa al estudiante en 2ª persona con verbo de acción práctica. Prohibido empezar con verbos docentes (explicar, proyectar, reproducir, dibujar, manejar...).\n    - grouping: Uno de: \"individual\", \"grupo\", \"colectivo\".\n    - deliverable: Qué produce tangiblemente el alumno.\n    - solution: Solución modelo o criterios de corrección para el profesor.\n    - minutes: Duración en minutos enteros; suman duration_minutes.\n    - claim_ids: Índices 1-based vinculando a los claims.\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items [{\"label\":\"...\",\"detail\":\"...\"}], caption y evidence con source_id y quote_XXX. No uses data, rows, steps, Mermaid ni HTML.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem\",\"context\":{\"group\":{\"id\":\"historia-3gp\",\"name\":\"Grupo A\",\"subject_id\":\"historia-i\",\"center_id\":\"centro-demo\",\"academic_year_id\":\"curso-2026\",\"teacher_id\":\"docente-demo\",\"level\":\"3º GP\",\"language\":\"gl\"},\"unit\":{\"id\":\"unidad-1\",\"curriculum_id\":\"historia-programa\",\"order\":1,\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[],\"assessment_criteria\":[\"Explicar las observaciones utilizando el vocabulario trabajado.\"],\"activities\":[\"Escucha guiada y puesta en común.\"],\"repertoire\":[],\"resources\":[],\"start_date\":\"2026-09-01\",\"end_date\":\"2026-10-31\"},\"duration_minutes\":60,\"teacher_criteria\":\"Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem.\\n\",\"prior_experience\":null,\"session\":null},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: teoria-griega-seikilos\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3).\"},{\"id\":\"quote_002\",\"text\":\" Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono).\"},{\"id\":\"quote_003\",\"text\":\" Pitágoras (c. 530 a.\"},{\"id\":\"quote_004\",\"text\":\" C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3).\"},{\"id\":\"quote_005\",\"text\":\" Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C.\"},{\"id\":\"quote_006\",\"text\":\" Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C.\"},{\"id\":\"quote_007\",\"text\":\" La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental.\"},{\"id\":\"quote_008\",\"text\":\" El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C.\"},{\"id\":\"quote_009\",\"text\":\" y el I d.\"},{\"id\":\"quote_010\",\"text\":\" C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva.\"},{\"id\":\"quote_011\",\"text\":\" Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis \"}]},{\"source_id\":\"S2\",\"title\":\"Fuente de evaluación: teoria-griega-seikilos\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"ua que se conserva.\"},{\"id\":\"quote_002\",\"text\":\" Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis y líneas para duraciones dobles o triples).\"},{\"id\":\"quote_003\",\"text\":\" San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-462ba1d2c3644650ba381cceb2cf4d7f",
+      "document_id": "doc-bb218e3dbd4e49fa84d4853bbf9c3b1c",
+      "version_id": "ver-16cb0b27fe684b6d9ffa8748656ed0ec",
+      "segment_id": "ver-16cb0b27fe684b6d9ffa8748656ed0ec:1",
+      "category": "documental",
+      "text": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3). Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono). Pitágoras (c. 530 a. C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3). Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C. Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C. La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental. El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C. y el I d. C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva. Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis ",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1199,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "url": null,
+        "publisher": null,
+        "doi": null,
+        "year": null,
+        "authors": [
+          "Musicología Académica"
+        ],
+        "origin": "archivo local",
+        "tags": [],
+        "title": "Fuente de evaluación: teoria-griega-seikilos",
+        "collections": [],
+        "document_type": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: teoria-griega-seikilos",
+      "source_id": "S1"
+    },
+    {
+      "chunk_id": "chunk-b22490bdadf14abab790cec401ac0c4a",
+      "document_id": "doc-bb218e3dbd4e49fa84d4853bbf9c3b1c",
+      "version_id": "ver-16cb0b27fe684b6d9ffa8748656ed0ec",
+      "segment_id": "ver-16cb0b27fe684b6d9ffa8748656ed0ec:1",
+      "category": "documental",
+      "text": "ua que se conserva. Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis y líneas para duraciones dobles o triples). San Agustín y Boecio transmitieron estas teorías a la Edad Media occidental.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 1049,
+        "char_end": 1319,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "url": null,
+        "publisher": null,
+        "doi": null,
+        "year": null,
+        "authors": [
+          "Musicología Académica"
+        ],
+        "origin": "archivo local",
+        "tags": [],
+        "title": "Fuente de evaluación: teoria-griega-seikilos",
+        "collections": [],
+        "document_type": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: teoria-griega-seikilos",
+      "source_id": "S2"
+    }
+  ],
+  "omitted": [
+    {
+      "chunk_id": "chunk-6c9cbafa785d44778aec17e1a1b31d98",
+      "reason": "context_budget"
+    },
+    {
+      "chunk_id": "chunk-9cee997209bb43aaa8f47ef966790d2f",
+      "reason": "context_budget"
+    },
+    {
+      "chunk_id": "chunk-d44161e2158e4e1b8196695c59dfb991",
+      "reason": "context_budget"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "La generación de Du Fay y Binchois asimiló la contenance angloise y creó la misa cíclica sobre cantus firmus profano.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3)."
+          }
+        ],
+        "student_summary": "Los compositores franco-flamencos del siglo XV combinaron la dulzura armónica inglesa con el contrapunto continental. Du Fay unificó los movimientos de la misa utilizando una misma canción popular o religiosa en la voz del tenor."
+      },
+      {
+        "kind": "summary",
+        "text": "Johannes Ockeghem amplió el registro grave hacia el Bassus y desarrolló la técnica de flujo continuo.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono)."
+          }
+        ],
+        "student_summary": "Ockeghem llevó las voces a registros mucho más graves y evitó que todas las voces respiraran a la vez. Su música fluye sin interrupciones claras mediante melodías largas que se solapan continuamente."
+      }
+    ],
+    "visualizations": [],
+    "plan": {
+      "objectives": [
+        "Diferenciar las técnicas de cantus firmus, paráfrasis y parodia en la misa del siglo XV.",
+        "Identificar auditivamente la textura de flujo continuo de Ockeghem."
+      ],
+      "difficulty": "3º GP: análisis formal de polifonía renacentista a cuatro voces.",
+      "activities": [
+        {
+          "title": "Audición comparativa: Binchois vs. Du Fay",
+          "teacher_notes": "Proyectar la partitura y marcar los puntos de entrada del cantus firmus para guiar la audición analítica.",
+          "student_task": "Escucha individualmente los fragmentos seleccionados e identifica en tu plantilla la estructura del rondeau y la aumentación del tenor.",
+          "grouping": "individual",
+          "deliverable": "Ficha de audición con esquema formal y cronograma de entradas de voz.",
+          "solution": "Binchois presenta textura a 3 voces clara (rondeau ABaAabAB); Du Fay estira los valores del tenor al triple en el Kyrie.",
+          "minutes": 20,
+          "claim_ids": [
+            1
+          ]
+        },
+        {
+          "title": "Taller de análisis de partitura en Ockeghem",
+          "teacher_notes": "Organizar mesas de trabajo y verificar el rastreo de cadencias encabalgadas y la tesitura del Bassus.",
+          "student_task": "Localizad en equipos los compases donde se solapan las frases cadenciales y medid la distancia interválica que alcanza el bajo.",
+          "grouping": "grupo",
+          "deliverable": "Partitura con anotaciones analíticas en colores diferenciados para cada voz.",
+          "solution": "El Bassus desciende hasta Fa grave y las voces superiores inician nuevos motivos antes del reposo del tenor.",
+          "minutes": 25,
+          "claim_ids": [
+            2
+          ]
+        },
+        {
+          "title": "Puesta en común y síntesis de estilos",
+          "teacher_notes": "Coordinar la puesta en común en la pizarra resumiendo las diferencias técnicas entre ambas generaciones.",
+          "student_task": "Contrastad en asamblea los hallazgos de cada grupo y elaborad una conclusión colectiva sobre la evolución de la misa cíclica.",
+          "grouping": "colectivo",
+          "deliverable": "Esquema mural colaborativo con las tres técnicas canónicas de misa renacentista.",
+          "solution": "Evolución de cantus firmus rígido a paráfrasis e imitación con ampliación del registro coral.",
+          "minutes": 15,
+          "claim_ids": [
+            1,
+            2
+          ]
+        }
+      ],
+      "resources": [
+        "Partituras de la Missa Se la face ay pale y Missa Prolationum",
+        "Equipo de sonido"
+      ],
+      "assessment": "Comprobación de la precisión en la localización de cadencias solapadas y dominio de los términos cantus firmus y flujo continuo.",
+      "observations": "Preparar guías de audición con esquemas formales."
+    }
+  },
+  "metrics": {
+    "retrieval_ranking": null,
+    "retrieval_queries": [
+      "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem\nEnfoque indicado por el profesor: Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem."
+    ],
+    "retrieval_method": "semantic:1",
+    "retrieval_profile_id": "a7950e405e92fcb1cf3d22309b7e186c623f8447bc304ae2984b749aa74bf3ac",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 5,
+    "retrieval_seconds": 0.0,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 600,
+          "output": 80
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "eval_count": 80,
+    "prompt_eval_count": 600,
+    "estimated_input_bytes": 10183,
+    "omitted_count": 3
+  },
+  "review": null,
+  "warnings": []
+}

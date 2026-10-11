@@ -8,6 +8,7 @@ import math
 from pathlib import Path
 import sqlite3
 import time
+from typing import Any, Optional
 from uuid import uuid4
 
 from docente_ai.generation.live import current_execution, emit_live, GenerationCancelled
@@ -15,7 +16,8 @@ from docente_ai import __version__
 from docente_ai.generation.prompt import PROMPT_VERSION, build_prompt
 from docente_ai.generation.validation import validate_response
 from docente_ai.generation.errors import SourceChangedError
-from docente_ai.generation.repair import generate_validated
+from docente_ai.generation.repair import generate_validated, repair_with_review
+from docente_ai.agents.reviewer import perform_review
 from docente_ai.library.service import now, read_connection
 from docente_ai.llm.generation import OllamaGenerator
 from docente_ai.rag.ollama import OllamaEmbedder
@@ -91,7 +93,12 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
     generation_request = asdict(settings)
     from docente_ai.secrets import secret_configured
     generation_request['api_key_configured'] = settings.is_remote and secret_configured(settings.secret_name)
-    request = {'app_version': __version__, 'question': question, 'subject': subject, 'category': category,
+    from docente_ai.teaching.terms import normalize_topic
+    norm_topic = normalize_topic(question)
+    display_title = (norm_topic[:1].upper() + norm_topic[1:]) if norm_topic else question
+    original_topic = question
+    request = {'app_version': __version__, 'question': question, 'display_title': display_title,
+               'original_topic': original_topic, 'subject': subject, 'category': category,
                'document_ids': document_ids, 'top_k': top_k, 'max_distance': max_distance,
                'generation': generation_request, 'rag': asdict(rag_settings)}
     prompt_version = PROMPT_VERSION
@@ -122,8 +129,8 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
     with closing(connect(db)) as connection, connection:
         migrate(connection)
         connection.execute('BEGIN IMMEDIATE')
-        connection.execute('INSERT INTO generation_runs(id,created_at,status,request_json,prompt_version) VALUES (?,?,?,?,?)',
-                           (run_id, now(), 'running', dump(request), prompt_version))
+        connection.execute('INSERT INTO generation_runs(id,created_at,status,request_json,prompt_version,display_title,original_topic) VALUES (?,?,?,?,?,?,?)',
+                           (run_id, now(), 'running', dump(request), prompt_version, display_title, original_topic))
     if execution:
         execution.run_id = run_id
     emit_live('run', run_id=run_id)
@@ -139,13 +146,39 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         retrieval_started = time.monotonic()
         report = progress or (lambda message: None)
         retrieval_question = question
-        if pedagogy_context is not None and pedagogy_context.get('teacher_criteria', '').strip():
-            retrieval_question += '\nEnfoque indicado por el profesor: ' + pedagogy_context['teacher_criteria'].strip()
+        requirements = []
+        if pedagogy_context is not None:
+            pedagogy_context['topic'] = question
+            teacher_crit = pedagogy_context.get('teacher_criteria', '').strip()
+            if teacher_crit:
+                retrieval_question += '\nEnfoque indicado por el profesor: ' + teacher_crit
+            if 'requirements' in pedagogy_context and pedagogy_context['requirements']:
+                requirements = pedagogy_context['requirements']
+            else:
+                from docente_ai.rag.planning import extract_requirements
+                report('Extrayendo requisitos pedagógicos')
+                # Solo pasar generator_factory si estamos en recuperación avanzada con modelo real,
+                # para no consumir diálogos de fakes en tests.
+                extractor_factory = generator_factory if enhanced_retrieval else None
+                requirements = extract_requirements(question, teacher_crit, settings, generator_factory=extractor_factory)
+                pedagogy_context['requirements'] = requirements
+            request['requirements'] = requirements
+            with closing(connect(db)) as connection, connection:
+                connection.execute('UPDATE generation_runs SET request_json=? WHERE id=?', (dump(request), run_id))
+
         variants = []
         if sources and enhanced_retrieval:
             from docente_ai.rag.planning import plan_queries
             report('Preparando búsqueda multilingüe')
+            # Generar consultas orientadas al tema y a los requisitos pedagógicos
             variants = plan_queries(retrieval_question, settings, generator_factory=generator_factory)
+            if requirements:
+                for req in requirements:
+                    req_desc = req['description'].strip()
+                    if req_desc and req_desc not in variants and req_desc != question:
+                        variants.append(req_desc)
+                variants = list(dict.fromkeys(variants))[:11]
+
         programming_results = []
         if sources:
             report('Buscando pasajes en tus fuentes')
@@ -153,6 +186,23 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             with embedder_factory(rag_settings) as embedder:
                 retrieved = search(db, rag_settings, embedder, retrieval_question, subject=subject,
                                    category=category, document_ids=document_ids, top_k=max(top_k, 24) if variants else top_k, max_distance=max_distance, query_variants=variants)
+                
+                # Búsqueda específica por requisito para garantizar que cada uno tenga candidatos etiquetados
+                if requirements:
+                    existing_chunks = {r['chunk_id']: r for r in retrieved['results']}
+                    for req in requirements:
+                        req_query = f"{question} {req['description']}"
+                        req_res = search(db, rag_settings, embedder, req_query, subject=subject,
+                                         category=category, document_ids=document_ids, top_k=4, max_distance=max_distance)
+                        for r_item in req_res['results']:
+                            cid = r_item['chunk_id']
+                            if cid not in existing_chunks:
+                                r_item['requirement_id'] = req['id']
+                                retrieved['results'].append(r_item)
+                                existing_chunks[cid] = r_item
+                            elif 'requirement_id' not in existing_chunks[cid]:
+                                existing_chunks[cid]['requirement_id'] = req['id']
+
                 # La programación fija el marco de la propuesta. Se recupera por
                 # separado para que un corpus grande no la expulse por similitud.
                 programming_ids = [source['document_id'] for source in programming_sources]
@@ -211,11 +261,88 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                     execution.check()
                 with closing(read_connection(db)) as connection:
                     check_evidence(connection, db, bundle['evidence'], request)
-            validator = (lambda content: validate_response(content, bundle['evidence'])) if pedagogy_context is None else (
-                lambda content: pedagogy.validate(content, bundle['evidence'], pedagogy_context))
+            validator = (lambda content, **kwargs: validate_response(content, bundle['evidence'])) if pedagogy_context is None else (
+                lambda content, **kwargs: pedagogy.validate(content, bundle['evidence'], pedagogy_context, **kwargs))
             result, raw = generate_validated(generator, bundle['messages'], validator, metrics,
                                             check=check, report=report, sanitize_response=not is_local,
                                             on_dialogue=lambda dialogue: record_prompt(db, run_id, {**bundle, 'messages': dialogue}, model_id, digest))
+
+            # Paso de revisión opcional si está activado en settings y la propuesta fue respondida
+            if getattr(settings, 'enable_review', False) and result.get('status') == 'answered' and pedagogy_context is not None:
+                report('Ejecutando revisión pedagógica con la rúbrica')
+                requirements = pedagogy_context.get('requirements') or []
+                rev_start_t = time.monotonic()
+                review_data = perform_review(
+                    generator, result, requirements, bundle['evidence'], pedagogy_context, question, report=report
+                )
+                rev_duration = round(time.monotonic() - rev_start_t, 3)
+                initial_review_tokens = review_data.get('_metrics', {})
+                initial_scores = dict(review_data.get('scores', {}))
+                review_scores = review_data.get('scores', {})
+                min_score = min(review_scores.values()) if review_scores else 3
+                total_score = sum(review_scores.values()) if review_scores else 18
+                min_thresh = getattr(settings, 'review_repair_min_score', 2)
+                total_thresh = getattr(settings, 'review_repair_total_score', 15)
+                needs_repair = (
+                    min_score <= min_thresh
+                    or total_score < total_thresh
+                )
+                had_repair = False
+                repair_duration = 0.0
+                post_review_duration = 0.0
+                if needs_repair and review_data.get('issues'):
+                    try:
+                        rep_start_t = time.monotonic()
+                        repaired_result, repaired_raw = repair_with_review(
+                            generator, bundle['messages'], raw, review_data['issues'], validator, metrics,
+                            check=check, report=report, sanitize_response=not is_local
+                        )
+                        repair_duration = round(time.monotonic() - rep_start_t, 3)
+                        result, raw = repaired_result, repaired_raw
+                        had_repair = True
+                        post_rev_start_t = time.monotonic()
+                        review_data = perform_review(
+                            generator, result, requirements, bundle['evidence'], pedagogy_context, question, report=report
+                        )
+                        post_review_duration = round(time.monotonic() - post_rev_start_t, 3)
+                    except Exception as rep_exc:
+                        report('La ronda de reparación no prosperó; conservando propuesta original')
+                final_review_tokens = review_data.get('_metrics', {})
+                metrics['auto_review'] = {
+                    'initial_scores': initial_scores,
+                    'scores': review_data.get('scores'),
+                    'issues': review_data.get('issues'),
+                    'summary': review_data.get('summary'),
+                    'repaired': had_repair,
+                    'seconds': {
+                        'initial_review': rev_duration,
+                        'repair': repair_duration,
+                        'post_review': post_review_duration,
+                        'total': round(rev_duration + repair_duration + post_review_duration, 3)
+                    },
+                    'tokens': {
+                        'initial_review': {
+                            'input': initial_review_tokens.get('prompt_eval_count'),
+                            'output': initial_review_tokens.get('eval_count'),
+                        } if initial_review_tokens else None,
+                        'final_review': {
+                            'input': final_review_tokens.get('prompt_eval_count'),
+                            'output': final_review_tokens.get('eval_count'),
+                        } if final_review_tokens else None,
+                    }
+                }
+
+        if result and isinstance(result.get('music_requests'), list):
+            try:
+                from docente_ai.teaching.score_resolver import resolver_todas_las_peticiones
+                report('Resolviendo peticiones de partituras y ejemplos musicales')
+                result['resolved_music_requests'] = resolver_todas_las_peticiones(
+                    result['music_requests'],
+                    con_repositorios_abiertos=False
+                )
+            except Exception as res_err:
+                report(f'Aviso en resolución de partituras: {res_err}')
+
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         complete(status='draft' if result['status'] == 'answered' else 'abstained',
                result=result, raw=raw, metrics=metrics, evidence=bundle['evidence'], request=request)
@@ -259,6 +386,18 @@ def get_run(db: Path, run_id: str):
                 check_evidence(connection, db, record['evidence'], record['request'])
             except (ValueError, OSError) as exc:
                 record['warnings'].append('Registro histórico: la evidencia ya no está vigente. ' + str(exc))
+
+        req = record.get('request') or {}
+        orig = record.get('original_topic') or req.get('original_topic') or req.get('question') or ''
+        disp = record.get('display_title') or req.get('display_title')
+        if not disp:
+            from docente_ai.teaching.terms import normalize_topic
+            norm = normalize_topic(orig)
+            disp = (norm[:1].upper() + norm[1:]) if norm else orig
+        from docente_ai.teaching.fichas import get_ficha_for_run
+        record['ficha'] = get_ficha_for_run(record, directory=db.parent / 'fichas')
+        record['original_topic'] = orig
+        record['display_title'] = disp
     return record
 
 
@@ -266,8 +405,41 @@ def list_runs(db: Path, limit=20):
     with closing(read_connection(db)) as connection:
         if connection.execute('PRAGMA user_version').fetchone()[0] < 4:
             return []
-        return [dict(row) for row in connection.execute(
-            'SELECT id,created_at,status,model,error FROM generation_runs ORDER BY created_at DESC LIMIT ?', (limit,))]
+        cols = {col[1] for col in connection.execute('PRAGMA table_info(generation_runs)').fetchall()}
+        has_display = 'display_title' in cols
+        query = (
+            'SELECT id,created_at,status,model,error,display_title,original_topic FROM generation_runs ORDER BY created_at DESC LIMIT ?'
+            if has_display else
+            'SELECT id,created_at,status,model,error FROM generation_runs ORDER BY created_at DESC LIMIT ?'
+        )
+        return [dict(row) for row in connection.execute(query, (limit,))]
+
+
+def update_run_title(db: Path, run_id: str, title: str) -> dict:
+    """Actualiza manualmente el título visible de una propuesta.
+
+    La edición manual tiene prioridad sobre normalizaciones automáticas.
+    """
+    clean_title = (title or '').strip()
+    if not clean_title:
+        raise ValueError('El título no puede estar vacío.')
+    if len(clean_title) > 500:
+        raise ValueError('El título no puede exceder 500 caracteres.')
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT request_json FROM generation_runs WHERE id=?', (run_id,)).fetchone()
+        if not row:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        request_raw = row[0]
+        req = json.loads(request_raw) if request_raw else {}
+        req['display_title'] = clean_title
+        req['manual_title'] = True
+        connection.execute(
+            'UPDATE generation_runs SET display_title = ?, request_json = ? WHERE id = ?',
+            (clean_title, dump(req), run_id)
+        )
+    return get_run(db, run_id)
 
 
 def run_stats(db: Path, limit=100):
@@ -376,3 +548,156 @@ def delete_run(db: Path, run_id: str) -> dict:
         connection.execute('DELETE FROM session_records WHERE run_id=?', (run_id,))
         connection.execute('DELETE FROM generation_runs WHERE id=?', (run_id,))
     return {'run_id': run_id, 'deleted': True}
+
+
+def adopt_score_candidate(
+    db: Path,
+    run_id: str,
+    request_id: str,
+    candidate_id: str,
+    *,
+    rango_compases: str = "1-8",
+    voz_resaltar: str | None = None,
+    directorio_destino: Path | str | None = None
+) -> dict:
+    """Adopta un candidato de partitura y lo guarda en data/ejemplos/ con verificado: true."""
+    from docente_ai.teaching.score_resolver import usar_candidato_como_ejemplo
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute(
+            'SELECT status, result_json FROM generation_runs WHERE id=?', (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        status, result_json = row
+        if not result_json:
+            raise ValueError('El registro no contiene resultado.')
+        result = json.loads(result_json)
+        music_requests = result.get('music_requests', [])
+        resolved_list = result.get('resolved_music_requests', [])
+
+        req = next((r for r in music_requests if r.get('id') == request_id), None)
+        if not req:
+            raise ValueError(f'Petición musical inexistente: {request_id}.')
+
+        resolved_item = next((r for r in resolved_list if r.get('request_id') == request_id), None)
+        if not resolved_item:
+            raise ValueError(f'Resolución de petición musical no encontrada: {request_id}.')
+
+        candidato = next((c for c in resolved_item.get('candidatos', []) if c.get('id') == candidate_id), None)
+        if not candidato:
+            raise ValueError(f'Candidato de partitura no encontrado: {candidate_id}.')
+
+        nuevo_ejemplo = usar_candidato_como_ejemplo(
+            req,
+            candidato,
+            rango_compases=rango_compases,
+            voz_resaltar=voz_resaltar,
+            directorio_destino=directorio_destino
+        )
+
+        resolved_item['status'] = 'resuelto_catalogo'
+        resolved_item['origen'] = 'catalogo_local'
+        resolved_item['ejemplo'] = nuevo_ejemplo
+        resolved_item['verificado'] = True
+        resolved_item['candidatos'] = []
+
+        result['resolved_music_requests'] = resolved_list
+        connection.execute(
+            'UPDATE generation_runs SET result_json=? WHERE id=?',
+            (dump(result), run_id)
+        )
+    return get_run(db, run_id)
+
+
+def discard_score_candidate(
+    db: Path,
+    run_id: str,
+    request_id: str,
+    candidate_id: str
+) -> dict:
+    """Descarta un candidato de partitura para la petición indicada."""
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute(
+            'SELECT status, result_json FROM generation_runs WHERE id=?', (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        status, result_json = row
+        if not result_json:
+            raise ValueError('El registro no contiene resultado.')
+        result = json.loads(result_json)
+        resolved_list = result.get('resolved_music_requests', [])
+        resolved_item = next((r for r in resolved_list if r.get('request_id') == request_id), None)
+        if not resolved_item:
+            raise ValueError(f'Resolución de petición musical no encontrada: {request_id}.')
+
+        candidatos = [c for c in resolved_item.get('candidatos', []) if c.get('id') != candidate_id]
+        resolved_item['candidatos'] = candidatos
+        descartes = resolved_item.setdefault('descartes', [])
+        if candidate_id not in descartes:
+            descartes.append(candidate_id)
+        if not candidatos and resolved_item.get('status') == 'candidatos_pendientes':
+            resolved_item['status'] = 'sin_resolver'
+
+        result['resolved_music_requests'] = resolved_list
+        connection.execute(
+            'UPDATE generation_runs SET result_json=? WHERE id=?',
+            (dump(result), run_id)
+        )
+    return get_run(db, run_id)
+
+
+def search_open_score_repos(
+    db: Path,
+    run_id: str,
+    request_id: str,
+    *,
+    proveedor_test: Any = None
+) -> dict:
+    """Busca candidatos en repositorios abiertos (requiere consentimiento explícito)."""
+    from docente_ai.teaching.score_resolver import resolver_peticion_musical
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute(
+            'SELECT status, result_json FROM generation_runs WHERE id=?', (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        status, result_json = row
+        if not result_json:
+            raise ValueError('El registro no contiene resultado.')
+        result = json.loads(result_json)
+        music_requests = result.get('music_requests', [])
+        resolved_list = result.get('resolved_music_requests', [])
+
+        req = next((r for r in music_requests if r.get('id') == request_id), None)
+        if not req:
+            raise ValueError(f'Petición musical inexistente: {request_id}.')
+
+        resolved_item = next((r for r in resolved_list if r.get('request_id') == request_id), None)
+        descartes = resolved_item.get('descartes', []) if resolved_item else []
+
+        nueva_res = resolver_peticion_musical(
+            req,
+            con_repositorios_abiertos=True,
+            descartes=descartes,
+            proveedor_test=proveedor_test
+        )
+
+        if resolved_item:
+            resolved_item.update(nueva_res)
+        else:
+            resolved_list.append(nueva_res)
+
+        result['resolved_music_requests'] = resolved_list
+        connection.execute(
+            'UPDATE generation_runs SET result_json=? WHERE id=?',
+            (dump(result), run_id)
+        )
+    return get_run(db, run_id)
+

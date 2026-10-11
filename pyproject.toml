@@ -10,12 +10,21 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "httpx>=0.28,<0.29",
+    "music21>=9.1,<10",
     "pypdf>=6,<7",
     "python-docx>=1.2,<2",
     "pyyaml>=6,<7",
+    "soundfile>=0.12,<1",
     "sqlite-vec>=0.1.6,<0.2",
     "starlette>=1.6.0,<2",
     "uvicorn>=0.53.0,<0.54",
+    "verovio>=4.3,<5",
+]
+
+[project.optional-dependencies]
+ntam = [
+    "librosa>=0.10,<1",
+    "pedalboard>=0.9,<1",
 ]
 
 [project.scripts]

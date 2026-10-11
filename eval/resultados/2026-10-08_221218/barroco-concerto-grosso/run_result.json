@@ -1,0 +1,445 @@
+{
+  "id": "run-6b4cab0c9d6541d5b67798d5f69ed849",
+  "created_at": "2026-10-08T20:12:18.714810+00:00",
+  "finished_at": "2026-10-08T20:12:18.747982+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "gen:1",
+  "digest": "generation-digest",
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "qwen3:14b",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 12288,
+      "max_output_tokens": 1536,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "ollama",
+      "base_url": "",
+      "data_residency": "local",
+      "response_format": "",
+      "remote_consent": "",
+      "api_key_configured": false
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.\n",
+      "prior_experience": null,
+      "session": null,
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio)",
+          "type": "contenido"
+        },
+        {
+          "id": "R3",
+          "description": "Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas",
+          "type": "contenido"
+        },
+        {
+          "id": "R4",
+          "description": "Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo",
+          "type": "contenido"
+        },
+        {
+          "id": "R5",
+          "description": "Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs",
+          "type": "contenido"
+        },
+        {
+          "id": "R6",
+          "description": "ripieno / tutti) y concerto solista",
+          "type": "contenido"
+        },
+        {
+          "id": "R7",
+          "description": "Modelo de Arcangelo Corelli (op",
+          "type": "contenido"
+        },
+        {
+          "id": "R8",
+          "description": "6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op",
+          "type": "contenido"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio)",
+        "type": "contenido"
+      },
+      {
+        "id": "R3",
+        "description": "Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas",
+        "type": "contenido"
+      },
+      {
+        "id": "R4",
+        "description": "Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo",
+        "type": "contenido"
+      },
+      {
+        "id": "R5",
+        "description": "Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs",
+        "type": "contenido"
+      },
+      {
+        "id": "R6",
+        "description": "ripieno / tutti) y concerto solista",
+        "type": "contenido"
+      },
+      {
+        "id": "R7",
+        "description": "Modelo de Arcangelo Corelli (op",
+        "type": "contenido"
+      },
+      {
+        "id": "R8",
+        "description": "6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op",
+        "type": "contenido"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Si es \"cubierto\", enlaza al menos un claim; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi\",\"context\":{\"group\":{\"id\":\"historia-3gp\",\"name\":\"Grupo A\",\"subject_id\":\"historia-i\",\"center_id\":\"centro-demo\",\"academic_year_id\":\"curso-2026\",\"teacher_id\":\"docente-demo\",\"level\":\"3º GP\",\"language\":\"gl\"},\"unit\":{\"id\":\"unidad-1\",\"curriculum_id\":\"historia-programa\",\"order\":1,\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[],\"assessment_criteria\":[\"Explicar las observaciones utilizando el vocabulario trabajado.\"],\"activities\":[\"Escucha guiada y puesta en común.\"],\"repertoire\":[],\"resources\":[],\"start_date\":\"2026-09-01\",\"end_date\":\"2026-10-31\"},\"duration_minutes\":60,\"teacher_criteria\":\"Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.\\n\",\"prior_experience\":null,\"session\":null,\"requirements\":[{\"id\":\"R1\",\"description\":\"Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio)\",\"type\":\"contenido\"},{\"id\":\"R3\",\"description\":\"Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas\",\"type\":\"contenido\"},{\"id\":\"R4\",\"description\":\"Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo\",\"type\":\"contenido\"},{\"id\":\"R5\",\"description\":\"Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs\",\"type\":\"contenido\"},{\"id\":\"R6\",\"description\":\"ripieno / tutti) y concerto solista\",\"type\":\"contenido\"},{\"id\":\"R7\",\"description\":\"Modelo de Arcangelo Corelli (op\",\"type\":\"contenido\"},{\"id\":\"R8\",\"description\":\"6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op\",\"type\":\"contenido\"}]},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: ntam-sintesis-audio-digital\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"Las Nuevas Tecnologías Aplicadas a la Música (NTAM) abarcan la digitalización y el procesamiento de audio.\"},{\"id\":\"quote_002\",\"text\":\" La conversión analógico-digital (ADC) consta de muestreo y cuantización.\"},{\"id\":\"quote_003\",\"text\":\" La frecuencia de muestreo (sample rate) determina el límite de frecuencias reproducibles según el teorema de muestreo de Nyquist-Shannon: la frecuencia de muestreo debe ser al menos el doble de la frecuencia máxima de la señal para evitar el fenómeno de aliasing o repliegue espectral, combatido con filtros pasabajos antialiasing.\"},{\"id\":\"quote_004\",\"text\":\" Los estándares comunes son 44.1 kHz (calidad CD) y 48 kHz (vídeo/estudio).\"},{\"id\":\"quote_005\",\"text\":\" La resolución o profundidad de bits (bit depth: 16 bit, 24 bit) determina el rango dinámico cuantizado (aproximadamente 6 dB por bit), introduciendo el dither para enmascarar la distorsión armónica de bajo nivel.\"},{\"id\":\"quote_006\",\"text\":\" En la síntesis sustractiva se parte de osciladores ricos en armónicos: onda senoidal (onda pura sin armónicos), onda cuadrada o pulso (armónicos impares), onda triangular (armónicos impares con caída rápida) y onda diente de sierra (todos los armónicos enteros), moldeadas posteriormente mediante filtros resonantes y envolventes ADSR.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-118bfcaaa11046078963f85585065887",
+      "document_id": "doc-e9f77c9a30e54cedad31c66138aa3c6b",
+      "version_id": "ver-9c8bfebd8e8f4629b7b46c594d2a28a3",
+      "segment_id": "ver-9c8bfebd8e8f4629b7b46c594d2a28a3:1",
+      "category": "documental",
+      "text": "Las Nuevas Tecnologías Aplicadas a la Música (NTAM) abarcan la digitalización y el procesamiento de audio. La conversión analógico-digital (ADC) consta de muestreo y cuantización. La frecuencia de muestreo (sample rate) determina el límite de frecuencias reproducibles según el teorema de muestreo de Nyquist-Shannon: la frecuencia de muestreo debe ser al menos el doble de la frecuencia máxima de la señal para evitar el fenómeno de aliasing o repliegue espectral, combatido con filtros pasabajos antialiasing. Los estándares comunes son 44.1 kHz (calidad CD) y 48 kHz (vídeo/estudio). La resolución o profundidad de bits (bit depth: 16 bit, 24 bit) determina el rango dinámico cuantizado (aproximadamente 6 dB por bit), introduciendo el dither para enmascarar la distorsión armónica de bajo nivel. En la síntesis sustractiva se parte de osciladores ricos en armónicos: onda senoidal (onda pura sin armónicos), onda cuadrada o pulso (armónicos impares), onda triangular (armónicos impares con caída rápida) y onda diente de sierra (todos los armónicos enteros), moldeadas posteriormente mediante filtros resonantes y envolventes ADSR.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1135,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "title": "Fuente de evaluación: ntam-sintesis-audio-digital",
+        "authors": [
+          "Musicología Académica"
+        ],
+        "publisher": null,
+        "document_type": null,
+        "year": null,
+        "tags": [],
+        "origin": "bibliografia",
+        "collections": [],
+        "doi": null,
+        "url": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: ntam-sintesis-audio-digital",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R6",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R7",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R8",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-118bfcaaa11046078963f85585065887",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-1c1ae5ad70d64f5580c7d9135000d3c3",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-53a2ae96e844458cb6306ca54d6be92b",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-a78b971da42b476cb620b888146164b7",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-bcf6caa071bd40d2b016908ed57d0300",
+      "reason": "context_budget"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "El bajo continuo constituyó el cimiento armónico y estructural de la música barroca instrumental.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "Las Nuevas Tecnologías Aplicadas a la Música (NTAM) abarcan la digitalización y el procesamiento de audio."
+          }
+        ],
+        "student_summary": "El bajo continuo es la base armónica que sostiene casi toda la música del Barroco. Un instrumento grave (como el violonchelo) toca la línea melódica mientras otro armónico (como el clave) improvisa los acordes indicados con números."
+      },
+      {
+        "kind": "summary",
+        "text": "Corelli y Vivaldi definieron los principios del concerto grosso y del concerto solista con forma ritornello.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " La conversión analógico-digital (ADC) consta de muestreo y cuantización."
+          }
+        ],
+        "student_summary": "En el concerto barroco dialogan grupos de diferente tamaño. En el concerto grosso contrasta un pequeño grupo de solistas con la orquesta entera, alternando pasajes de conjunto con secciones virtuosas."
+      }
+    ],
+    "visualizations": [],
+    "plan": {
+      "objectives": [
+        "Diferenciar las texturas de concertino y ripieno en el concerto grosso.",
+        "Reconocer la alternancia de ritornellos y episodios solistas en Vivaldi."
+      ],
+      "difficulty": "3º GP: análisis formal de texturas concertantes del siglo XVIII.",
+      "activities": [
+        {
+          "title": "Audición analítica: Concerto grosso de Corelli",
+          "teacher_notes": "Facilitar la guía de audición cronometrada y destacar el contraste tímbrico entre tríos y tutti.",
+          "student_task": "Anota en tu ficha individual cada alternancia dinámica entre concertino y ripieno indicando los cambios de textura.",
+          "grouping": "individual",
+          "deliverable": "Esquema cronometrado del diálogo concertante en la ficha de audición.",
+          "solution": "El concertino expone pasajes a tres voces (2 violines y bajo); el ripieno interviene en bloque homofónico como refuerzo.",
+          "minutes": 20,
+          "claim_ids": [
+            1,
+            2
+          ]
+        },
+        {
+          "title": "Análisis sobre partitura de la forma ritornello",
+          "teacher_notes": "Organizar grupos para seguir la partitura de Vivaldi y señalar las modulaciones en los solos.",
+          "student_task": "Señalad en grupos con colores diferentes los temas del ritornello del tutti y las modulaciones motívicas del solista.",
+          "grouping": "grupo",
+          "deliverable": "Partitura con esquema de bloques formales y modulaciones tonales delimitadas.",
+          "solution": "El ritornello regresa en tonalidades vecinas de forma abreviada intercalando episodios virtuosísticos modulantes.",
+          "minutes": 25,
+          "claim_ids": [
+            2
+          ]
+        },
+        {
+          "title": "Taller colectivo de realización de bajo cifrado",
+          "teacher_notes": "Escribir una línea de bajo cifrado en la pizarra y guiar la disposición de terceras y quintas a cuatro voces.",
+          "student_task": "Completad colectivamente en el piano o en la pizarra las notas de los acordes según los números cifrados del compás.",
+          "grouping": "colectivo",
+          "deliverable": "Resolución armónica correcta a cuatro partes del fragmento cifrado.",
+          "solution": "Cifrado 6 indica primera inversión (tercera y sexta); cifrado sin número implica tríada fundamental en estado 5/3.",
+          "minutes": 15,
+          "claim_ids": [
+            1
+          ]
+        }
+      ],
+      "resources": [
+        "Partituras de estudio de Corelli y Vivaldi",
+        "Grabaciones de referencia"
+      ],
+      "assessment": "Verificación de la correcta delimitación de ritornellos en la partitura y resolución coherente de las cifras del bajo armónico.",
+      "observations": "Facilitar esquemas formales visuales para seguir el ritornello."
+    },
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R6",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R7",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R8",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      }
+    ]
+  },
+  "metrics": {
+    "retrieval_ranking": null,
+    "retrieval_queries": [
+      "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi\nEnfoque indicado por el profesor: Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio). Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas. Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba), el principio de concertacion y la polaridad tiple-bajo. Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista. Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera) y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello). Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos, y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas."
+    ],
+    "retrieval_method": "semantic:1",
+    "retrieval_profile_id": "a7950e405e92fcb1cf3d22309b7e186c623f8447bc304ae2984b749aa74bf3ac",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 5,
+    "retrieval_seconds": 0.03,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 600,
+          "output": 80
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "eval_count": 80,
+    "prompt_eval_count": 600,
+    "estimated_input_bytes": 10059,
+    "omitted_count": 12
+  },
+  "review": null,
+  "warnings": []
+}

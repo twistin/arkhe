@@ -27,3 +27,10 @@ MIGRATION_4 = (
 MIGRATION_5 = (
     'ALTER TABLE generation_runs ADD COLUMN review_json TEXT CHECK(review_json IS NULL OR json_valid(review_json))',
 )
+
+# Migración 9: título normalizado para visualización y tema original.
+MIGRATION_9 = (
+    'ALTER TABLE generation_runs ADD COLUMN display_title TEXT',
+    'ALTER TABLE generation_runs ADD COLUMN original_topic TEXT',
+)
+

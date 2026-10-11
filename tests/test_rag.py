@@ -403,8 +403,9 @@ def test_migrate_library_v2_without_losing_documents(corpus):
         connection.execute('PRAGMA user_version=2')
     assert index_library(db, RagSettings('fake:1'), FakeEmbedder())['indexed_versions'] == 1
     assert show_document(db, doc['document_id'])['enabled']
+    from docente_ai.storage import SCHEMA_VERSION
     with sqlite3.connect(db) as connection:
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == SCHEMA_VERSION
         assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
 
 
@@ -438,3 +439,21 @@ def test_hybrid_variants_cannot_reintroduce_excluded_source(corpus):
     result=search(db,settings,FakeEmbedder(),'isorrítmico',subject='historia-i',query_variants=['isorhythm talea'])
     assert result['results']
     assert {r['document_id'] for r in result['results']}=={allowed['document_id']}
+
+
+def test_generado_ia_never_eligible_for_rag(corpus, tmp_path):
+    db, add = corpus
+    path_ia = tmp_path / 'ia_fuente.txt'
+    path_ia.write_text('Borrador generado por IA con texto sobre ritmo.')
+    doc_ia = import_document(db, path_ia, category='documental', subjects=['historia-i'], values={'origin': 'generado_ia'})
+    authorize_document(db, doc_ia['document_id'], enabled=True)
+    settings = RagSettings('fake:1')
+    # index_library no debe indexar nada si solo está generado_ia
+    idx_res = index_library(db, settings, FakeEmbedder())
+    assert idx_res['indexed_versions'] == 0
+    assert idx_res['chunks'] == 0
+    # búsqueda no debe devolver documentos de origen generado_ia
+    res = search(db, settings, FakeEmbedder(), 'ritmo', subject='historia-i')
+    assert res['status'] == 'no_evidence'
+    assert res['results'] == []
+

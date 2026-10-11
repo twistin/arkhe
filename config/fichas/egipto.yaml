@@ -1,0 +1,132 @@
+id: egipto
+tema: Música en el Antiguo Egipto
+verificado: false
+
+infografia:
+  titulo: "Marco histórico, funciones y organología del Antiguo Egipto"
+  subtitulo: "Láminas didácticas de contexto, funciones sociales, organología, quironimia y fuentes de estudio"
+  marco_historico:
+    periodo: "Imperio Antiguo (c. 2686 a. C.) a época grecorromana (c. 30 a. C.)"
+    eje_geografico: "Río Nilo"
+  funciones_sociales:
+    - funcion: "Religiosa y Ritual"
+      contexto: "Culto en templos, himnos, procesiones"
+      repertorio: "Sacerdotisas y músicos del templo, ofrendas"
+      divinidad: "Hathor (música y danza) e Isis (protección)"
+    - funcion: "Funeraria"
+      contexto: "Acompañamiento en el viaje al Más Allá"
+      repertorio: "Cantos de enterramiento, honra y renacimiento del difunto"
+      divinidad: "Ojo de Horus / Osiris"
+    - funcion: "Cortesana y Festiva"
+      contexto: "Banquetes, recepciones y palacios de la élite"
+      repertorio: "Piezas instrumentales, danza, entretenimiento de prestigio"
+      divinidad: "Flor de Loto / Realeza"
+    - funcion: "Popular y Laboral"
+      contexto: "Faenas agrícolas, talleres, remeros en el Nilo"
+      repertorio: "Canciones rítmicas de trabajo para coordinar el esfuerzo, coplas populares"
+      divinidad: "Vida cotidiana y trabajo"
+  organologia:
+    - familia: "Cordófonos (Cuerdas pulsadas)"
+      instrumentos: "Arpa arqueada, Laúd (mástil largo), Lira (en U)"
+      materiales: "Cajas de madera, tripas o fibras vegetales"
+      contexto: "Ámbitos cortesanos, recepciones íntimas y acompañamiento poético"
+    - familia: "Aerófonos (Viento y aire)"
+      instrumentos: "Flautas rectas, Clarinetes dobles (lengüeta), Trompetas (bronce)"
+      materiales: "Caña, madera labrada y metal"
+      contexto: "Procesiones, ceremonias solemnes y ámbito militar"
+    - familia: "Percusión e Idiófonos (Agitados / percutidos)"
+      instrumentos: "Sistros (anillas de metal), Collar Menat, Tambores, Crótalos"
+      materiales: "Bronce, fayenza, parches de cuero y madera"
+      contexto: "Rituales sagrados de Hathor, marcación de danza y pulso"
+  fuentes_e_iconografia:
+    - "Práctica de conjunto: Solistas íntimos (arpa y canto), pequeños conjuntos de cámara y conjuntos para la danza (Tumba de Nebamun, c. 1350 a. C.)."
+    - "Quironimia: Sistema de dirección mediante gestos manuales del cantor/director que indicaba alturas y contorno melódico."
+    - "Fuentes de estudio: Iconografía (murales y relieves), Textos (himnos e inscripciones), Arqueología musical (instrumentos en tumbas) y Comparación etnomusicológica."
+
+conceptos:
+  - termino: "Sistrum (Sistro)"
+    categoria: "RITUAL"
+    definicion: "Instrumento sagrado de percusión con marco metálico y varillas sonajas, consagrado al culto de Hathor para ahuyentar las fuerzas del caos."
+  - termino: "Menat"
+    categoria: "RITUAL"
+    definicion: "Collar ceremonial con cuentas y contrapeso pectoral que las sacerdotisas de Hathor agitaban produciendo un suave tintineo purificador."
+  - termino: "Quironimia"
+    categoria: "DIRECCIÓN"
+    definicion: "Sistema de dirección musical mediante gestos de manos, dedos y cuerpo que el cantor/director hacía a los instrumentistas para guiar melodía y ritmo."
+  - termino: "Arpa Arqueada"
+    categoria: "CORDÓFONO"
+    definicion: "Principal cordófono del Antiguo Egipto, con cuerpo curvo de madera y cuerdas tensadas tañidas por solistas en la corte, banquetes y templos."
+  - termino: "Clarinete Doble"
+    categoria: "AERÓFONO"
+    definicion: "Aerófono compuesto por dos tubos paralelos de caña provistos de lengüetas batientes, con sonido penetrante usado en procesiones y danzas."
+  - termino: "Canto Ritual"
+    categoria: "LITURGIA"
+    definicion: "Monodia vocal entonada en templos y ritos funerarios, concebida como puente directo de comunicación entre el ser humano y las divinidades."
+  - termino: "Iconografía Musical"
+    categoria: "ICONOGRAFÍA"
+    definicion: "Estudio sistemático de las fuentes visuales (frescos de tumbas como la de Nebamun y relieves en templos) para reconstruir la práctica musical."
+  - termino: "Arqueología Musical"
+    categoria: "MÉTODO"
+    definicion: "Análisis científico de los instrumentos materiales conservados en tumbas secas para deducir acústica histórica, materiales y afinaciones."
+
+tareas_adicionales_casa:
+  - id: "actividad_1"
+    tag: "FUNCIONES"
+    titulo: "Diferenciación de usos rituales y festivos"
+    objetivo: "Contrastar el papel de la música en el culto sagrado frente a los banquetes cortesanos."
+    instrucciones:
+      - "Completar un cuadro analítico comparando los espacios (templo vs. palacio) y los instrumentos utilizados."
+      - "Explicar qué significaba que una diosa como Hathor fuese señora de la música y la danza."
+  - id: "actividad_2"
+    tag: "ORGANOLOGÍA"
+    titulo: "Clasificación de las tres familias de instrumentos"
+    objetivo: "Dominar la organología instrumental del Antiguo Egipto."
+    instrucciones:
+      - "Nombrar y describir tres instrumentos de cada familia: cordófonos, aerófonos, percusión e idiófonos."
+      - "Indicar con qué materiales se construía cada uno y cuál era su contexto de uso habitual."
+  - id: "actividad_3"
+    tag: "SIMBOLOGÍA"
+    titulo: "El sistrum y el culto sagrado en el templo"
+    objetivo: "Comprender la relación entre timbre metálico, rito y protección divina."
+    instrucciones:
+      - "¿Qué papel crees que tenía el sistrum en las ceremonias religiosas? ¿Por qué?"
+      - "Relacionar el sonido de las anillas sonajas con la protección contra el caos y las fuerzas malignas."
+  - id: "actividad_4"
+    tag: "ICONOGRAFÍA"
+    titulo: "Análisis del Fresco de la Tumba de Nebamun (c. 1350 a. C.)"
+    objetivo: "Extraer información musical a partir de representaciones pictóricas directas."
+    instrucciones:
+      - "¿Cómo sabemos que la música acompañaba a la danza en el Antiguo Egipto a partir de las imágenes?"
+      - "Identificar los gestos de las manos de los músicos (quironimia) y la disposición de las bailarinas."
+  - id: "actividad_5"
+    tag: "INVESTIGACIÓN"
+    titulo: "El enigma de la ausencia de partituras completas"
+    objetivo: "Analizar el método histórico-musicológico de aproximación a civilizaciones antiguas."
+    instrucciones:
+      - "¿Por qué no conservamos partituras completas de la música egipcia?"
+      - "Explicar cómo se combinan la iconografía, los textos, la arqueología y la comparación."
+  - id: "actividad_6"
+    tag: "ARQUEOLOGÍA"
+    titulo: "Hallazgos arqueológicos y reconstrucción sonora"
+    objetivo: "Valorar qué aporta el descubrimiento material de instrumentos en tumbas."
+    instrucciones:
+      - "¿Qué información nueva crees que podría aportar un hallazgo arqueológico de un instrumento musical? Razona tu respuesta."
+      - "Mencionar posibles datos sobre maderas, afinación, orificios tonales y técnicas constructivas."
+
+bibliografia:
+  - autor: "Marcelle Duchesne-Guillemin"
+    titulo: "Music in Ancient Mesopotamia and Egypt"
+    editorial: "World of Music / Garland"
+    anio: 1981
+  - autor: "J. Peter Burkholder & Claude V. Palisca"
+    titulo: "Norton Anthology of Western Music (Ancient to Baroque)"
+    editorial: "W. W. Norton"
+    anio: 2014
+  - autor: "Enrico Fubini"
+    titulo: "Historia de la estética musical: desde la Antigüedad hasta el siglo XX"
+    editorial: "Alianza Música"
+    anio: 1988
+  - autor: "Iconografía y textos de las tumbas de Nebamun, Ti y Tutankamón"
+    titulo: "Iconografía y registros arqueológicos"
+    editorial: "Museo Británico (Londres) / Museo de El Cairo"
+    anio: null

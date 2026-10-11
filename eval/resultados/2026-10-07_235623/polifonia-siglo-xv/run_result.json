@@ -1,0 +1,401 @@
+{
+  "id": "run-4338b04152f94efb8e5fad2fcf6ba443",
+  "created_at": "2026-10-07T21:56:24.007937+00:00",
+  "finished_at": "2026-10-07T21:56:24.035723+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "gen:1",
+  "digest": "generation-digest",
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "qwen3:14b",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 12288,
+      "max_output_tokens": 1536,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "ollama",
+      "base_url": "",
+      "data_residency": "local",
+      "response_format": "",
+      "remote_consent": "",
+      "api_key_configured": false
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem.\n",
+      "prior_experience": null,
+      "session": null,
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional",
+          "type": "análisis de obra"
+        },
+        {
+          "id": "R3",
+          "description": "Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ",
+          "type": "contenido"
+        },
+        {
+          "id": "R4",
+          "description": "Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum",
+          "type": "contenido"
+        },
+        {
+          "id": "R5",
+          "description": "Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion",
+          "type": "contenido"
+        },
+        {
+          "id": "R6",
+          "description": "En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem",
+          "type": "actividad"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional",
+        "type": "análisis de obra"
+      },
+      {
+        "id": "R3",
+        "description": "Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ",
+        "type": "contenido"
+      },
+      {
+        "id": "R4",
+        "description": "Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum",
+        "type": "contenido"
+      },
+      {
+        "id": "R5",
+        "description": "Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion",
+        "type": "contenido"
+      },
+      {
+        "id": "R6",
+        "description": "En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem",
+        "type": "actividad"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Si es \"cubierto\", enlaza al menos un claim; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem\",\"context\":{\"group\":{\"id\":\"historia-3gp\",\"name\":\"Grupo A\",\"subject_id\":\"historia-i\",\"center_id\":\"centro-demo\",\"academic_year_id\":\"curso-2026\",\"teacher_id\":\"docente-demo\",\"level\":\"3º GP\",\"language\":\"gl\"},\"unit\":{\"id\":\"unidad-1\",\"curriculum_id\":\"historia-programa\",\"order\":1,\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[],\"assessment_criteria\":[\"Explicar las observaciones utilizando el vocabulario trabajado.\"],\"activities\":[\"Escucha guiada y puesta en común.\"],\"repertoire\":[],\"resources\":[],\"start_date\":\"2026-09-01\",\"end_date\":\"2026-10-31\"},\"duration_minutes\":60,\"teacher_criteria\":\"Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem.\\n\",\"prior_experience\":null,\"session\":null,\"requirements\":[{\"id\":\"R1\",\"description\":\"Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional\",\"type\":\"análisis de obra\"},{\"id\":\"R3\",\"description\":\"Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face \",\"type\":\"contenido\"},{\"id\":\"R4\",\"description\":\"Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum\",\"type\":\"contenido\"},{\"id\":\"R5\",\"description\":\"Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion\",\"type\":\"contenido\"},{\"id\":\"R6\",\"description\":\"En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem\",\"type\":\"actividad\"}]},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: polifonia-siglo-xv\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La polifonía franco-flamenca del siglo XV representa la transición del Ars Subtilior al Renacimiento pleno.\"},{\"id\":\"quote_002\",\"text\":\" La primera generación borgoñona está encabezada por Guillaume Du Fay (c.\"},{\"id\":\"quote_003\",\"text\":\" 1397-1474) y Gilles Binchois (c.\"},{\"id\":\"quote_004\",\"text\":\" 1400-1460), quienes asimilaron la contenance angloise de John Dunstaple basada en sonoridades de terceras y sextas paralelas.\"},{\"id\":\"quote_005\",\"text\":\" Binchois destacó en la chanson profana cortesana cultivando las formes fixes (rondeau, ballade y virelai).\"},{\"id\":\"quote_006\",\"text\":\" Du Fay consolidó la misa cíclica sobre cantus firmus profano, como en la Missa Se la face ay pale basada en su propia balada, y la Missa L'homme armé.\"},{\"id\":\"quote_007\",\"text\":\" En la segunda generación, Johannes Ockeghem (c.\"},{\"id\":\"quote_008\",\"text\":\" 1410-1497) expandió la tesitura hacia el registro grave (Bassus), desarrollando una textura contrapuntística continua sin cesuras cadenciales simultáneas (flujo continuo) y magistrales recursos canónicos (Missa Prolationum).\"},{\"id\":\"quote_009\",\"text\":\" Las principales técnicas de misa del siglo XV fueron el cantus firmus, la paráfrasis melódica imitativa y la misa parodia o imitación a partir de modelos polifónicos preexistentes.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-1b3984695a1f40198fe1ede533a5d824",
+      "document_id": "doc-21bc33064aa04931bc6def49702b60c3",
+      "version_id": "ver-22cfde37c5244d78b68ad2883dcd1ed6",
+      "segment_id": "ver-22cfde37c5244d78b68ad2883dcd1ed6:1",
+      "category": "documental",
+      "text": "La polifonía franco-flamenca del siglo XV representa la transición del Ars Subtilior al Renacimiento pleno. La primera generación borgoñona está encabezada por Guillaume Du Fay (c. 1397-1474) y Gilles Binchois (c. 1400-1460), quienes asimilaron la contenance angloise de John Dunstaple basada en sonoridades de terceras y sextas paralelas. Binchois destacó en la chanson profana cortesana cultivando las formes fixes (rondeau, ballade y virelai). Du Fay consolidó la misa cíclica sobre cantus firmus profano, como en la Missa Se la face ay pale basada en su propia balada, y la Missa L'homme armé. En la segunda generación, Johannes Ockeghem (c. 1410-1497) expandió la tesitura hacia el registro grave (Bassus), desarrollando una textura contrapuntística continua sin cesuras cadenciales simultáneas (flujo continuo) y magistrales recursos canónicos (Missa Prolationum). Las principales técnicas de misa del siglo XV fueron el cantus firmus, la paráfrasis melódica imitativa y la misa parodia o imitación a partir de modelos polifónicos preexistentes.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1051,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "publisher": null,
+        "tags": [],
+        "authors": [
+          "Musicología Académica"
+        ],
+        "document_type": null,
+        "collections": [],
+        "title": "Fuente de evaluación: polifonia-siglo-xv",
+        "origin": "archivo local",
+        "url": null,
+        "year": null,
+        "doi": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: polifonia-siglo-xv",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R6",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-1b3984695a1f40198fe1ede533a5d824",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-96de701de5ee41ac8b5a328cdb97074b",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-a4365a3318144a31b5151f11ee50f4be",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-d739a6a9b96b495088a540b8a2d96d07",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-db4b1014f33d44b78ffbb0554074ac71",
+      "reason": "context_budget"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "La generación de Du Fay y Binchois asimiló la contenance angloise y creó la misa cíclica sobre cantus firmus profano.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La polifonía franco-flamenca del siglo XV representa la transición del Ars Subtilior al Renacimiento pleno."
+          }
+        ],
+        "student_summary": "Los compositores franco-flamencos del siglo XV combinaron la dulzura armónica inglesa con el contrapunto continental. Du Fay unificó los movimientos de la misa utilizando una misma canción popular o religiosa en la voz del tenor."
+      },
+      {
+        "kind": "summary",
+        "text": "Johannes Ockeghem amplió el registro grave hacia el Bassus y desarrolló la técnica de flujo continuo.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " La primera generación borgoñona está encabezada por Guillaume Du Fay (c."
+          }
+        ],
+        "student_summary": "Ockeghem llevó las voces a registros mucho más graves y evitó que todas las voces respiraran a la vez. Su música fluye sin interrupciones claras mediante melodías largas que se solapan continuamente."
+      }
+    ],
+    "visualizations": [],
+    "plan": {
+      "objectives": [
+        "Diferenciar las técnicas de cantus firmus, paráfrasis y parodia en la misa del siglo XV.",
+        "Identificar auditivamente la textura de flujo continuo de Ockeghem."
+      ],
+      "difficulty": "3º GP: análisis formal de polifonía renacentista a cuatro voces.",
+      "activities": [
+        {
+          "title": "Audición comparativa: Binchois vs. Du Fay",
+          "teacher_notes": "Proyectar la partitura y marcar los puntos de entrada del cantus firmus para guiar la audición analítica.",
+          "student_task": "Escucha individualmente los fragmentos seleccionados e identifica en tu plantilla la estructura del rondeau y la aumentación del tenor.",
+          "grouping": "individual",
+          "deliverable": "Ficha de audición con esquema formal y cronograma de entradas de voz.",
+          "solution": "Binchois presenta textura a 3 voces clara (rondeau ABaAabAB); Du Fay estira los valores del tenor al triple en el Kyrie.",
+          "minutes": 20,
+          "claim_ids": [
+            1
+          ]
+        },
+        {
+          "title": "Taller de análisis de partitura en Ockeghem",
+          "teacher_notes": "Organizar mesas de trabajo y verificar el rastreo de cadencias encabalgadas y la tesitura del Bassus.",
+          "student_task": "Localizad en equipos los compases donde se solapan las frases cadenciales y medid la distancia interválica que alcanza el bajo.",
+          "grouping": "grupo",
+          "deliverable": "Partitura con anotaciones analíticas en colores diferenciados para cada voz.",
+          "solution": "El Bassus desciende hasta Fa grave y las voces superiores inician nuevos motivos antes del reposo del tenor.",
+          "minutes": 25,
+          "claim_ids": [
+            2
+          ]
+        },
+        {
+          "title": "Puesta en común y síntesis de estilos",
+          "teacher_notes": "Coordinar la puesta en común en la pizarra resumiendo las diferencias técnicas entre ambas generaciones.",
+          "student_task": "Contrastad en asamblea los hallazgos de cada grupo y elaborad una conclusión colectiva sobre la evolución de la misa cíclica.",
+          "grouping": "colectivo",
+          "deliverable": "Esquema mural colaborativo con las tres técnicas canónicas de misa renacentista.",
+          "solution": "Evolución de cantus firmus rígido a paráfrasis e imitación con ampliación del registro coral.",
+          "minutes": 15,
+          "claim_ids": [
+            1,
+            2
+          ]
+        }
+      ],
+      "resources": [
+        "Partituras de la Missa Se la face ay pale y Missa Prolationum",
+        "Equipo de sonido"
+      ],
+      "assessment": "Comprobación de la precisión en la localización de cadencias solapadas y dominio de los términos cantus firmus y flujo continuo.",
+      "observations": "Preparar guías de audición con esquemas formales."
+    },
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R6",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      }
+    ]
+  },
+  "metrics": {
+    "retrieval_ranking": null,
+    "retrieval_queries": [
+      "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem\nEnfoque indicado por el profesor: Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional. Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas), chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme). Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus, estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum. Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion. En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem."
+    ],
+    "retrieval_method": "semantic:1",
+    "retrieval_profile_id": "a7950e405e92fcb1cf3d22309b7e186c623f8447bc304ae2984b749aa74bf3ac",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 5,
+    "retrieval_seconds": 0.02,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 600,
+          "output": 80
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "eval_count": 80,
+    "prompt_eval_count": 600,
+    "estimated_input_bytes": 10028,
+    "omitted_count": 10
+  },
+  "review": null,
+  "warnings": []
+}

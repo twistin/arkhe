@@ -1,0 +1,466 @@
+{
+  "id": "run-71233173ac2c4df7a960c42266082077",
+  "created_at": "2026-10-08T20:44:49.994970+00:00",
+  "finished_at": "2026-10-08T20:44:50.026888+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "gen:1",
+  "digest": "generation-digest",
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "Teoria musical griega, notacion y epitafio de seikilos",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "qwen3:14b",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 12288,
+      "max_output_tokens": 1536,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "ollama",
+      "base_url": "",
+      "data_residency": "local",
+      "response_format": "",
+      "remote_consent": "",
+      "enable_review": true,
+      "api_key_configured": false
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo.\n",
+      "prior_experience": null,
+      "session": null,
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "Teoria musical griega, notacion y epitafio de seikilos",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3)",
+          "type": "contenido"
+        },
+        {
+          "id": "R3",
+          "description": "Detallar la notacion alfabetica instrumental y vocal griega",
+          "type": "formato"
+        },
+        {
+          "id": "R4",
+          "description": "Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico",
+          "type": "análisis de obra"
+        },
+        {
+          "id": "R5",
+          "description": "Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c",
+          "type": "línea temporal"
+        },
+        {
+          "id": "R6",
+          "description": ") pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin",
+          "type": "contenido"
+        },
+        {
+          "id": "R7",
+          "description": "Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo",
+          "type": "actividad"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "Teoria musical griega, notacion y epitafio de seikilos",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3)",
+        "type": "contenido"
+      },
+      {
+        "id": "R3",
+        "description": "Detallar la notacion alfabetica instrumental y vocal griega",
+        "type": "formato"
+      },
+      {
+        "id": "R4",
+        "description": "Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico",
+        "type": "análisis de obra"
+      },
+      {
+        "id": "R5",
+        "description": "Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c",
+        "type": "línea temporal"
+      },
+      {
+        "id": "R6",
+        "description": ") pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin",
+        "type": "contenido"
+      },
+      {
+        "id": "R7",
+        "description": "Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo",
+        "type": "actividad"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Si es \"cubierto\", enlaza al menos un claim; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"Teoria musical griega, notacion y epitafio de seikilos\",\"context\":{\"group\":{\"id\":\"historia-3gp\",\"name\":\"Grupo A\",\"subject_id\":\"historia-i\",\"center_id\":\"centro-demo\",\"academic_year_id\":\"curso-2026\",\"teacher_id\":\"docente-demo\",\"level\":\"3º GP\",\"language\":\"gl\"},\"unit\":{\"id\":\"unidad-1\",\"curriculum_id\":\"historia-programa\",\"order\":1,\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[],\"assessment_criteria\":[\"Explicar las observaciones utilizando el vocabulario trabajado.\"],\"activities\":[\"Escucha guiada y puesta en común.\"],\"repertoire\":[],\"resources\":[],\"start_date\":\"2026-09-01\",\"end_date\":\"2026-10-31\"},\"duration_minutes\":60,\"teacher_criteria\":\"Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo.\\n\",\"prior_experience\":null,\"session\":null,\"requirements\":[{\"id\":\"R1\",\"description\":\"Teoria musical griega, notacion y epitafio de seikilos\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3)\",\"type\":\"contenido\"},{\"id\":\"R3\",\"description\":\"Detallar la notacion alfabetica instrumental y vocal griega\",\"type\":\"formato\"},{\"id\":\"R4\",\"description\":\"Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico\",\"type\":\"análisis de obra\"},{\"id\":\"R5\",\"description\":\"Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c\",\"type\":\"línea temporal\"},{\"id\":\"R6\",\"description\":\") pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin\",\"type\":\"contenido\"},{\"id\":\"R7\",\"description\":\"Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo\",\"type\":\"actividad\"}]},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: barroco-concerto-grosso\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot).\"},{\"id\":\"quote_002\",\"text\":\" Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes.\"},{\"id\":\"quote_003\",\"text\":\" Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op.\"},{\"id\":\"quote_004\",\"text\":\" 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda).\"},{\"id\":\"quote_005\",\"text\":\" Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op.\"},{\"id\":\"quote_006\",\"text\":\" 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante.\"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-198b61bf73a74ca0bbafd1dd27cc65bd",
+      "document_id": "doc-85f63e216d5f4919adbb6375588b6d9e",
+      "version_id": "ver-ddfba2176e5741f58c53a8a7510fd1f5",
+      "segment_id": "ver-ddfba2176e5741f58c53a8a7510fd1f5:1",
+      "category": "documental",
+      "text": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot). Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes. Arcangelo Corelli (1653-1713) fijó los modelos de la sonata a tre (da chiesa y da camera) y del concerto grosso (op. 6), basado en la alternancia y diálogo dinámico entre el concertino (pequeño grupo de solistas, habitualmente dos violines y violonchelo) y el ripieno o tutti (el grueso de la orquesta de cuerda). Antonio Vivaldi (1678-1741) consolidó el concerto solista y la estructura tripartita en tres movimientos (rápido-lento-rápido) en colecciones como L'estro armonico op. 3, estableciendo el ritornello formal donde el tutti orquestal expone el tema principal y los episodios solistas modulan con virtuosismo concertante.",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1051,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "url": null,
+        "authors": [
+          "Musicología Académica"
+        ],
+        "collections": [],
+        "doi": null,
+        "tags": [],
+        "origin": "bibliografia",
+        "document_type": null,
+        "publisher": null,
+        "year": null,
+        "title": "Fuente de evaluación: barroco-concerto-grosso"
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: barroco-concerto-grosso",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R6",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R7",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-198b61bf73a74ca0bbafd1dd27cc65bd",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-4e97932f6f7148f7994ea4ef780e6142",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-a169b5b253d54e32a47ae56d9b7abbcf",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-b8df06b773474664868f47e617825258",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-c6d8d215cda14ccf827d2288b6c0f0f6",
+      "reason": "context_budget"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "La teoría musical griega se fundamenta en el tetracordo y las proporciones acústicas descubiertas por Pitágoras en el monocordio.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot)."
+          }
+        ],
+        "student_summary": "La música griega se basaba en el tetracordo, un grupo de cuatro notas afinadas según proporciones matemáticas exactas. Pitágoras descubrió que intervalos como la octava y la quinta corresponden a fracciones numéricas sencillas."
+      },
+      {
+        "kind": "summary",
+        "text": "El Epitafio de Sícilo conserva notación alfabética jónica grabada en una estela de mármol en modo frigio.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Esta práctica sustentó la polaridad tiple-bajo y el principio de concertación entre fuerzas sonoras contrastantes."
+          }
+        ],
+        "student_summary": "El Epitafio de Sícilo es la canción completa más antigua conservada en el mundo. Sus notas se escribieron con letras del alfabeto griego sobre los versos poéticos grabados en piedra."
+      }
+    ],
+    "visualizations": [
+      {
+        "type": "sequence",
+        "title": "Cronología de la teoría musical griega a la tardoantigüedad",
+        "items": [
+          {
+            "label": "c. 530 a. C.",
+            "detail": "Pitágoras de Samos formula las proporciones acústicas fundamentales en el monocordio."
+          },
+          {
+            "label": "c. 330 a. C.",
+            "detail": "Aristóxeno de Tarento desarrolla la teoría empírica de los elementos armónicos."
+          },
+          {
+            "label": "c. 150 d. C.",
+            "detail": "Claudio Ptolomeo compila y sistematiza los modos y géneros en su Harmónica."
+          },
+          {
+            "label": "c. 400 d. C.",
+            "detail": "San Agustín y Boecio transmiten la teoría y taxonomía griega a Occidente."
+          }
+        ],
+        "caption": "Evolución histórica de los principales teóricos musicales grecolatinos.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La música instrumental barroca se articuló en torno al bajo continuo (basso continuo), consistente en una línea de bajo sostenida complementada por indicaciones numéricas cifradas ejecutadas por instrumentos armónicos (clave, órgano, tiorba, laúd) y melódicos graves (violonchelo, viola da gamba, fagot)."
+          }
+        ]
+      }
+    ],
+    "plan": {
+      "objectives": [
+        "Comprender las proporciones pitagóricas y los géneros del tetracordo griego.",
+        "Descifrar y entonar los motivos melódicos del Epitafio de Sícilo."
+      ],
+      "difficulty": "Grado profesional: asimilación de intervalos modales no temperados y notación antigua.",
+      "activities": [
+        {
+          "title": "Exploración del monocordio y proporciones",
+          "teacher_notes": "Demostrar la división de la cuerda en la mesa de acústica y supervisar el cálculo de razones interválicas.",
+          "student_task": "Calcula y escucha las proporciones pitagóricas fundamentales (2:1, 3:2, 4:3) en la cuerda tensada y anota sus intervalos correspondientes.",
+          "grouping": "individual",
+          "deliverable": "Tabla de proporciones pitagóricas y relaciones interválicas en el cuaderno.",
+          "solution": "2:1 equivale a la octava (diapason), 3:2 a la quinta justa (diapente) y 4:3 a la cuarta justa (diatessaron).",
+          "minutes": 15,
+          "claim_ids": [
+            1
+          ]
+        },
+        {
+          "title": "Lectura y transcripción del Epitafio de Seikilos",
+          "teacher_notes": "Distribuir facsímiles de la estela y guiar la equivalencia de signos métricos cuantitativos.",
+          "student_task": "Transcribid las letras griegas a notación moderna en pentagrama y marcad los puntos y barras de duración métrica.",
+          "grouping": "grupo",
+          "deliverable": "Partitura transcrita a compás libre con texto griego y traducción castellana.",
+          "solution": "La melodía se desenvuelve en ámbito de octava en el modo frigio con disyunción y saltos diatónicos sobre las letras jónicas.",
+          "minutes": 25,
+          "claim_ids": [
+            2
+          ]
+        },
+        {
+          "title": "Canto colectivo y debate filosófico",
+          "teacher_notes": "Dirigir la afinación modal con el monocordio y moderar la reflexión sobre la cosmovisión epitáfica.",
+          "student_task": "Interpretad vocalmente la melodía completa manteniendo la articulación modal y comentad el mensaje sobre la brevedad de la vida.",
+          "grouping": "colectivo",
+          "deliverable": "Interpretación coral al unísono y breve síntesis reflexiva compartida.",
+          "solution": "Afinación pura sin vibrato y respeto de los ictus métricos (arson y thesin).",
+          "minutes": 20,
+          "claim_ids": [
+            2
+          ]
+        }
+      ],
+      "resources": [
+        "Fotocopias de la estela de Seikilos",
+        "Monocordio didáctico o teclado"
+      ],
+      "assessment": "Evaluación formativa mediante rúbrica de transcripción interválica y precisión afinada en el canto modal colectivo.",
+      "observations": "Ajustar la tesitura vocal a la media del grupo."
+    },
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R6",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R7",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      }
+    ]
+  },
+  "metrics": {
+    "retrieval_ranking": null,
+    "retrieval_queries": [
+      "Teoria musical griega, notacion y epitafio de seikilos\nEnfoque indicado por el profesor: Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico), la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3). Detallar la notacion alfabetica instrumental y vocal griega. Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico. Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.) pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin. Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica, entonacion guiada y debate colectivo."
+    ],
+    "retrieval_method": "semantic:1",
+    "retrieval_profile_id": "a7950e405e92fcb1cf3d22309b7e186c623f8447bc304ae2984b749aa74bf3ac",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 5,
+    "retrieval_seconds": 0.02,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 600,
+          "output": 220
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "eval_count": 220,
+    "prompt_eval_count": 600,
+    "auto_review": {
+      "scores": {
+        "cobertura": 3,
+        "rigor_factual": 3,
+        "separacion_roles": 3,
+        "actividades_activas": 3,
+        "adecuacion_nivel": 3,
+        "temporizacion": 3
+      },
+      "issues": [],
+      "summary": "Propuesta alineada con la rúbrica pedagógica.",
+      "repaired": false
+    },
+    "estimated_input_bytes": 9790,
+    "omitted_count": 11
+  },
+  "review": null,
+  "warnings": []
+}

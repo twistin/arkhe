@@ -39,6 +39,9 @@ class GenerationSettings:
     data_residency: str = ''
     response_format: str = ''
     remote_consent: str = ''
+    enable_review: bool = False
+    review_repair_min_score: int = 2
+    review_repair_total_score: int = 15
 
     def __post_init__(self):
         if self.provider not in PRESETS:
@@ -85,6 +88,12 @@ class GenerationSettings:
                 raise ValueError(f'{key} debe ser un número entre {low} y {high}.')
         if type(self.think) is not bool:
             raise ValueError('think debe ser true o false.')
+        if type(self.enable_review) is not bool:
+            raise ValueError('enable_review debe ser true o false.')
+        if type(self.review_repair_min_score) is not int or not 0 <= self.review_repair_min_score <= 3:
+            raise ValueError('review_repair_min_score debe ser un entero entre 0 y 3.')
+        if type(self.review_repair_total_score) is not int or not 0 <= self.review_repair_total_score <= 18:
+            raise ValueError('review_repair_total_score debe ser un entero entre 0 y 18.')
 
     @property
     def is_remote(self):

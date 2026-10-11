@@ -1,0 +1,15 @@
+# Caso de evaluación: Nuevas Tecnologías Aplicadas a la Música (NTAM)
+id: ntam-sintesis-audio-digital
+descripcion: "Fundamentos de audio digital, frecuencias de muestreo, cuantización y síntesis básica"
+group_id: nntt-3p-b
+level: "3º GP"
+duration_minutes: 60
+unit_id: null
+
+# Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
+topic: "hoy empezaremos con la representación gráfica de la música, edición: LilyPond"
+
+# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas (copia literal de run-e9e0eab46d5a43f7b45677bac9ab79b9)
+teacher_criteria: >
+  Sigue la programación y plantea un aprendizaje gradual con ejercicios para clase.
+  Ampliación: Añade una estructura básica de opartirura con los elementos esenciales para empezar con explicaciones de cada elemento de la sintaxis

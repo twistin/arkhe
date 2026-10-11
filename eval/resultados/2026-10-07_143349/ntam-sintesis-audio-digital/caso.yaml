@@ -1,0 +1,21 @@
+# Caso de evaluación: Nuevas Tecnologías Aplicadas a la Música (NTAM)
+id: ntam-sintesis-audio-digital
+descripcion: "Fundamentos de audio digital, frecuencias de muestreo, cuantización y síntesis básica"
+group_id: historia-3gp
+level: "3º GP"
+duration_minutes: 60
+unit_id: unidad-1
+
+# Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
+topic: "NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son"
+
+# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas
+teacher_criteria: >
+  Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC).
+  Explicar claramente la frecuencia de muestreo (sample rate: 44.1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon
+  con el fenomeno de aliasing / repliegue espectral y filtros antialiasing.
+  Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit)
+  y el error de cuantizacion / dither.
+  Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos.
+  Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion,
+  escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo.

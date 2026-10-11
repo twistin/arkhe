@@ -1,0 +1,17 @@
+# # Caso de evaluación: Plantilla para añadir un nuevo caso
+# # Copia este archivo con un nuevo nombre (p. ej. 05_mi_tema.yaml) y rellena los campos.
+#
+# id: mi-nuevo-tema
+# descripcion: "Descripción sintética del tema y objetivos de evaluación"
+# group_id: historia-3gp
+# level: "3º GP"
+# duration_minutes: 60
+# unit_id: unidad-1  # Opcional, o null si no se asocia a unidad
+#
+# # Tema tal como lo escribiría el profesor en el formulario
+# topic: "Título o tema con o sin erratas"
+#
+# # Criterios pedagógicos del profesor con indicaciones de contenido y práctica
+# teacher_criteria: >
+#   Escribe aquí los criterios docentes, contenidos esperados, obras a escuchar,
+#   conceptos que deben aparecer y dinámicas deseadas en el aula.

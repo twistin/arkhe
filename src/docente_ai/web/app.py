@@ -243,6 +243,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             raise ValueError('Elige una materia.')
         values = {'title': data.get('title'), 'authors': data.get('authors', [])}
         values['year'] = data.get('year')
+        if 'origin' in data and data['origin']:
+            values['origin'] = data['origin']
         return JSONResponse(await run_in_threadpool(update_document, ws.db, request.path_params['id'], values=values, subjects=[subject]))
 
     async def generation(request):
@@ -252,14 +254,21 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
 
     async def run(request):
         result = await run_in_threadpool(get_run, ws.db, request.path_params['id'])
+        display_title = result.get('display_title') or (result.get('request') or {}).get('display_title') or (result.get('request') or {}).get('question', 'propuesta')
+        from docente_ai.web.workspace import slug
+        title_slug = slug(display_title)
         if request.query_params.get('student') == '1':
-            return Response(render_student(result), media_type='text/markdown')
+            filename = f"material-alumnado-{title_slug}.md" if title_slug else f"material-alumnado-{result['id']}.md"
+            return Response(render_student(result), media_type='text/markdown', headers={
+                'Content-Disposition': f'attachment; filename="{filename}"'})
         if request.query_params.get('sources') == '1':
+            filename = f"anexo-fuentes-{title_slug}.md" if title_slug else f"anexo-fuentes-{result['id']}.md"
             return Response(render_sources(result), media_type='text/markdown', headers={
-                'Content-Disposition': f'attachment; filename="anexo-fuentes-{result["id"]}.md"'})
+                'Content-Disposition': f'attachment; filename="{filename}"'})
         if request.query_params.get('download') == '1':
-            return Response(render(result), media_type='text/markdown', headers={'Content-Disposition': f'attachment; filename="{result["id"]}.md"'})
-        return JSONResponse({k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review')})
+            filename = f"propuesta-{title_slug}.md" if title_slug else f"{result['id']}.md"
+            return Response(render(result), media_type='text/markdown', headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+        return JSONResponse({k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic', 'ficha')})
 
     async def delete_run_route(request):
         return JSONResponse(await run_in_threadpool(ws.delete_run, request.path_params['id']))
@@ -274,6 +283,28 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
     async def edit(request):
         data = await body(request)
         return JSONResponse(await run_in_threadpool(ws.edit_run, request.path_params['id'], data))
+
+    async def set_title(request):
+        data = await body(request)
+        return JSONResponse(await run_in_threadpool(ws.update_run_title, request.path_params['id'], data.get('title')))
+
+    async def adopt_score(request):
+        data = await body(request)
+        run_id = request.path_params['id']
+        req_id = request.path_params['req_id']
+        return JSONResponse(await run_in_threadpool(ws.adopt_score_candidate, run_id, req_id, data))
+
+    async def discard_score(request):
+        data = await body(request)
+        run_id = request.path_params['id']
+        req_id = request.path_params['req_id']
+        return JSONResponse(await run_in_threadpool(ws.discard_score_candidate, run_id, req_id, data))
+
+    async def search_repos(request):
+        data = await body(request) if request.headers.get('content-length') else {}
+        run_id = request.path_params['id']
+        req_id = request.path_params['req_id']
+        return JSONResponse(await run_in_threadpool(ws.search_open_score_repos, run_id, req_id, data))
 
     async def record_create(request):
         data = await body(request)
@@ -358,6 +389,75 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             'Content-Disposition': 'attachment; filename="audiciones-centro.ics"',
         })
 
+    async def listar_ejemplos(request):
+        from docente_ai.teaching.ejemplos import load_all_ejemplos
+        return JSONResponse(await run_in_threadpool(load_all_ejemplos))
+
+    async def obtener_ejemplo(request):
+        from docente_ai.teaching.ejemplos import get_ejemplo, get_ejemplo_musicxml
+        id_ej = request.path_params['id']
+        ej = await run_in_threadpool(get_ejemplo, id_ej)
+        if not ej:
+            raise ValueError(f'Ejemplo musical {id_ej} no encontrado.')
+        if request.query_params.get('musicxml') == '1':
+            xml_content = await run_in_threadpool(get_ejemplo_musicxml, id_ej)
+            if not xml_content:
+                raise ValueError(f'Contenido MusicXML no disponible para {id_ej}.')
+            return Response(xml_content, media_type='application/vnd.recordare.musicxml+xml', headers={
+                'Content-Disposition': f'attachment; filename="{ej.get("archivo", id_ej + ".musicxml")}"'
+            })
+        return JSONResponse(ej)
+
+    async def exportar_ejemplo_wav(request):
+        id_ej = request.path_params['id']
+        wav_bytes = await run_in_threadpool(ws.export_score_wav, id_ej)
+        return Response(wav_bytes, media_type='audio/wav', headers={
+            'Content-Disposition': f'attachment; filename="{id_ej}.wav"'
+        })
+
+    async def music_capabilities_route(request):
+        return JSONResponse(await run_in_threadpool(ws.music_capabilities))
+
+    async def render_verovio_svg(request):
+        data = await body(request)
+        if 'path' in data:
+            raise ValueError('No se admiten rutas del cliente. Proporciona el identificador del candidato o ejemplo.')
+        score_id = data.get('id') or data.get('candidate_id') or data.get('ejemplo_id')
+        if not score_id:
+            raise ValueError('Se requiere el identificador del candidato o ejemplo del catálogo.')
+        run_id = data.get('run_id')
+        start = int(data.get('start', 1))
+        end = int(data.get('end', 8))
+        try:
+            resolved_file = await run_in_threadpool(ws.resolve_score_path, score_id, run_id)
+        except FileNotFoundError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=404)
+        except PermissionError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+        svg = await run_in_threadpool(ws.render_score_svg, str(resolved_file), start, end)
+        if request.headers.get('accept') == 'image/svg+xml':
+            return Response(svg, media_type='image/svg+xml')
+        return JSONResponse({'svg': svg})
+
+    async def render_verovio_midi(request):
+        data = await body(request)
+        if 'path' in data:
+            raise ValueError('No se admiten rutas del cliente. Proporciona el identificador del candidato o ejemplo.')
+        score_id = data.get('id') or data.get('candidate_id') or data.get('ejemplo_id')
+        if not score_id:
+            raise ValueError('Se requiere el identificador del candidato o ejemplo del catálogo.')
+        run_id = data.get('run_id')
+        start = int(data.get('start', 1))
+        end = int(data.get('end', 8))
+        try:
+            resolved_file = await run_in_threadpool(ws.resolve_score_path, score_id, run_id)
+        except FileNotFoundError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=404)
+        except PermissionError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+        midi_base64 = await run_in_threadpool(ws.render_score_midi, str(resolved_file), start, end)
+        return JSONResponse({'midi': midi_base64})
+
     async def shutdown(request):
         if any(j['status'] in ('queued', 'running') for j in ws.job_list()):
             raise ValueError('Espera a que terminen las tareas antes de cerrar Arkhé.')
@@ -383,6 +483,10 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/runs/{id}/delete', delete_run_route, methods=['POST']),
               Route('/api/runs/{id}/review', review, methods=['POST']),
               Route('/api/runs/{id}/edit', edit, methods=['POST']),
+              Route('/api/runs/{id}/title', set_title, methods=['POST']),
+              Route('/api/runs/{id}/music_requests/{req_id}/adopt', adopt_score, methods=['POST']),
+              Route('/api/runs/{id}/music_requests/{req_id}/discard', discard_score, methods=['POST']),
+              Route('/api/runs/{id}/music_requests/{req_id}/search_open_repos', search_repos, methods=['POST']),
               Route('/api/records', record_create, methods=['POST']),
               Route('/api/records/{id}', record_get),
               Route('/api/records/{id}/progress', record_progress, methods=['POST']),
@@ -391,6 +495,12 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/groups/{id}/records', group_records),
               Route('/api/calendar.ics', export_calendar),
               Route('/api/eventos-centro.ics', exportar_eventos),
+              Route('/api/ejemplos', listar_ejemplos),
+              Route('/api/ejemplos/{id}', obtener_ejemplo),
+              Route('/api/ejemplos/{id}/wav', exportar_ejemplo_wav),
+              Route('/api/scores/render-svg', render_verovio_svg, methods=['POST']),
+              Route('/api/scores/render-midi', render_verovio_midi, methods=['POST']),
+              Route('/api/music/capabilities', music_capabilities_route),
               Route('/api/subjects', subject, methods=['POST']), Route('/api/groups', group, methods=['POST']),
               Route('/api/shutdown', shutdown, methods=['POST']), Route('/api/models', models, methods=['POST']), Route('/api/reveal', reveal, methods=['POST']), Route('/api/reveal-diary', reveal_diary, methods=['POST']), Mount('/assets', StaticFiles(directory=STATIC), name='assets')]
 

@@ -1,0 +1,22 @@
+# Caso de evaluación: Tema del Barroco sin plantilla fija (música instrumental y bajo continuo)
+id: barroco-concerto-grosso
+descripcion: "El Barroco instrumental: evolución del bajo continuo, sonata da chiesa y nacimiento del concerto grosso (Corelli y Vivaldi)"
+group_id: historia-5-gp
+level: "5º GP"
+duration_minutes: 60
+unit_id: unit-h2-2
+
+# Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
+topic: "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi"
+
+# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas
+teacher_criteria: >
+  Tema sobre la musica instrumental del siglo XVII y primer tercio del XVIII (Barroco pleno y tardio).
+  Atencion: comprobar que NO se active la plantilla de polifonia del siglo XV ni plantillas fijas de otras epocas.
+  Conceptos clave a explicar: bajo continuo (basso continuo y bajo cifrado, realizacion armonica al clave/organo/tiorba),
+  el principio de concertacion y la polaridad tiple-bajo.
+  Nacimiento y evolucion del concerto: concerto grosso (contraste concertino vs. ripieno / tutti) y concerto solista.
+  Modelo de Arcangelo Corelli (op. 6, concerto grosso, sonata a tre da chiesa y da camera)
+  y modelo de Antonio Vivaldi (op. 3 L'estro armonico, estructura en 3 movimientos rapido-lento-rapido, forma ritornello).
+  Actividades de aula: audicion comparativa de movimientos de Corelli y Vivaldi, identificacion auditiva de ritornellos y solos,
+  y analisis guiado de un pasaje de partitura de bajo continuo cifrado por parejas.

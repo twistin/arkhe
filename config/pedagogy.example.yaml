@@ -5,8 +5,9 @@ generation:
   host: http://127.0.0.1:11434
   timeout_seconds: 240
   temperature: 0.0
-  num_ctx: 6144
+  num_ctx: 12288
   max_output_tokens: 1536
   context_margin: 256
   think: false
   num_batch: 128
+  enable_review: false

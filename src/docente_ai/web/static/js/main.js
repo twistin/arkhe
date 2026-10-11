@@ -16,6 +16,7 @@ import * as configuracion from './componentes/configuracion.js';
 import * as trabajos from './componentes/trabajos.js';
 import * as material_alumnado from './componentes/material-alumnado.js';
 import * as audiciones from './componentes/audiciones.js';
+import * as partituras from './componentes/partituras.js';
 import * as dialogo from './componentes/dialogo.js';
 
 const modules = [
@@ -32,6 +33,7 @@ const modules = [
   trabajos,
   material_alumnado,
   audiciones,
+  partituras,
   dialogo,
 ];
 const actions = new Map(), forms = new Map();
@@ -115,6 +117,7 @@ export function renderPage() {
     if (typeof selectionStart === 'number' && field?.setSelectionRange) field.setSelectionRange(
       selectionStart, selectionEnd);
   }
+  partituras.initScorePreviews?.();
 }
 
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));

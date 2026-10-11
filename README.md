@@ -69,7 +69,49 @@ generativo elegido, por lo que también pueden ser remotas. No requiere volver a
 
 En **Propuestas**, elige grupo, tema y duración; revisa el resultado y expórtalo
 como Markdown. Las respuestas inválidas se registran como fallidas y no se
-presentan como propuestas válidas. La revisión pedagógica sigue siendo del profesor.
+presentan como propuestas válidas. Con el contrato `pedagogy:8`, cada actividad separa
+estrictamente las notas metodológicas del docente (`teacher_notes`), la tarea en 2ª persona
+para el alumno (`student_task`), la agrupación estructurada (`grouping`), el entregable
+esperado (`deliverable`) y la solución o criterios de corrección (`solution`). Además,
+cada claim incluye una síntesis redactada para el nivel del grupo (`student_summary`)
+y el plan incorpora un campo de evaluación formativa (`assessment`). El renderizado
+garantiza que el material del alumnado nunca contenga notas internas ni soluciones
+del profesor, ni menciones a erratas o carencias en las fuentes. El título se normaliza
+al generar y se almacena en `display_title` (conservando el original en `original_topic`),
+utilizándose en la lista de propuestas, cabeceras, Parte 2, nombres de archivos exportados
+y diario docente. En la guía docente se preserva el tema original como auditoría. Además,
+el título puede editarse manualmente desde la interfaz, teniendo dicha edición prioridad
+permanente sobre cualquier normalización automática posterior.
+Las propuestas de contratos anteriores conservan compatibilidad hacia atrás.
+La revisión pedagógica sigue siendo del profesor.
+
+Para la ilustración analítica de obras y técnicas, las propuestas pueden solicitar
+ejemplos mediante `music_requests` (obra, compositor, sección, técnica y actividad).
+El modelo nunca genera notación musical directa; un validador estricto rechaza cualquier
+bloque en MusicXML, MEI, LilyPond, ABC o Humdrum en la respuesta del LLM. Cada petición
+se resuelve automáticamente en cascada: (1) catálogo local `data/ejemplos/`; (2) carpeta de
+partituras del profesor (`Conocimiento/Partituras/`), cuyos archivos MusicXML, MXL, MEI,
+Humdrum (`.krn`) o ABC se indexan automáticamente extrayendo compositor, título, voces,
+compases, claves y mensuración; y (3) repositorios abiertos (Josquin Research Project,
+KernScores, CPDL y corpus music21), únicamente tras consentimiento explícito del profesor.
+En la guía docente, cada petición no resuelta ofrece una tarjeta «Ejemplo pendiente»
+con previsualización, selector de rango de compases y opciones para «Usar» (incorporándolo
+al catálogo verificado) o «Descartar». En el material del alumnado solo se incluyen
+ejemplos con verificación confirmada (`verificado: true`), impidiendo que aparezcan
+pentagramas o notas inventadas a mano en HTML o CSS.
+
+Los esquemas especializados, infografías complejas y baterías de ejercicios fijos
+se organizan en fichas modulares (`config/fichas/` y `data/fichas/`) con control de
+verificación (`verificado: false` inicial). Mientras no cuenten con revisión y verificación
+del profesor, estos contenidos se exhiben únicamente en la guía docente con avisos de
+revisión; el material del alumnado queda rigurosamente libre de cualquier contenido no
+verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
+internas o estados pendientes. Los recursos pendientes se estructuran por tipo:
+el material del alumnado redacta partituras («partitura que te entregará el profesor»),
+grabaciones («grabación que escucharemos en clase») o textos («texto que te entregará el profesor»),
+mientras que los datos pendientes (fechas, cifras) nunca se muestran al alumnado y quedan
+exclusivamente en la guía docente. La bibliografía del alumnado se genera de forma estrictamente
+dinámica según las fuentes citadas en la sesión.
 
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes
@@ -955,3 +997,68 @@ es requisito; el dominio europeo no demuestra por sí solo todas las ubicaciones
 
 La guía incluye instalación, cuenta inicial, DNS/HTTPS, firewall, copias, actualización
 y recuperación, además del diseño futuro de una instancia aislada por profesor.
+
+## Extracción y cobertura de requisitos del profesor
+
+A partir del contrato `pedagogy:9`:
+- El sistema ejecuta una fase inicial estructurada (`extract_requirements`) que descompone el tema y los criterios del profesor en requisitos atómicos (`contenido`, `análisis de obra`, `línea temporal`, `actividad`, `formato`).
+- La recuperación documental planifica consultas dirigidas por requisito y reparte el presupuesto RAG para que ningún requisito quede sin fuentes disponibles, registrando omisiones si no existen pasajes en la biblioteca.
+- La respuesta generada incluye una auditoría de `coverage` donde cada requisito debe marcarse como `cubierto` (enlazando contenidos documentados), `sin_fuentes` o `parcial`.
+- La Guía Docente y la interfaz web presentan una tabla frontal de cobertura destacando de forma inmediata los requisitos que carecen de fuentes en la biblioteca del profesor.
+
+## Clasificación de procedencia y trazabilidad de fuentes
+
+Para garantizar que los textos generados por IA no se reciclen como evidencia documental y que cada contenido señale con precisión su fundamentación:
+- **Campo `origin` en biblioteca:** Cada documento se clasifica en uno de estos orígenes: `bibliografia`, `fuente_primaria`, `programacion`, `notas_profesor`, `generado_ia` o `sin_clasificar`.
+- **Detección automática de IA:** Al importar documentos desde la interfaz web o la CLI, si el texto o archivo presenta rasgos de borrador generado por IA (encabezados de Arkhé, marcas de chat, registros de ejecución), se clasifica automáticamente por defecto como `generado_ia`.
+- **Exclusión estricta de `generado_ia`:** Los documentos marcados como `generado_ia` nunca entran como evidencia en la recuperación RAG ni en las propuestas docentes.
+- **Papel de las notas del profesor:** Los documentos con origen `notas_profesor` sirven como orientación pedagógica cuando se solicitan explícitamente, pero no reemplazan a la bibliografía ni a las fuentes primarias.
+- **Pestaña y filtro «Sin clasificar»:** Los documentos previos o no clasificados quedan en estado `sin_clasificar` y se muestran en una pestaña dedicada en la biblioteca para su revisión y actualización manual por parte del profesor.
+- **Fuentes reales por contenido:** Bajo cada contenido de la guía docente se desglosa la fuente real con autor, título, año y localizador exacto (página o sección).
+- **Distinción de síntesis y avisos veraces:** El sistema distingue entre «Síntesis respaldada por bibliografía», «Síntesis basada en notas del profesor» y «Contenido sin respaldo bibliográfico». Si algún contenido carece de fuentes bibliográficas, la cabecera advierte de forma explícita y veraz sobre esta circunstancia.
+
+## Fichas curadas y catálogo de audiciones verificadas
+
+Para evitar la inclusión de contenido estático y tablas fijas en el código:
+- **Directorio de fichas curadas (`data/fichas/`, con respaldo en `config/fichas/`):** Archivos Markdown con metadatos frontmatter YAML (`tema`, `periodo`, `palabras_clave`, `tipo`, `fuente_bibliografica`, `fecha_verificacion`). Las fichas se indexan y recuperan de forma dinámica en el pipeline RAG como fuentes con origen `notas_profesor` o `bibliografia` según su frontmatter. Incluye plantilla de ficha (`00_plantilla_ficha.md`) y ejemplo de Grecia (`grecia_teoria_y_seikilos.md`) con campos factuales marcados como `PENDIENTE DE VERIFICAR`.
+- **Catálogo de audiciones verificadas (`data/audiciones.yaml` y `config/audiciones.example.yaml`):** Obras musicales con compositor, movimiento, intérprete, URL, bibliografía, puntos de escucha y comentario docente. Las audiciones se resuelven por identificador de catálogo (`listening_ids`), asegurando que las URLs procedan exclusivamente del repositorio verificado y nunca sean generadas libremente por el modelo.
+- **Recursos pendientes explícitos:** Si un tema propuesto carece de audiciones en el catálogo verificado, la propuesta y la interfaz advierten expresamente: *«Recurso de audición pendiente de incorporar al catálogo»*.
+- **Catálogo de ejemplos musicales y partituras (`data/ejemplos/`, con respaldo en `config/ejemplos/`):** Fragmentos reales en formato MusicXML con metadatos estructurados (`ejemplos.yaml`), autoría, fuentes con licencia libre o dominio público (CPDL) y estado de verificación (`verificado: false` hasta la revisión del profesor). Si un esquema requiere ilustrar una técnica compositiva sin un ejemplo verificado en el catálogo, queda terminantemente prohibido dibujar notas a mano en HTML o CSS; el sistema renderiza el aviso unificado: *«Ejemplo musical pendiente de añadir al catálogo»*.
+
+## Servicio musical determinista y análisis de partituras
+
+El módulo `docente_ai.music` proporciona un conjunto de herramientas musicales deterministas sin dependencias nativas obligatorias:
+
+1. **Manipulación, renderizado y metadatos de partituras:**
+   - Importa y valida MusicXML (`.xml`, `.musicxml`), comprimido (`.mxl`), MEI (`.mei`), Humdrum (`.krn`) y ABC (`.abc`) usando `music21` bajo demanda (carga perezosa para no penalizar el arranque).
+   - **Renderizado determinista con Verovio (Python):** La generación de SVG vectoriales y secuencias MIDI base64 para previsualización y reproducción polifónica se procesa íntegramente en el backend mediante el paquete Python `verovio`. No se emplean librerías WebAssembly ni bundles en el navegador (`vendor/verovio/` eliminado del repositorio).
+   - **Seguridad en endpoints de partituras:** Los endpoints `/api/scores/render-svg` y `/api/scores/render-midi` no admiten rutas del cliente. Resuelven el identificador (`id`) exclusivamente en el servidor y validan que la ruta canónica (tras resolver enlaces simbólicos) resida estrictamente dentro de `data/ejemplos/`, la carpeta de partituras del profesor (`Conocimiento/Partituras/`), la caché de JRP o el corpus de `music21`; cualquier intento de escape o acceso a archivos del sistema devuelve error 400 o 404.
+   - **Recorte estricto de compases:** El recorte (`measures(start, end)`) valida los límites solicitados. Si el rango falla o excede la extensión de la partitura, el servicio devuelve un error explícito con el motivo en lugar de servir la partitura completa sin recortar. Transposición determinista por intervalo o semitonos.
+2. **Análisis musical calculado:**
+   - Ámbito por voz (nota más grave, más aguda e intervalo).
+   - Nota final / finalis por voz y del conjunto.
+   - Intervalos melódicos más frecuentes.
+   - Detección de aumentación y proporción de duraciones entre dos melodías (por ejemplo, melodía modelo y tenor de cantus firmus).
+   - Todos estos datos se presentan explícitamente etiquetados como *«calculado a partir de la partitura»* y no requieren citas bibliográficas.
+3. **Teoría griega y microtonalidad:**
+   - Generador determinista de tetracordos en los tres géneros de la Grecia Antigua (diatónico, cromático y enarmónico con cuartos de tono) con frecuencias exactas en Hz a partir de una nota base o frecuencia.
+   - Reproducción de microtonos en el navegador mediante Web Audio API y osciladores sinusoidales locales.
+4. **Exportación de audio con FluidSynth (opcional):**
+   - FluidSynth **no** es una dependencia de Python ni un requisito obligatorio. Si el ejecutable `fluidsynth` está instalado en el sistema, la interfaz habilita el botón *«Exportar audio (WAV)»* para los ejemplos de partitura; si no está instalado, la opción no se muestra.
+   - **Instalación de FluidSynth en macOS:**
+     ```sh
+     brew install fluidsynth
+     ```
+   - **Instalación de FluidSynth en Linux (Debian/Ubuntu):**
+     ```sh
+     sudo apt update && sudo apt install -y fluidsynth fluid-soundfont-gm
+     ```
+   - **SoundFont recomendado:** Se recomienda el banco general MIDI **Fluid R3 GM** (`FluidR3_GM.sf2`), distribuido bajo licencia libre MIT / Debian Free Software Guidelines, ubicado habitualmente en `/usr/share/sounds/sf2/FluidR3_GM.sf2` o `/opt/homebrew/share/soundfonts/FluidR3_GM.sf2`.
+5. **Grupo opcional para análisis de audio y DSP (`ntam`):**
+   - Incluye `librosa` y `pedalboard`:
+     ```sh
+     uv sync --extra ntam
+     ```
+   - La aplicación funciona plenamente sin este grupo; las funciones que lo requieran comprueban su disponibilidad y la interfaz informa de su estado sin bloquear ninguna operación docente.
+
+

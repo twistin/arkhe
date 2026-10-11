@@ -332,8 +332,9 @@ def test_v1_migration_preserves_configuration(tmp_path):
     source.write_text('Synthetic source')
     import_document(db, source, category='documental', subjects=['historia-i'])
     assert read_config(db) == config
+    from docente_ai.storage import SCHEMA_VERSION
     with sqlite3.connect(db) as connection:
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == SCHEMA_VERSION
 
 
 def test_missing_original_prevents_duplicate_success(library):
@@ -362,3 +363,67 @@ def test_library_updates_never_create_missing_database(tmp_path):
     with pytest.raises(StorageError):
         update_document(db, 'missing', values={'title': 'New'})
     assert not db.exists()
+
+
+def test_origin_validation_and_ai_detection(library, tmp_path):
+    db, _ = library
+    # 1. Documento normal documental recibe origen 'bibliografia' por defecto
+    doc_norm = tmp_path / 'fuente_norm.txt'
+    doc_norm.write_text('Texto de musicología histórica sin marcas de IA.')
+    res1 = import_document(db, doc_norm, category='documental', subjects=['historia-i'])
+    doc1 = show_document(db, res1['document_id'])
+    assert doc1['metadata']['origin'] == 'bibliografia'
+
+    # 2. Documento de profesor recibe 'notas_profesor' por defecto
+    doc_prof = tmp_path / 'apuntes_prof.txt'
+    doc_prof.write_text('Mis notas para la clase de la semana que viene.')
+    res2 = import_document(db, doc_prof, category='profesor', subjects=['historia-i'])
+    doc2 = show_document(db, res2['document_id'])
+    assert doc2['metadata']['origin'] == 'notas_profesor'
+
+    # 3. Documento con texto de IA se detecta automáticamente como posible_generado_ia (pendiente de confirmación)
+    doc_ia = tmp_path / 'propuesta_docente_ia.md'
+    doc_ia.write_text('# Propuesta pedagógica\n\nBorrador generado por IA, pendiente de revisión.')
+    res3 = import_document(db, doc_ia, category='documental', subjects=['historia-i'])
+    doc3 = show_document(db, res3['document_id'])
+    assert doc3['metadata']['origin'] == 'posible_generado_ia'
+
+    # 4. Asignación explícita de origen y validación de error en origen no válido
+    doc_manual = tmp_path / 'fuente_primaria.txt'
+    doc_manual.write_text('Texto antiguo manuscrito.')
+    res4 = import_document(db, doc_manual, category='documental', subjects=['historia-i'], values={'origin': 'fuente_primaria'})
+    assert show_document(db, res4['document_id'])['metadata']['origin'] == 'fuente_primaria'
+
+    with pytest.raises(ValueError, match='Origen inválido'):
+        import_document(db, doc_manual, category='documental', subjects=['historia-i'], values={'origin': 'inventado'})
+
+    # 5. Documentos legados con 'archivo local' o sin origen se normalizan a 'sin_clasificar'
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE documents SET metadata=json_set(metadata, '$.origin', 'archivo local') WHERE id=?", (res1['document_id'],))
+    docs_unclass = list_documents(db, origin='sin_clasificar')
+    assert any(d['id'] == res1['document_id'] for d in docs_unclass)
+    assert show_document(db, res1['document_id'])['metadata']['origin'] == 'sin_clasificar'
+
+
+def test_corregir_erratas_i_l_en_ingesta_ocr():
+    from docente_ai.library.parsers import corregir_erratas_i_l
+
+    # 'lastian' -> 'Iastian'
+    corregido, susts = corregir_erratas_i_l('The lastian tonos is described by Alypius.')
+    assert corregido == 'The Iastian tonos is described by Alypius.'
+    assert len(susts) == 1
+    assert susts[0]['original'] == 'lastian'
+    assert susts[0]['corregido'] == 'Iastian'
+
+    # 'lonian' -> 'Ionian'
+    corregido, susts = corregir_erratas_i_l('an lonian harmonia mentioned in ancient texts')
+    assert corregido == 'an Ionian harmonia mentioned in ancient texts'
+    assert len(susts) == 1
+    assert susts[0]['original'] == 'lonian'
+    assert susts[0]['corregido'] == 'Ionian'
+
+    # Preservar mayúsculas/minúsculas y no tocar palabras no afectadas
+    corregido, susts = corregir_erratas_i_l('Normal text without typos')
+    assert corregido == 'Normal text without typos'
+    assert susts == []
+

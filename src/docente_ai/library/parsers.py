@@ -12,6 +12,40 @@ from docx.text.paragraph import Paragraph
 
 from docente_ai.library import ocr
 
+# Erratas de OCR habituales por confusión entre 'I' mayúscula y 'l' minúscula
+# en fuentes con serifa. Se corrige durante la ingesta conservando el original.
+# Clave: patrón con límites de palabra; valor: corrección canónica (inglés, idioma
+# original). No se traduce al castellano porque las citas se extraen del texto
+# almacenado y deben coincidir literalmente.
+_OCR_GREEK_CORRECTIONS: list[tuple] = [
+    (re.compile(r'\blastian\b'), 'Iastian'),  # I/l: tono iastio de Alipio
+    (re.compile(r'\blonian\b'), 'Ionian'),    # I/l: armonía jónica
+]
+
+
+def corregir_erratas_i_l(texto: str) -> tuple[str, list[dict]]:
+    """Corrige confusiones OCR de I/l en términos griegos del texto original.
+
+    Devuelve el texto corregido y la lista de sustituciones realizadas para
+    auditoría. Cada sustitución tiene ``original``, ``corregido`` y ``offset``.
+    Solo aplica a erratas cuya causa es el OCR (confusión entre 'I' y 'l').
+    """
+    resultado = texto
+    sustituciones: list[dict] = []
+    for patron, correcto in _OCR_GREEK_CORRECTIONS:
+        for coincidencia in patron.finditer(resultado):
+            original_token = coincidencia.group()
+            if original_token != correcto:
+                sustituciones.append({
+                    'original': original_token,
+                    'corregido': correcto,
+                    'offset': coincidencia.start(),
+                })
+        resultado = patron.sub(correcto, resultado)
+    return resultado, sustituciones
+
+
+
 
 @dataclass
 class Extraction:
@@ -153,7 +187,17 @@ def extract(content: bytes, suffix: str) -> Extraction:
         segment['locator']['ocr_document'] = True
         if segment['locator']['pdf_page_index'] in sparse_pages:
             segment['locator']['text_origin'] = 'texto OCR'
+        # Corrección de erratas OCR (confusión I/l) en segmentos de texto OCR.
+        # Se guarda el texto original en el locator para auditoría; el texto
+        # almacenado en document_segments ya es el corregido, de modo que
+        # las citas quote_XXX coinciden con la versión canónica.
+        texto_corregido, sustituciones = corregir_erratas_i_l(segment['text'])
+        if sustituciones:
+            segment['locator']['texto_ocr_original'] = segment['text']
+            segment['locator']['ocr_correcciones_i_l'] = sustituciones
+            segment['text'] = texto_corregido
     return recognized
+
 
 
 def extract_pdf(content: bytes) -> tuple[Extraction, list[int]]:

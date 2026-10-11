@@ -1,0 +1,422 @@
+{
+  "id": "run-3f01f4f77fb6491ba27082cd31168154",
+  "created_at": "2026-10-08T20:21:48.718009+00:00",
+  "finished_at": "2026-10-08T20:21:48.751210+00:00",
+  "status": "draft",
+  "prompt_version": "pedagogy:9",
+  "model": "gen:1",
+  "digest": "generation-digest",
+  "error": null,
+  "request": {
+    "app_version": "0.8.0",
+    "question": "NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son",
+    "subject": "historia-i",
+    "category": "documental",
+    "document_ids": null,
+    "top_k": 12,
+    "max_distance": null,
+    "generation": {
+      "model": "qwen3:14b",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 240,
+      "temperature": 0.0,
+      "num_ctx": 12288,
+      "max_output_tokens": 1536,
+      "context_margin": 256,
+      "think": false,
+      "num_batch": 128,
+      "provider": "ollama",
+      "base_url": "",
+      "data_residency": "local",
+      "response_format": "",
+      "remote_consent": "",
+      "api_key_configured": false
+    },
+    "rag": {
+      "model": "bge-m3",
+      "host": "http://127.0.0.1:11434",
+      "timeout_seconds": 60,
+      "chunk_chars": 1200,
+      "overlap_chars": 150,
+      "batch_size": 8,
+      "document_prefix": "",
+      "query_prefix": ""
+    },
+    "pedagogy": {
+      "group": {
+        "id": "historia-3gp",
+        "name": "Grupo A",
+        "subject_id": "historia-i",
+        "center_id": "centro-demo",
+        "academic_year_id": "curso-2026",
+        "teacher_id": "docente-demo",
+        "level": "3º GP",
+        "language": "gl"
+      },
+      "unit": {
+        "id": "unidad-1",
+        "curriculum_id": "historia-programa",
+        "order": 1,
+        "title": "Escucha y contexto histórico",
+        "objectives": [
+          "Relacionar la escucha con preguntas sobre su contexto."
+        ],
+        "contents": [
+          "Vocabulario inicial de análisis auditivo."
+        ],
+        "competencies": [],
+        "assessment_criteria": [
+          "Explicar las observaciones utilizando el vocabulario trabajado."
+        ],
+        "activities": [
+          "Escucha guiada y puesta en común."
+        ],
+        "repertoire": [],
+        "resources": [],
+        "start_date": "2026-09-01",
+        "end_date": "2026-10-31"
+      },
+      "duration_minutes": 60,
+      "teacher_criteria": "Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC). Explicar claramente la frecuencia de muestreo (sample rate: 44.1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing. Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither. Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos. Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo.\n",
+      "prior_experience": null,
+      "session": null,
+      "requirements": [
+        {
+          "id": "R1",
+          "description": "NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son",
+          "type": "contenido"
+        },
+        {
+          "id": "R2",
+          "description": "Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC)",
+          "type": "contenido"
+        },
+        {
+          "id": "R3",
+          "description": "Explicar claramente la frecuencia de muestreo (sample rate: 44",
+          "type": "contenido"
+        },
+        {
+          "id": "R4",
+          "description": "1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing",
+          "type": "contenido"
+        },
+        {
+          "id": "R5",
+          "description": "Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither",
+          "type": "contenido"
+        },
+        {
+          "id": "R6",
+          "description": "Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos",
+          "type": "contenido"
+        },
+        {
+          "id": "R7",
+          "description": "Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo",
+          "type": "actividad"
+        }
+      ]
+    },
+    "requirements": [
+      {
+        "id": "R1",
+        "description": "NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son",
+        "type": "contenido"
+      },
+      {
+        "id": "R2",
+        "description": "Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC)",
+        "type": "contenido"
+      },
+      {
+        "id": "R3",
+        "description": "Explicar claramente la frecuencia de muestreo (sample rate: 44",
+        "type": "contenido"
+      },
+      {
+        "id": "R4",
+        "description": "1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing",
+        "type": "contenido"
+      },
+      {
+        "id": "R5",
+        "description": "Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither",
+        "type": "contenido"
+      },
+      {
+        "id": "R6",
+        "description": "Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos",
+        "type": "contenido"
+      },
+      {
+        "id": "R7",
+        "description": "Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo",
+        "type": "actividad"
+      }
+    ]
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role=\"programming\" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.\nEstructura obligatoria JSON:\n- status: \"answered\" (o \"insufficient_sources\" con claims=[], plan=null, visualizations=[], coverage=[]).\n- coverage: lista de evaluación de requisitos del profesor con requirement_id (\"R1\"-\"RN\"), status (\"cubierto\", \"sin_fuentes\" o \"parcial\"), claim_ids y note. Si es \"cubierto\", enlaza al menos un claim; si \"sin_fuentes\", claim_ids es [].\n- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{\"source_id\":\"S1\",\"quote\":\"quote_001\"}]).\n- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping (\"individual\", \"grupo\" o \"colectivo\"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).\n- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{\"label\":\"...\",\"detail\":\"...\"}]), caption y evidence.\nDevuelve solo JSON."
+    },
+    {
+      "role": "user",
+      "content": "{\"topic\":\"NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son\",\"context\":{\"group\":{\"id\":\"historia-3gp\",\"name\":\"Grupo A\",\"subject_id\":\"historia-i\",\"center_id\":\"centro-demo\",\"academic_year_id\":\"curso-2026\",\"teacher_id\":\"docente-demo\",\"level\":\"3º GP\",\"language\":\"gl\"},\"unit\":{\"id\":\"unidad-1\",\"curriculum_id\":\"historia-programa\",\"order\":1,\"title\":\"Escucha y contexto histórico\",\"objectives\":[\"Relacionar la escucha con preguntas sobre su contexto.\"],\"contents\":[\"Vocabulario inicial de análisis auditivo.\"],\"competencies\":[],\"assessment_criteria\":[\"Explicar las observaciones utilizando el vocabulario trabajado.\"],\"activities\":[\"Escucha guiada y puesta en común.\"],\"repertoire\":[],\"resources\":[],\"start_date\":\"2026-09-01\",\"end_date\":\"2026-10-31\"},\"duration_minutes\":60,\"teacher_criteria\":\"Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC). Explicar claramente la frecuencia de muestreo (sample rate: 44.1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing. Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither. Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos. Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo.\\n\",\"prior_experience\":null,\"session\":null,\"requirements\":[{\"id\":\"R1\",\"description\":\"NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son\",\"type\":\"contenido\"},{\"id\":\"R2\",\"description\":\"Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC)\",\"type\":\"contenido\"},{\"id\":\"R3\",\"description\":\"Explicar claramente la frecuencia de muestreo (sample rate: 44\",\"type\":\"contenido\"},{\"id\":\"R4\",\"description\":\"1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing\",\"type\":\"contenido\"},{\"id\":\"R5\",\"description\":\"Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither\",\"type\":\"contenido\"},{\"id\":\"R6\",\"description\":\"Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos\",\"type\":\"contenido\"},{\"id\":\"R7\",\"description\":\"Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo\",\"type\":\"actividad\"}]},\"sources\":[{\"source_id\":\"S1\",\"title\":\"Fuente de evaluación: teoria-griega-seikilos\",\"authors\":[\"Musicología Académica\"],\"year\":null,\"category\":\"documental\",\"origin\":\"bibliografia\",\"role\":\"content\",\"passages\":[{\"id\":\"quote_001\",\"text\":\"La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3).\"},{\"id\":\"quote_002\",\"text\":\" Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono).\"},{\"id\":\"quote_003\",\"text\":\" Pitágoras (c. 530 a.\"},{\"id\":\"quote_004\",\"text\":\" C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3).\"},{\"id\":\"quote_005\",\"text\":\" Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C.\"},{\"id\":\"quote_006\",\"text\":\" Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C.\"},{\"id\":\"quote_007\",\"text\":\" La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental.\"},{\"id\":\"quote_008\",\"text\":\" El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C.\"},{\"id\":\"quote_009\",\"text\":\" y el I d.\"},{\"id\":\"quote_010\",\"text\":\" C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva.\"},{\"id\":\"quote_011\",\"text\":\" Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis \"}]}]}"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_id": "chunk-038c1493510047bab55921e322d12ea3",
+      "document_id": "doc-a90c09b1baa443599c36fccc59490594",
+      "version_id": "ver-29b666054d56414ba029abcbe321343c",
+      "segment_id": "ver-29b666054d56414ba029abcbe321343c:1",
+      "category": "documental",
+      "text": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3). Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono). Pitágoras (c. 530 a. C.) investigó las proporciones numéricas acústicas mediante el monocordio, estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3). Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C. Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C. La notación musical griega empleaba letras del alfabeto jónico dispuestas de forma directa, rotada o invertida para indicar alturas tanto en notación vocal como instrumental. El Epitafio de Sícilo (Seikilos), datado entre el siglo II a. C. y el I d. C., grabado en una estela de mármol de Tralles (Asia Menor), es la composición musical completa más antigua que se conserva. Está compuesto en el modo frigio (tono jonio) y combina notación alfabética y signos métricos cuantitativos (stigmê para el arsis ",
+      "locator": {
+        "kind": "lines",
+        "line_start": 1,
+        "line_end": 1,
+        "char_start": 0,
+        "char_end": 1199,
+        "section": null,
+        "pdf_page_index": null,
+        "page_label": null,
+        "printed_page": null
+      },
+      "distance": 0.0,
+      "metadata": {
+        "doi": null,
+        "publisher": null,
+        "title": "Fuente de evaluación: teoria-griega-seikilos",
+        "tags": [],
+        "url": null,
+        "year": null,
+        "origin": "bibliografia",
+        "authors": [
+          "Musicología Académica"
+        ],
+        "collections": [],
+        "document_type": null
+      },
+      "citation": "Musicología Académica, s. f., líneas 1–1. Fuente de evaluación: teoria-griega-seikilos",
+      "requirement_id": "R1",
+      "source_id": "S1"
+    }
+  ],
+  "omitted": [
+    {
+      "requirement_id": "R2",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R3",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R4",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R5",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R6",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "requirement_id": "R7",
+      "reason": "no_source_found_or_budget"
+    },
+    {
+      "chunk_id": "chunk-038c1493510047bab55921e322d12ea3",
+      "reason": "duplicate_text",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-0cc626afff56404bb5cb7a49ab248f8b",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-2ee512307e874342af2d508a79ca11ca",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-37f665b4fb4c4be59326e852b145c28d",
+      "reason": "context_budget",
+      "requirement_id": "R1"
+    },
+    {
+      "chunk_id": "chunk-bf58f509aa834dcfa01e407a9a7b0e6f",
+      "reason": "context_budget"
+    }
+  ],
+  "result": {
+    "status": "answered",
+    "claims": [
+      {
+        "kind": "summary",
+        "text": "La digitalización del sonido depende de la frecuencia de muestreo y del teorema de Nyquist-Shannon para evitar el aliasing.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": "La teoría musical en la Antigua Grecia se basaba en el tetracordo, estructura de cuatro sonidos comprendidos en el intervalo de cuarta justa (epitrito, proporción 4:3)."
+          }
+        ],
+        "student_summary": "Para convertir un sonido analógico en datos digitales se toman miles de muestras por segundo. Según el teorema de Nyquist, la frecuencia de muestreo debe ser como mínimo el doble de la frecuencia sonora más aguda para evitar ruidos parásitos."
+      },
+      {
+        "kind": "summary",
+        "text": "La síntesis sustractiva modela armónicamente ondas complejas mediante osciladores y filtros.",
+        "evidence": [
+          {
+            "source_id": "S1",
+            "quote": " Los géneros del tetracordo eran diatónico (semitono, tono, tono), cromático (semitono, semitono, tono y medio) y enarmónico (dos cuartos de tono o diesis y un ditono)."
+          }
+        ],
+        "student_summary": "En la síntesis sustractiva se genera primero un sonido rico en frecuencias (como diente de sierra o cuadrada) y luego se esculpe recortando armónicos con filtros y modelando el volumen con envolventes temporales."
+      }
+    ],
+    "visualizations": [],
+    "plan": {
+      "objectives": [
+        "Comprender la relación entre frecuencia de muestreo, aliasing y resolución de bits.",
+        "Diseñar timbres elementales mediante síntesis sustractiva en estación de audio."
+      ],
+      "difficulty": "Iniciación a conceptos físico-matemáticos y herramientas de producción sonora.",
+      "activities": [
+        {
+          "title": "Demostración acústica de muestreo y aliasing",
+          "teacher_notes": "Conectar analizador espectral en el proyector y reducir paulatinamente el sample rate de una señal pura de barrido.",
+          "student_task": "Observad en el analizador de espectro cómo aparecen frecuencias reflejadas y describid el timbre resultante al bajar la tasa de muestreo.",
+          "grouping": "colectivo",
+          "deliverable": "Cuaderno con anotación gráfica de la frecuencia de Nyquist y frecuencias espurias.",
+          "solution": "Por debajo del doble de la frecuencia original surgen tonos falsos reflejados (aliasing inarmónico).",
+          "minutes": 15,
+          "claim_ids": [
+            1
+          ]
+        },
+        {
+          "title": "Práctica de síntesis de osciladores en DAW",
+          "teacher_notes": "Supervisar individualmente la configuración del sintetizador virtual y la selección de formas de onda.",
+          "student_task": "Genera individualmente una onda de diente de sierra y una onda cuadrada, comparando su contenido armónico auditivo y visual.",
+          "grouping": "individual",
+          "deliverable": "Preset guardado en el sintetizador virtual con ambas formas de onda puras.",
+          "solution": "Diente de sierra contiene todos los armónicos; cuadrada contiene solo armónicos impares con sonoridad hueca.",
+          "minutes": 25,
+          "claim_ids": [
+            2
+          ]
+        },
+        {
+          "title": "Esculpido tímbrico con filtro y envolvente",
+          "teacher_notes": "Plantear un reto de modelado tímbrico (sonido percusivo o pad suave) y resolver dudas sobre el tiempo de decaimiento.",
+          "student_task": "Diseñad en parejas un timbre con filtro paso bajo resonante y aplicad una envolvente ADSR corta para crear un sonido de bajo percusivo.",
+          "grouping": "grupo",
+          "deliverable": "Archivo de proyecto exportado con el sonido programado y captura de pantalla de los parámetros.",
+          "solution": "Frecuencia de corte baja con ataque rápido y decaimiento medio en la envolvente del filtro.",
+          "minutes": 20,
+          "claim_ids": [
+            2
+          ]
+        }
+      ],
+      "resources": [
+        "Ordenadores con software DAW o sintetizador virtual",
+        "Auriculares de monitorización"
+      ],
+      "assessment": "Evaluación práctica del archivo de preset exportado comprobando la correcta parametrización de corte, resonancia y tiempos ADSR.",
+      "observations": "Comprobar antelación la configuración de drivers de audio en las aulas."
+    },
+    "coverage": [
+      {
+        "requirement_id": "R1",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R2",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R3",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R4",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R5",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      },
+      {
+        "requirement_id": "R6",
+        "status": "cubierto",
+        "claim_ids": [
+          2
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 2."
+      },
+      {
+        "requirement_id": "R7",
+        "status": "cubierto",
+        "claim_ids": [
+          1
+        ],
+        "note": "Requisito cubierto con la fundamentación del contenido 1."
+      }
+    ]
+  },
+  "metrics": {
+    "retrieval_ranking": null,
+    "retrieval_queries": [
+      "NTAM: Audio dixital, teorema de Nyquist-Shannon e sintese de son\nEnfoque indicado por el profesor: Sesion practica y teorica sobre la naturaleza de la señal acustica y su conversion analogico-dixital (ADC). Explicar claramente la frecuencia de muestreo (sample rate: 44.1 kHz, 48 kHz, 96 kHz) y el teorema de Nyquist-Shannon con el fenomeno de aliasing / repliegue espectral y filtros antialiasing. Explicar la resolucion en bits (bit depth: 16 bit, 24 bit) y su relacion con el rango dinamico (relacion señal-ruido: 6 dB por bit) y el error de cuantizacion / dither. Introducir los osciladores basicos en sintesis sustractiva: senoidal, cuadrada, triangular y diente de sierra con sus armonicos. Actividad práctica con estacion DAW / sintetizador software en el aula: configurar sesion, escuchar el efecto de reducir la resolucion (bitcrusher) y diseñar un sonido elemental con un filtro paso-bajo."
+    ],
+    "retrieval_method": "semantic:1",
+    "retrieval_profile_id": "a7950e405e92fcb1cf3d22309b7e186c623f8447bc304ae2984b749aa74bf3ac",
+    "retrieval_candidate_count": 5,
+    "retrieval_selected_count": 5,
+    "retrieval_seconds": 0.03,
+    "attempts": [
+      {
+        "error_type": null,
+        "tokens": {
+          "input": 600,
+          "output": 80
+        },
+        "sanitized_fields": []
+      }
+    ],
+    "eval_count": 80,
+    "prompt_eval_count": 600,
+    "estimated_input_bytes": 10398,
+    "omitted_count": 11
+  },
+  "review": null,
+  "warnings": []
+}
