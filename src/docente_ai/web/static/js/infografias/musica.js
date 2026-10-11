@@ -10,7 +10,57 @@ export function renderEjemploPendiente() {
   ].join('\n');
 }
 
+export function renderCantusFirmusBox(cfEjemplo = null) {
+  if (!cfEjemplo) {
+    return [
+      '<div class="cantus-firmus-box-wrapper" data-tenor-highlight="true">',
+      '  <div class="cf-controls-header">',
+      '    <div class="cf-title-row">',
+      '      <strong>Cantus firmus en el Tenor</strong>',
+      '      <span class="badge accent-amber">★ Tenor resaltado</span>',
+      '    </div>',
+      '    <div class="score-mode-toggle">',
+      '      <button type="button" class="score-mode-btn" data-mode="svg">🎼 Partitura</button>',
+      '      <button type="button" class="score-mode-btn active" data-mode="pianoroll">🎹 Piano roll</button>',
+      '    </div>',
+      '  </div>',
+      renderEjemploPendiente(),
+      '</div>'
+    ].join('\n');
+  }
+
+  return [
+    `<div class="cantus-firmus-box-wrapper score-candidate-item" ` +
+    `data-candidate-id="${e(cfEjemplo.id)}" data-voice="tenor" data-tenor-highlight="true">`,
+    '  <div class="cf-controls-header">',
+    '    <div class="cf-title-row">',
+    `      <strong>${e(cfEjemplo.titulo || 'Cantus firmus')}</strong>`,
+    '      <span class="badge accent-amber">★ Tenor resaltado</span>',
+    '    </div>',
+    '    <div class="candidate-controls">',
+    '      <div class="score-mode-toggle">',
+    '        <button type="button" class="score-mode-btn" data-mode="svg">🎼 Partitura</button>',
+    '        <button type="button" class="score-mode-btn active" data-mode="pianoroll">🎹 Piano roll</button>',
+    '      </div>',
+    `      <button class="button small ghost play-score-btn" data-candidate="${e(cfEjemplo.id)}">`,
+    '        ▶ Reproducir',
+    '      </button>',
+    '    </div>',
+    '  </div>',
+    `  <div class="score-preview-box" data-candidate-id="${e(cfEjemplo.id)}" ` +
+    `data-current-mode="pianoroll" data-voice="tenor">`,
+    '    <div class="score-loading"><span class="spinner"></span> Generando vista con tenor resaltado…</div>',
+    '  </div>',
+    '</div>'
+  ].join('\n');
+}
+
 export function renderStudentInfographic(run) {
+  const cfReq = (run?.result?.resolved_music_requests || []).find(
+    r => (r.request?.technique === 'cantus_firmus' || r.ejemplo?.tecnica === 'cantus_firmus') && r.ejemplo
+  );
+  const cfEjemplo = cfReq?.ejemplo || null;
+
   return [
     `\n    <div class="infographic-poster">\n      <div class="infographic-main-head">`,
     `\n        <div class="info-tag-row">\n          <span class="info-badge">`,
@@ -33,7 +83,7 @@ export function renderStudentInfographic(run) {
     `   </div>\n              <span class="model-quote">«La melodía permanece fija `,
     `como eje de la misa»</span>\n            </div>\n\n            <div `,
     `class="model-body-grid">\n`,
-    `${renderEjemploPendiente()}`,
+    `${renderCantusFirmusBox(cfEjemplo)}`,
     `\n              <div class="model-side-info">\n    `,
     `            <div class="model-chars-card">\n                  <strong>`,
     `CARACTERÍSTICAS</strong>\n                  <ul>\n                    <li>La `,

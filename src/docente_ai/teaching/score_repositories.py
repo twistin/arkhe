@@ -18,6 +18,7 @@ Los proveedores simulados solo están permitidos en tests mediante fixtures o in
 
 from pathlib import Path
 from typing import Any
+from datetime import datetime
 import re
 import urllib.parse
 
@@ -40,6 +41,16 @@ REPOSITORIOS_METADATOS = {
         "formatos": ["humdrum"],
         "licencia": "CC BY-NC 4.0",
         "edicion": "Jesse Rodin et al. (Stanford University)",
+        "disponible": True,
+    },
+    "hfm_weimar": {
+        "nombre": "HfM Weimar – Computergestützte Musikanalyse",
+        "url_base": "https://analyse.hfm-weimar.de",
+        "cobertura": "Base de datos MusicXML para análisis musical computacional (HfM Weimar)",
+        "formatos": ["musicxml"],
+        "licencia": "licencia no especificada: uso docente con atribución",
+        "atribucion": "HfM Weimar – Computergestützte Musikanalyse",
+        "exportable": False,
         "disponible": True,
     },
     "kernscores": {
@@ -259,6 +270,184 @@ def buscar_en_jrp(query: dict[str, Any], destino_cache: Path | str | None = None
     return candidatos
 
 
+def coincide_con_jrp(filename: str, composer: str = "", work: str = "") -> bool:
+    """Comprueba si un archivo o entrada de HfM Weimar coincide con el Josquin Research Project.
+
+    En la base de datos de HfM Weimar:
+    - La base de datos '002' corresponde al Josquin Research Project (Stanford University).
+    - Códigos de opus como Duf1004, Jos..., Ock..., Agr..., etc. proceden del corpus de JRP.
+    - Obras polifónicas renacentistas de estos autores cubiertas por JRP.
+    """
+    fn_lower = filename.lower()
+    c_lower = composer.lower()
+    w_lower = work.lower()
+
+    if "_002_" in filename or "_02_" in filename:
+        return True
+
+    jrp_opus_prefixes = ["duf", "jos", "ock", "agr", "bus", "isa", "rue", "com", "ghp", "tin"]
+    for pref in jrp_opus_prefixes:
+        if f"_{pref}" in fn_lower or fn_lower.startswith(pref):
+            return True
+
+    ren_composers = ["josquin", "des prez", "ockeghem", "du fay", "dufay", "agricola", "busnois", "isaac"]
+    if any(rc in c_lower or rc in fn_lower for rc in ren_composers):
+        return True
+
+    return False
+
+
+def buscar_en_hfm_weimar(
+    query: dict[str, Any],
+    destino_cache: Path | str | None = None,
+    *,
+    html_fuente: str | None = None,
+    client_http: Any = None,
+    filtrar_coincidentes_jrp: bool = False,
+) -> list[dict[str, Any]]:
+    """Busca y descarga partituras MusicXML reales desde la base de datos de HfM Weimar.
+
+    Reglas de la fuente HfM Weimar:
+    - Solo archivos MusicXML (.xml), NUNCA archivos .sv (Sonic Visualiser).
+    - Guarda URL, fecha y atribución ('HfM Weimar – Computergestützte Musikanalyse').
+    - Licencia: 'licencia no especificada: uso docente con atribución'.
+    - exportable: False (no puede exportarse fuera del material de clase).
+    - Prioridad JRP: si los archivos del Renacimiento coinciden con JRP, se detecta y se da prioridad a JRP.
+    """
+    composer_q = (query.get("composer") or "").strip().lower()
+    work_q = (query.get("work") or "").strip().lower()
+    headers = {"User-Agent": "Arkhé-Docente/1.0"}
+
+    if html_fuente is None:
+        import httpx
+        url = "https://analyse.hfm-weimar.de/doku.php?id=notenauswahl"
+        try:
+            if client_http is not None:
+                resp = client_http.get(url, headers=headers)
+                if resp.status_code == 200:
+                    html_fuente = resp.text
+            else:
+                with httpx.Client(timeout=10.0) as client:
+                    resp = client.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        html_fuente = resp.text
+        except Exception:
+            return []
+
+    if not html_fuente:
+        return []
+
+    # Extraer enlaces a archivos en la base de datos
+    # REGLA ESTRICTA: Solo archivos .xml, NUNCA archivos .sv
+    links = []
+    pattern = re.compile(r'<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.DOTALL | re.IGNORECASE)
+    for match in pattern.finditer(html_fuente):
+        raw_href = match.group(1).strip()
+        link_text = re.sub(r'<[^>]+>', '', match.group(2)).strip()
+
+        if raw_href.lower().endswith(".sv") or (".sv" in raw_href.lower() and not raw_href.lower().endswith(".xml")):
+            continue
+        if not raw_href.lower().endswith(".xml"):
+            continue
+
+        if raw_href.startswith("/"):
+            full_url = f"https://analyse.hfm-weimar.de{raw_href}"
+        elif not raw_href.startswith("http"):
+            full_url = f"https://analyse.hfm-weimar.de/{raw_href}"
+        else:
+            full_url = raw_href
+
+        links.append((full_url, link_text))
+
+    work_words = [w for w in work_q.replace("-", " ").split() if len(w) > 2]
+    composer_words = [w for w in composer_q.replace("-", " ").split() if len(w) > 2]
+
+    candidatos_items = []
+    for full_url, title_text in links:
+        fname = full_url.split("/")[-1]
+        fname_lower = fname.lower()
+        title_lower = title_text.lower()
+
+        if composer_words:
+            if not any(cw in fname_lower or cw in title_lower for cw in composer_words):
+                continue
+        if work_words:
+            if not any(ww in fname_lower or ww in title_lower for ww in work_words):
+                continue
+
+        candidatos_items.append((full_url, title_text, fname))
+
+    if not candidatos_items and composer_words:
+        for full_url, title_text in links:
+            fname = full_url.split("/")[-1]
+            fname_lower = fname.lower()
+            title_lower = title_text.lower()
+            if any(cw in fname_lower or cw in title_lower for cw in composer_words):
+                candidatos_items.append((full_url, title_text, fname))
+
+    if not candidatos_items and not composer_words and not work_words:
+        candidatos_items = [(u, t, u.split("/")[-1]) for u, t in links[:3]]
+
+    cache_dir = Path(destino_cache) if destino_cache else Path("data/cache/partituras/hfm_weimar")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    fecha_hoy = datetime.now().strftime("%Y-%m-%d")
+
+    candidatos = []
+    for full_url, title_text, fname in candidatos_items[:3]:
+        es_jrp_match = coincide_con_jrp(fname, composer=query.get("composer", ""), work=query.get("work", ""))
+        if filtrar_coincidentes_jrp and es_jrp_match:
+            continue
+
+        local_file = cache_dir / fname
+        if not local_file.is_file():
+            try:
+                if client_http is not None:
+                    f_resp = client_http.get(full_url, headers=headers)
+                    if f_resp.status_code == 200:
+                        local_file.write_bytes(f_resp.content)
+                else:
+                    import httpx
+                    with httpx.Client(timeout=15.0) as client:
+                        f_resp = client.get(full_url, headers=headers)
+                        if f_resp.status_code == 200:
+                            local_file.write_bytes(f_resp.content)
+            except Exception:
+                pass
+
+        meta = {}
+        if local_file.is_file():
+            try:
+                meta = parse_score_file(local_file)
+            except Exception:
+                pass
+
+        cand_id = f"hfm-weimar-{local_file.stem}".replace(".", "-").replace(" ", "-")
+        candidatos.append({
+            "id": cand_id,
+            "titulo": meta.get("titulo") or title_text or fname,
+            "compositor": meta.get("compositor") or query.get("composer") or "HfM Weimar Database",
+            "seccion": query.get("section") or "",
+            "fuente": "HfM Weimar – Computergestützte Musikanalyse",
+            "url": full_url,
+            "path": str(local_file) if local_file.is_file() else "",
+            "archivo": fname,
+            "edicion": "Computergestützte Musikanalyse (HfM Weimar)",
+            "atribucion": "HfM Weimar – Computergestützte Musikanalyse",
+            "fecha": fecha_hoy,
+            "licencia": "licencia no especificada: uso docente con atribución",
+            "exportable": False,
+            "formato": "musicxml",
+            "voces": meta.get("voces", []),
+            "compases": meta.get("compases", 0),
+            "claves": meta.get("claves", []),
+            "mensuracion": meta.get("mensuracion", "No especificada"),
+            "verificado": False,
+            "coincide_jrp": es_jrp_match,
+        })
+
+    return candidatos
+
+
 def buscar_en_repositorios(
     query: dict[str, Any],
     *,
@@ -293,6 +482,16 @@ def buscar_en_repositorios(
     try:
         jrp_cands = buscar_en_jrp(query, destino_cache=destino_cache)
         candidatos.extend(jrp_cands)
+    except Exception:
+        pass
+
+    if len(candidatos) >= 3:
+        return candidatos[:3]
+
+    # 3. HfM Weimar – Computergestützte Musikanalyse (MusicXML, opcional)
+    try:
+        hfm_cands = buscar_en_hfm_weimar(query, destino_cache=destino_cache, filtrar_coincidentes_jrp=True)
+        candidatos.extend(hfm_cands)
     except Exception:
         pass
 

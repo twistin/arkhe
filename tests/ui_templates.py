@@ -162,6 +162,7 @@ HTML_SEGURO = frozenset(
         "renderStudentInfographic",
         "renderEgyptInfographic",
         "renderEjemploPendiente",
+        "renderCantusFirmusBox",
         "renderListeningCardItem",
         "renderEgyptListeningsHTML",
         "renderStudentDiscographySection",

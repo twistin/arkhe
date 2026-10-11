@@ -53,6 +53,10 @@ export function renderScoreCandidateItem(cand, cIdx, runId, reqId) {
     pathLabel,
     `    </div>`,
     `    <div class="candidate-controls">`,
+    `      <div class="score-mode-toggle">`,
+    `        <button type="button" class="score-mode-btn active" data-mode="svg">🎼 Partitura</button>`,
+    `        <button type="button" class="score-mode-btn" data-mode="pianoroll">🎹 Piano roll</button>`,
+    `      </div>`,
     `      <label class="range-label">Compases: `,
     `        <input type="number" class="score-start-input" min="1" max="99" value="1"> a `,
     `        <input type="number" class="score-end-input" min="1" max="99" value="8">`,
@@ -70,7 +74,8 @@ export function renderScoreCandidateItem(cand, cIdx, runId, reqId) {
     `      </button>`,
     `    </div>`,
     `  </div>`,
-    `  <div class="score-preview-box" data-path="${e(cand.path || '')}" data-candidate-id="${e(cand.id)}">`,
+    `  <div class="score-preview-box" data-path="${e(cand.path || '')}" ` +
+    `data-candidate-id="${e(cand.id)}" data-current-mode="svg">`,
     `    <div class="score-loading"><span class="spinner"></span> Renderizando partitura con Verovio…</div>`,
     `  </div>`,
     `</div>`,
@@ -98,7 +103,7 @@ export function renderMusicRequestCard(item, result, run) {
     const wavButton = renderWavDownloadButton(ej);
 
     return [
-      `<div class="score-card score-card-verified">`,
+      `<div class="score-card score-card-verified score-candidate-item" data-candidate-id="${e(ej.id)}">`,
       `  <div class="score-card-head">`,
       `    <div>`,
       `      <span class="badge success">✓ Ejemplo verificado</span>`,
@@ -106,10 +111,21 @@ export function renderMusicRequestCard(item, result, run) {
       `      <small class="score-meta">${e(ej.seccion || req.section || '')} · `,
       `Compases ${e(ej.compases || '1-8')} · Fuente: ${e(ej.fuente || 'Catálogo')}</small>`,
       `    </div>`,
-      wavButton ? `    <div>${renderWavDownloadButton(ej)}</div>` : '',
+      `    <div class="candidate-controls">`,
+      `      <div class="score-mode-toggle">`,
+      `        <button type="button" class="score-mode-btn active" data-mode="svg">🎼 Partitura</button>`,
+      `        <button type="button" class="score-mode-btn" data-mode="pianoroll">🎹 Piano roll</button>`,
+      `      </div>`,
+      `      <button class="button small ghost play-score-btn" data-candidate="${e(ej.id)}">`,
+      `        ${icon('play')}▶ Reproducir`,
+      `      </button>`,
+      wavButton ? `      ${wavButton}` : '',
+      `    </div>`,
       `  </div>`,
       `  <div class="score-preview-container">`,
-      renderScorePreviewSvg(ej, 1, 8),
+      `    <div class="score-preview-box" data-candidate-id="${e(ej.id)}" data-current-mode="svg" data-voice="tenor">`,
+      `      <div class="score-loading"><span class="spinner"></span> Renderizando partitura con Verovio…</div>`,
+      `    </div>`,
       `  </div>`,
       `</div>`,
     ].join('');
@@ -228,7 +244,7 @@ export function parseMidiEvents(data) {
   }));
 }
 
-export function playMidiBase64(midiBase64) {
+export function playMidiBase64(midiBase64, targetContainer = null) {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
@@ -242,6 +258,8 @@ export function playMidiBase64(midiBase64) {
     }
     const ctx = new AudioCtx();
     const now = ctx.currentTime + 0.05;
+    const totalDuration = Math.max(...notes.map(n => n.start + n.duration));
+
     notes.forEach(n => {
       const freq = 440 * Math.pow(2, (n.note - 69) / 12);
       const osc = ctx.createOscillator();
@@ -257,14 +275,46 @@ export function playMidiBase64(midiBase64) {
       osc.start(startT);
       osc.stop(startT + dur);
     });
-    toast('Reproduciendo muestra polifónica generada por Verovio...');
+
+    // Sincronización del cursor en el Piano Roll (playhead)
+    const playheads = targetContainer
+      ? targetContainer.querySelectorAll('.pianoroll-playhead')
+      : document.querySelectorAll('.pianoroll-playhead');
+
+    if (playheads.length) {
+      playheads.forEach(ph => {
+        ph.style.display = 'inline';
+      });
+      const startTime = ctx.currentTime;
+      function animarCursor() {
+        const elapsed = ctx.currentTime - startTime;
+        if (elapsed > totalDuration + 0.1) {
+          playheads.forEach(ph => {
+            ph.style.display = 'none';
+          });
+          return;
+        }
+        const progress = Math.min(1.0, Math.max(0.0, elapsed / totalDuration));
+        playheads.forEach(ph => {
+          const left = parseFloat(ph.dataset.left || 64);
+          const width = parseFloat(ph.dataset.width || 800);
+          const curX = left + progress * width;
+          ph.setAttribute('x1', curX.toFixed(2));
+          ph.setAttribute('x2', curX.toFixed(2));
+        });
+        requestAnimationFrame(animarCursor);
+      }
+      requestAnimationFrame(animarCursor);
+    }
+
+    toast('Reproduciendo muestra polifónica con cursor sincronizado...');
   } catch (err) {
     toast(`Error de audio: ${err.message}`, 'error');
   }
 }
 
-export async function loadScoreSvg(box) {
-  const card = box.closest('.score-candidate-item');
+export async function loadScoreContent(box, mode = 'svg') {
+  const card = box.closest('.score-candidate-item, .score-card, .cantus-firmus-box-wrapper');
   const candidateId = box.dataset.candidateId || card?.dataset.candidateId || box.dataset.id;
   if (!candidateId) return;
   const runId = card?.querySelector('.adopt-score-btn')?.dataset.runId;
@@ -272,30 +322,62 @@ export async function loadScoreSvg(box) {
   const endInp = card?.querySelector('.score-end-input');
   const start = startInp ? parseInt(startInp.value, 10) || 1 : 1;
   const end = endInp ? parseInt(endInp.value, 10) || 8 : 8;
+  const voice = box.dataset.voice || card?.dataset.voice || 'tenor';
 
-  try {
-    const res = await api('/scores/render-svg', { id: candidateId, run_id: runId, start, end });
-    if (res?.svg) {
-      box.innerHTML = '<div class="verovio-score-svg"></div>';
-      box.firstElementChild.innerHTML = res.svg;
-    } else {
-      box.innerHTML = '<p class="score-meta">No se pudo obtener el SVG de Verovio.</p>';
+  box.dataset.currentMode = mode;
+
+  if (mode === 'pianoroll') {
+    box.innerHTML = '<div class="score-loading"><span class="spinner"></span> Generando Piano Roll…</div>';
+    try {
+      const res = await api('/scores/render-pianoroll', { id: candidateId, run_id: runId, start, end, voice });
+      if (res?.svg) {
+        box.innerHTML = '<div class="pianoroll-score-svg"></div>';
+        box.firstElementChild.innerHTML = res.svg;
+      } else {
+        box.innerHTML = '<p class="score-meta">No se pudo generar el Piano Roll.</p>';
+      }
+    } catch (err) {
+      box.innerHTML = `<p class="score-meta">Error al renderizar piano roll: ${e(err.message)}</p>`;
     }
-  } catch (err) {
-    box.innerHTML = `<p class="score-meta">Error al renderizar partitura: ${e(err.message)}</p>`;
+  } else {
+    box.innerHTML = '<div class="score-loading"><span class="spinner"></span> ' +
+      'Renderizando partitura con Verovio…</div>';
+    try {
+      const res = await api('/scores/render-svg', { id: candidateId, run_id: runId, start, end });
+      if (res?.svg) {
+        box.innerHTML = '<div class="verovio-score-svg"></div>';
+        box.firstElementChild.innerHTML = res.svg;
+      } else {
+        box.innerHTML = '<p class="score-meta">No se pudo obtener el SVG de Verovio.</p>';
+      }
+    } catch (err) {
+      box.innerHTML = `<p class="score-meta">Error al renderizar partitura: ${e(err.message)}</p>`;
+    }
   }
+}
+
+export async function loadScoreSvg(box) {
+  return loadScoreContent(box, 'svg');
+}
+
+export async function loadScorePianoroll(box) {
+  return loadScoreContent(box, 'pianoroll');
 }
 
 export function initScorePreviews() {
   const boxes = document.querySelectorAll('.score-preview-box[data-candidate-id]:not([data-rendered])');
   boxes.forEach(box => {
     box.dataset.rendered = 'true';
-    loadScoreSvg(box);
-    const card = box.closest('.score-candidate-item');
+    const initialMode = box.dataset.currentMode || 'svg';
+    loadScoreContent(box, initialMode);
+    const card = box.closest('.score-candidate-item, .score-card, .cantus-firmus-box-wrapper');
     if (card) {
       const inputs = card.querySelectorAll('.score-start-input, .score-end-input');
       inputs.forEach(inp => {
-        inp.addEventListener('change', () => loadScoreSvg(box));
+        inp.addEventListener('change', () => {
+          const curMode = box.dataset.currentMode || 'svg';
+          loadScoreContent(box, curMode);
+        });
       });
     }
   });
@@ -460,7 +542,7 @@ async function accionPlayScoreSample({target}) {
     toast('Generando MIDI con Verovio...');
     const res = await api('/scores/render-midi', { id: candidateId, run_id: runId, start, end });
     if (res?.midi) {
-      playMidiBase64(res.midi);
+      playMidiBase64(res.midi, card);
     } else {
       toast('No se pudo generar MIDI para este ejemplo.', 'error');
     }
@@ -471,11 +553,26 @@ async function accionPlayScoreSample({target}) {
   }
 }
 
+async function accionToggleScoreMode({target}) {
+  const btn = target.closest('.score-mode-btn');
+  if (!btn) return;
+  const container = btn.closest('.score-candidate-item, .score-card, .cantus-firmus-box-wrapper');
+  if (!container) return;
+  const mode = btn.dataset.mode;
+  const box = container.querySelector('.score-preview-box');
+  if (!box) return;
+
+  container.querySelectorAll('.score-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+  box.dataset.currentMode = mode;
+  await loadScoreContent(box, mode);
+}
+
 export const actions = {
   'adopt-score': accionAdoptScore,
   'discard-score': accionDiscardScore,
   'search-open-repos': accionSearchOpenRepos,
   'play-score-sample': accionPlayScoreSample,
+  'toggle-score-mode': accionToggleScoreMode,
 };
 
 export const clickBindings = [
@@ -483,4 +580,5 @@ export const clickBindings = [
   { priority: 2, matches: target => !!target.closest('.discard-score-btn'), action: 'discard-score' },
   { priority: 2, matches: target => !!target.closest('.open-repos-btn'), action: 'search-open-repos' },
   { priority: 2, matches: target => !!target.closest('.play-score-btn'), action: 'play-score-sample' },
+  { priority: 2, matches: target => !!target.closest('.score-mode-btn'), action: 'toggle-score-mode' },
 ];

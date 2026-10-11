@@ -26,6 +26,7 @@ from docente_ai.music.analysis import (
     analyze_rhythmic_proportions,
     analyze_score,
 )
+from docente_ai.music.pianoroll import render_pianoroll_svg
 
 __all__ = [
     "ntam_available",
@@ -40,6 +41,7 @@ __all__ = [
     "slice_measures",
     "transpose_score",
     "export_score_to_musicxml",
+    "render_pianoroll_svg",
     "analyze_ambitus",
     "analyze_final",
     "analyze_frequent_intervals",
