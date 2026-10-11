@@ -6,7 +6,7 @@ import json
 
 from docente_ai.generation.errors import RecoverableGenerationError, GenerationLengthError
 from docente_ai.generation.prompt import compact
-from docente_ai.generation.validation import unique_object, fail, ResponseValidationError, EvidenceCardinalityError
+from docente_ai.generation.validation import unique_object, fail, ResponseValidationError, EvidenceCardinalityError, QuoteResolutionError
 
 
 def sanitize(content):
@@ -65,7 +65,10 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
             check()
             candidate, removed = sanitize(raw) if sanitize_response else (raw, [])
             report('Comprobando el contrato y las citas exactas')
-            result = validator(candidate)
+            try:
+                result = validator(candidate, retry=(attempt < 2))
+            except TypeError:
+                result = validator(candidate)
             if reduced and len(result['claims']) > 5:
                 raise ResponseValidationError('La reparación exige un máximo de cinco claims; ajusta también los vínculos del plan.')
             check()
@@ -94,6 +97,12 @@ def generate_validated(generator, messages, validator, metrics, *, check, report
                     ' los claims contienen únicamente contenido documental sustentado.'
                     ' Si no queda contenido sustentado, devuelve status="insufficient_sources", claims=[],'
                     ' visualizations=[] y, si hay plan, plan=null.'
+                )
+            if isinstance(exc, QuoteResolutionError):
+                instruction['instruction'] += (
+                    ' Revisa los identificadores quote_XXX en la fuente indicada: usa exclusivamente los códigos quote_XXX'
+                    ' autorizados para esa fuente. Si un código no existe o el pasaje no respalda la afirmación,'
+                    ' elimina ese elemento de evidence.'
                 )
             if reduced:
                 instruction['max_claims'] = 5
@@ -141,7 +150,10 @@ def repair_with_review(generator, dialogue_history, last_raw_response, review_is
     check()
     candidate, removed = sanitize(raw) if sanitize_response else (raw, [])
     report('Comprobando el contrato de la propuesta reparada')
-    result = validator(candidate)
+    try:
+        result = validator(candidate, retry=False)
+    except TypeError:
+        result = validator(candidate)
     metrics_attempts = metrics.setdefault('reviewer_repair_attempts', [])
     metrics_attempts.append({
         'tokens': {'input': response_metrics.get('prompt_eval_count'), 'output': response_metrics.get('eval_count')},

@@ -1,21 +1,14 @@
 # Caso de evaluación: Teoría musical griega, Epitafio de Seikilos y notación
 id: teoria-griega-seikilos
 descripcion: "Teoría musical griega, notación alfabética y Epitafio de Seikilos con línea temporal de Pitágoras a San Agustín"
-group_id: historia-3gp
-level: "3º GP"
+group_id: historia-4-gp
+level: "4º GP"
 duration_minutes: 60
-unit_id: unidad-1
+unit_id: null
 
 # Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
-topic: "Teoria musical griega, notacion y epitafio de seikilos"
+topic: "Teoria musical, pensamiento , epitafio de srikilos y notaciones"
 
-# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas
+# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas (copia literal de run-0183ad98bdf04cd6b53d9667a8974958)
 teacher_criteria: >
-  Explicar el sistema musical griego antiguo: los tetracordos (generos diatonico, cromatico y enarmonico),
-  la escala mayor o harmonia, el monocordio y las proporciones pitagoricas (octava 2:1, quinta 3:2, cuarta 4:3).
-  Detallar la notacion alfabetica instrumental y vocal griega.
-  Analizar el Epitafio de Seikilos: soporte arqueologico (columna estele de marmol), modo frigio/jonio, texto y sentido filosofico.
-  Imprescindible incluir un esquema cronologico o linea temporal ordenada desde Pitagoras (c. 530 a. C.)
-  pasando por Aristoxeno, Tolomeo, hasta la transmision tardoantigua en Boecio y San Agustin.
-  Diseñar actividades practicas en el aula donde el alumnado aplique la teoria: transcripcion ritmica,
-  entonacion guiada y debate colectivo.
+  Creame un tema con lknea de tiempo desde pitagoras a san agustin , principales autores y conceptos del desarrollo del pensamkento musicak. Teoria musical en grecia , sistema de notacion , eputafio de seikilos ana,isis y explicacion del sistema notaciobal

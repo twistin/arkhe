@@ -14,10 +14,10 @@ Cada criterio se valora en una escala de **0 a 3 puntos**:
 
 Evalúa en qué grado la propuesta integra todos los contenidos, compositores, épocas, conceptos técnicos y dinámicas explícitamente indicados en el tema y en los criterios del profesor.
 
-- **0:** Omite la mayor parte de las peticiones centrales del profesor o responde sobre un tema diferente / tangencial.
-- **1:** Cubre de forma superficial o incompleta los puntos solicitados (por ejemplo, menciona el tema general pero olvida los autores clave o las técnicas específicas pedidas).
-- **2:** Cubre la mayoría de los aspectos solicitados con desarrollo adecuado, aunque algún detalle secundario quede sin profundizar.
-- **3:** Aborda exhaustivamente todos y cada uno de los elementos requeridos (repertorio, autores, cronologías, técnicas y conceptos), articulándolos de forma coherente y fundamentada.
+- **0 - Insuficiente:** Omite la mayor parte de las peticiones centrales del profesor o responde sobre un tema diferente / tangencial (ej. se pide el Epitafio de Seikilos y teoría griega y la propuesta responde sobre monodia litúrgica medieval sin analizar la notación ni la estela).
+- **1 - Básico / Parcial:** Cubre de forma superficial o incompleta los puntos solicitados. Omite autores clave pedidos explícitamente (ej. pide línea de tiempo de Pitágoras a San Agustín y se detiene en Grecia arcaica sin desarrollar autores intermedios, o deja la mitad de los conceptos pedidos sin tratar ni declarar en cobertura como sin_fuentes).
+- **2 - Bueno / Competente:** Cubre la mayoría de los aspectos solicitados con desarrollo adecuado. Si algún elemento pedido carece de fuentes en la biblioteca, la cobertura lo declara honestamente como `sin_fuentes` o `parcial` sin inventar hechos, articulando el resto con solidez.
+- **3 - Excelente / Sobresaliente:** Aborda exhaustivamente todos y cada uno de los elementos requeridos (repertorio, autores, cronologías, técnicas y conceptos), articulándolos de forma coherente, sin lagunas temáticas y vinculando cada requisito a sus evidencias documentales correspondientes.
 
 ---
 
@@ -25,10 +25,10 @@ Evalúa en qué grado la propuesta integra todos los contenidos, compositores, �
 
 Evalúa el rigor técnico, teórico, histórico y musicológico de las afirmaciones y la fidelidad documental frente a las fuentes autorizadas (ausencia de anacronismos, citas espurias o alucinaciones factuales).
 
-- **0:** Invención de datos, anacronismos flagrantes (ej. asociar técnicas de un siglo a otro), falsas atribuciones o citas imposibles de verificar.
-- **1:** Imprecisiones teóricas o terminológicas apreciables, afirmaciones vagas o desconexión entre la cita citada y la afirmación realizada.
-- **2:** Rigor adecuado; los conceptos teóricos y datos históricos son correctos y concuerdan con el corpus documental sin distorsiones sustanciales.
-- **3:** Máxima precisión y profundidad musicológica; términos técnicos exactos (definiciones rigurosas de formas, compases, modos o acústica) y fundamentación documental intachable.
+- **0 - Insuficiente:** Invención flagrante de datos o conceptos musicológicos graves (ej. afirmar que Filolao y Arquitas crearon la escala pentatónica en Grecia, inventar citas textuales inexistentes o atribuir técnicas del siglo XV al canto gregoriano).
+- **1 - Básico / Parcial:** Imprecisiones teóricas o terminológicas apreciables, afirmaciones factuales no respaldadas en las fuentes que se dan por seguras sin marcarlas como "aportación del profesor pendiente", o citas textuales con discrepancias frente al pasaje original.
+- **2 - Bueno / Competente:** Rigor adecuado; los conceptos teóricos y datos históricos son correctos y concuerdan con el corpus documental. Si se introducen hechos específicos en notas o soluciones no respaldados por los pasajes, se señalan explícitamente como aportación pendiente del docente.
+- **3 - Excelente / Sobresaliente:** Máxima precisión y profundidad musicológica; términos técnicos exactos (definiciones rigurosas de géneros armónicos, notación, tonos, ámbitos, cadencias o acústica) con fundamentación documental intachable y citas textuales exactas verificables.
 
 ---
 
@@ -36,35 +36,32 @@ Evalúa el rigor técnico, teórico, histórico y musicológico de las afirmacio
 
 Evalúa si se mantiene una frontera clara y nítida entre la justificación curricular/pedagógica destinada al docente y el dossier de trabajo autónomo, láminas y explicaciones adaptadas al alumnado.
 
-- **0:** Mezcla confusa de perspectivas: el material del alumno contiene directrices de programación burocrática o el dossier docente carece de fundamentación metodológica.
-- **1:** Separación meramente formal o con solapamientos notorios (jerga administrativa en el texto del alumno o duplicación idéntica de bloques sin adaptación de tono).
-- **2:** Buena diferenciación: el profesor dispone de objetivos, justificación y criterios de evaluación, y el estudiante recibe explicaciones claras, esquemas y guías de trabajo.
-- **3:** Separación modélica: la guía docente aporta análisis pedagógico, temporal y de evaluación; el material del alumnado es un cuaderno didáctico atractivo, autónomo, con esquemas visuales y tareas claramente formuladas.
+- **0 - Insuficiente:** Mezcla frontal de perspectivas donde el material del alumnado contiene instrucciones, consignas o notas dirigidas al profesor (ej. el dossier del estudiante incluye textos como "Explicar...", "Proyectar la inscripción...", "Reproducir antes de nombrar conceptos...", "Apertura metodológica...", notas docentes `teacher_notes` o soluciones completas `solution`).
+- **1 - Básico / Parcial:** Separación meramente formal pero con filtraciones evidentes (ej. el material del estudiante habla del alumnado en tercera persona: "Pedir al alumnado que anote...", o incluye jerga metodológica de programación didáctica y criterios docentes de evaluación).
+- **2 - Bueno / Competente:** Buena diferenciación: el profesor dispone de objetivos, pautas docentes, soluciones y criterios de corrección, mientras que el estudiante recibe explicaciones dirigidas directamente a él en 2ª persona, tareas prácticas y fuentes reales, sin filtración de notas del profesor.
+- **3 - Excelente / Sobresaliente:** Separación modélica y profesional: la guía docente aporta análisis metodológico, temporal, pautas y soluciones rigurosas; el material del alumnado es un cuaderno de trabajo limpio, motivador, autónomo, con esquemas claros, consignas prácticas y sin un solo rastro de directrices pedagógicas internas.
 
 ---
 
 ## Criterio 4: Actividades reales del alumnado (tarea, agrupamiento y producto)
 
-Evalúa si las actividades proponen acciones concretas y ejecutables por parte de los estudiantes (escucha activa con guía, transcripción, debate, síntesis, análisis comparativo) especificando con claridad:
-1. **Tarea:** Qué hace exactamente el estudiante (no solo "el profesor explica").
-2. **Agrupamiento:** Modalidad explícita (`[Individual]`, `[En grupo]` o `[Colectivo]`).
-3. **Producto:** Resultado observable o entregable de la actividad (esquema, mapa formal, audición anotada, puesta en común, partitura analizada).
+Evalúa si las actividades proponen acciones concretas y ejecutables por parte de los estudiantes (escucha activa con guía, transcripción, debate, síntesis, análisis comparativo) especificando con claridad tarea del alumno, agrupamiento y producto entregable.
 
-- **0:** Actividades pasivas donde solo interviene la exposición del profesor, sin modalidad clara o sin tarea activa para los estudiantes.
-- **1:** Actividades ambiguas ("comprender el tema", "asimilar los conceptos") sin tarea observable definida o con modalidades implícitas no estructuradas.
-- **2:** Actividades prácticas con tarea bien definida, modalidad explícita (`[Individual]`, `[En grupo]`, etc.) y producto esperado razonable.
-- **3:** Diseño activo excelente: consignas claras, variedad equilibrada de agrupamientos, productos formativos tangibles y dinámicas motivadoras acordes al aula de conservatorio.
+- **0 - Insuficiente:** Actividades pasivas donde el alumno es mero oyente pasivo o donde la tarea describe lo que hace el profesor en vez de lo que hace el estudiante (ej. "Tarea: El profesor explica las nociones de phthongos...", o tareas no ejecutables porque exigen partituras o grabaciones ausentes dándolas por disponibles).
+- **1 - Básico / Parcial:** Actividades ambiguas o rutinarias sin producto observable claro (ej. "Consigna: Comprender la teoría y debatir en clase", sin pauta de trabajo, entregable ni rúbrica de resolución), o actividades cuya modalidad de agrupamiento no está definida.
+- **2 - Bueno / Competente:** Actividades prácticas donde el alumno realiza una acción concreta observable (audición anotada, tabla comparativa, análisis sobre transcripción), con agrupación explícita (`[Individual]`, `[En grupo]` o `[Colectivo]`), entregable definido y recursos pendientes advertidos.
+- **3 - Excelente / Sobresaliente:** Diseño activo sobresaliente: consignas prácticas detalladas en 2ª persona ("Analiza...", "Compara...", "Localiza..."), alternancia justificada de agrupamientos, productos formativos tangibles y dinámicas de análisis musical plenamente ejecutables en el aula.
 
 ---
 
 ## Criterio 5: Adecuación al nivel educativo
 
-Evalúa si el lenguaje, la profundidad teórica, el repertorio y la exigencia analítica se ajustan exactamente al grupo indicado (por ejemplo, grado profesional: 3º GP).
+Evalúa si el lenguaje, la profundidad teórica, el repertorio y la exigencia analítica se ajustan exactamente al grupo indicado (por ejemplo, grado profesional: 3º GP / 4º GP).
 
-- **0:** Desajuste radical (nivel excesivamente elemental propio de iniciación o exigencia desmedida de posgrado/investigación inasumible en el curso).
-- **1:** Nivel irregular: combina explicaciones excesivamente simplistas con lagunas técnicas o exigencias analíticas desproporcionadas.
-- **2:** Nivel adecuado para el curso correspondiente, empleando vocabulario técnico apropiado para alumnos de conservatorio profesional.
-- **3:** Ajuste perfecto: equilibra el rigor terminológico con la claridad explicativa, favoreciendo el desarrollo de las competencias específicas del curso.
+- **0 - Insuficiente:** Desajuste radical (explicaciones infantiles impropias de enseñanzas profesionales, o por el contrario nivel de tesis doctoral que asume conocimientos de paleografía o cálculo acústico inasumibles en el curso).
+- **1 - Básico / Parcial:** Nivel irregular: combina explicaciones excesivamente elementales con exigencias analíticas desproporcionadas sin andamiaje pedagógico, o lenguaje pedagógicamente confuso para el curso.
+- **2 - Bueno / Competente:** Nivel adecuado para el curso correspondiente, empleando vocabulario técnico apropiado para alumnos de conservatorio profesional con el debido soporte conceptual.
+- **3 - Excelente / Sobresaliente:** Ajuste pedagógico perfecto: equilibra el rigor terminológico avanzado con explicaciones claras y accesibles, adaptando la dificultad de los ejercicios exactamente a la madurez analítica del curso.
 
 ---
 
@@ -72,10 +69,10 @@ Evalúa si el lenguaje, la profundidad teórica, el repertorio y la exigencia an
 
 Evalúa la viabilidad temporal de las actividades dentro de la duración fijada (ej. 60 minutos), la suma exacta de los minutos y la credibilidad de que cada tarea pueda desarrollarse en el tiempo asignado.
 
-- **0:** Los minutos no suman la duración total de la sesión, o la asignación es inviable (ej. pretender analizar y comparar tres misas completas en 10 minutos).
-- **1:** La suma de minutos cuadra matemáticamente, pero los ritmos son poco realistas (tiempos muy cortos para tareas complejas o tiempos muertos excesivos).
-- **2:** Temporización viable y equilibrada para el conjunto de la sesión, permitiendo la apertura, desarrollo y cierre de la clase.
-- **3:** Distribución temporal ejemplar: transiciones fluidas, tiempos calibrados para audiciones, trabajo individual/colectivo y conclusiones sin saturación.
+- **0 - Insuficiente:** Los minutos de las actividades no suman la duración total de la sesión, o la distribución es absurda (ej. pretender que el alumno analice, transcriba y debata cuatro obras completas en 10 minutos).
+- **1 - Básico / Parcial:** La suma matemática cuadra pero los ritmos son irreales (ej. no reserva tiempo de exposición docente para contenidos teóricos nuevos, obligando a realizar actividades complejas en frío, o asigna 40 minutos a una tarea trivial).
+- **2 - Bueno / Competente:** Temporización viable y equilibrada para el conjunto de la sesión (ej. reserva tiempo para exposición/apertura, desarrollo práctico y síntesis/cierre sumando exactamente los minutos fijados).
+- **3 - Excelente / Sobresaliente:** Distribución temporal ejemplar: tiempos calibrados con precisión para cada fase (escucha, análisis, puesta en común), transiciones fluidas y previsión realista de ritmos de trabajo en el aula.
 
 ---
 

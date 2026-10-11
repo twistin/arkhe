@@ -136,10 +136,11 @@ def test_import_idempotent_and_round_trip(config, tmp_path):
     assert import_config(db, config)['changed']
     assert not import_config(db, config)['changed']
     assert read_config(db) == config
+    from docente_ai.storage import SCHEMA_VERSION
     with sqlite3.connect(db) as connection:
         assert connection.execute('SELECT count(*) FROM config_imports').fetchone()[0] == 1
         assert connection.execute('PRAGMA foreign_key_check').fetchall() == []
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == SCHEMA_VERSION
 
 
 def test_invalid_import_does_not_create_database(config, tmp_path):
@@ -285,5 +286,19 @@ def test_to_ical_generation(config):
     assert "TRIGGER:-PT15M" in ical
     assert "ACTION:DISPLAY" in ical
     assert "SUMMARY:Historia de la Música I · Grupo A" in ical
+
+
+def test_catalogo_ejemplos_musicales():
+    from docente_ai.teaching.ejemplos import (
+        load_all_ejemplos,
+        get_ejemplo,
+        get_ejemplo_musicxml,
+        is_ejemplo_verificado,
+    )
+    ejemplos = load_all_ejemplos()
+    assert isinstance(ejemplos, list)
+    assert get_ejemplo('no-existe') is None
+    assert get_ejemplo_musicxml('no-existe') is None
+    assert is_ejemplo_verificado('no-existe') is False
 
 

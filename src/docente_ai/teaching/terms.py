@@ -27,9 +27,12 @@ MUSICOLOGICAL_TERMS: dict[str, str] = {
 
     # Obras, fuentes y conceptos históricos
     'seikilos': 'Seikilos',
-    'epitafio de seikilos': 'Epitafio de Sícilo (Seikilos)',
-    'epitafio de sikilos': 'Epitafio de Sícilo (Seikilos)',
-    'seikilos epitaph': 'Epitafio de Sícilo (Seikilos)',
+    'srikilos': 'Seikilos',
+    'epitafio de seikilos': 'Epitafio de Seikilos',
+    'eputafio de seikilos': 'Epitafio de Seikilos',
+    'epitafio de srikilos': 'Epitafio de Seikilos',
+    'epitafio de sikilos': 'Epitafio de Seikilos',
+    'seikilos epitaph': 'Epitafio de Seikilos',
     'nebamun': 'Nebamun',
     'nebamún': 'Nebamún',
     'tutankamon': 'Tutankamón',
@@ -51,7 +54,40 @@ MUSICOLOGICAL_TERMS: dict[str, str] = {
     'organum': 'organum',
     'discantus': 'discantus',
     'clausula': 'cláusula',
+
+    # Términos griegos y modos antiguos
+    'jastio': 'iastio',
 }
+
+# Autores canónicos para comprobación de omisiones en líneas temporales y requisitos
+CANONICAL_AUTHORS: dict[str, list[str]] = {
+    'Pitágoras': ['Pitágoras', 'Pitagoras', 'pitagórico', 'pitagóricos', 'Pythagoras'],
+    'Filolao': ['Filolao', 'Philolaus'],
+    'Arquitas': ['Arquitas', 'Archytas'],
+    'Damón': ['Damón', 'Damon'],
+    'Platón': ['Platón', 'Platon', 'platónico', 'Plato'],
+    'Aristóteles': ['Aristóteles', 'Aristoteles', 'aristotélico', 'Aristotle'],
+    'Aristóxeno': ['Aristóxeno', 'Aristoxeno', 'Aristoxenus'],
+    'Ptolomeo': ['Ptolomeo', 'Tolomeo', 'Ptolemy'],
+    'Arístides Quintiliano': ['Arístides Quintiliano', 'Aristides Quintiliano', 'Arístides', 'Aristides Quintilianus'],
+    'Alipio': ['Alipio', 'Alypius'],
+    'San Agustín': ['San Agustín', 'San Agustin', 'Agustín de Hipona', 'Agustin de Hipona', 'Augustine', 'St. Augustine'],
+    'Boecio': ['Boecio', 'Boethius'],
+}
+
+
+def find_canonical_authors_in_text(text: str) -> set[str]:
+    """Extrae los nombres normalizados de autores canónicos que aparecen en un texto."""
+    if not text:
+        return set()
+    found = set()
+    for canonical, variants in CANONICAL_AUTHORS.items():
+        for variant in variants:
+            if re.search(r'\b' + re.escape(variant) + r'\b', text, re.IGNORECASE):
+                found.add(canonical)
+                break
+    return found
+
 
 
 def normalize_topic(text: str) -> str:

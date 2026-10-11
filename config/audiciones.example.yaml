@@ -21,8 +21,8 @@ audiciones:
 
   # Ejemplo de Grecia antigua con campos factuales pendientes de verificación:
   - id: "grecia-epitafio-seikilos"
-    obra: "Epitafio de Sícilo (Seikilos)"
-    compositor: "Sícilo (Seikilos)"
+    obra: "Epitafio de Seikilos"
+    compositor: "Seikilos"
     movimiento: "Composición monódica lírica completa sobre estela funeraria"
     interprete: "PENDIENTE DE VERIFICAR"
     url: "PENDIENTE DE VERIFICAR"

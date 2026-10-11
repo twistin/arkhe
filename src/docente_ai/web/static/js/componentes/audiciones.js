@@ -8,7 +8,7 @@ const POLYPHONY_REGEX = new RegExp(
 );
 
 export function is15thCenturyPolyphony(run) {
-  const q = run.request?.question || '';
+  const q = `${run.display_title || ''} ${run.request?.question || ''}`;
   const criteria = run.request?.pedagogy?.teacher_criteria || '';
   const text = `${q} ${criteria}`;
   return POLYPHONY_REGEX.test(text);
@@ -16,7 +16,7 @@ export function is15thCenturyPolyphony(run) {
 
 const EGYPT_REGEX = new RegExp(
   '\\b(?:egipto?|egipci[ao]s?|egipcia|nilo|hathor|sistro|sistros|sistrum|' +
-  'menat|nebamun|mesopotamia|antigüedad|antiguedad|antiga)\\b',
+  'menat|nebamun|fara[oó]n(?:ic[ao]s?)?)\\b',
   'i'
 );
 
@@ -26,18 +26,15 @@ const NTAM_REGEX = new RegExp(
 );
 
 export function isAncientEgypt(run) {
-  const unitId = run.request?.pedagogy?.unit?.id || run.request?.pedagogy?.unit_id || '';
-  if (unitId === 'unit-h1-1') return true;
-  const q = run.request?.question || '';
+  const q = `${run.display_title || ''} ${run.request?.question || ''}`;
   const criteria = run.request?.pedagogy?.teacher_criteria || '';
-  const unitTitle = run.request?.pedagogy?.unit?.title || '';
-  const text = `${q} ${criteria} ${unitTitle}`;
+  const text = `${q} ${criteria}`;
   return EGYPT_REGEX.test(text);
 }
 
 export function isNTAMSubject(run) {
   const subj = run.request?.subject || run.request?.pedagogy?.group?.subject_id || '';
-  const q = run.request?.question || '';
+  const q = `${run.display_title || ''} ${run.request?.question || ''}`;
   const criteria = run.request?.pedagogy?.teacher_criteria || '';
   const groupName = run.request?.pedagogy?.group?.name || '';
   const unitId = run.request?.pedagogy?.unit?.id || run.request?.pedagogy?.unit_id || '';
@@ -52,7 +49,7 @@ const TOPIC_TYPOS = [
   [/\b(?:binchois|gilles de binchois)\b/gi, 'Gilles Binchois'],
   [/\b(?:busnois)\b/gi, 'Antoine Busnois'],
   [/\b(?:josquin|josquin des pres|josquin desprez)\b/gi, 'Josquin des Prez'],
-  [/\b(?:epitafio de (?:seikilos|sikilos)|seikilos epitaph)\b/gi, 'Epitafio de Sícilo (Seikilos)'],
+  [/\b(?:epitafio de (?:seikilos|sikilos)|seikilos epitaph)\b/gi, 'Epitafio de Seikilos'],
   [/\bseikilos\b/gi, 'Seikilos'],
   [/\b(?:tutankhamun|tutankamon)\b/gi, 'Tutankamón'],
   [/\b(?:misa ciclica|misa cicilica)\b/gi, 'misa cíclica'],

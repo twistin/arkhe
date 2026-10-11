@@ -182,6 +182,7 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
             emit_live('relevance', batch=number, total=len(batches), phase='started')
             if current_execution(): current_execution().check()
             if progress: progress(f'Revisando relevancia · lote {number} de {len(batches)}')
+            data = []
             try:
                 payload=json.loads(model.generate(messages(batch))['content'])
                 data=payload.get('scores') if isinstance(payload,dict) else None
@@ -201,7 +202,7 @@ def rerank(question, candidates, settings, limit=6, progress=None, generator_fac
                     scores[item['id']] = 2
                 seen = set(scores.keys())
             emit_live('relevance', batch=number, total=len(batches), phase='completed',
-                      evaluated=len(seen), relevant=sum(item['score'] >= 2 for item in data))
+                      evaluated=len(seen), relevant=sum(scores.get(item['id'], 0) >= 2 for item in batch))
     shortlist=sorted((i for i in scores if scores[i]>=2),key=lambda i:(-scores[i],i))[:12]
     if not shortlist:
         shortlist=sorted((i for i in scores if scores[i]>=1),key=lambda i:(-scores[i],i))[:limit]

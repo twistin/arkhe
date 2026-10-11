@@ -117,8 +117,9 @@ def subjects_for(connection, document_id):
 
 def original_file(db: Path, relative: str) -> Path:
     root = db.resolve().parent
+    base_store = (root / 'library' / 'originals').resolve()
     candidate = (root / relative).resolve()
-    if not candidate.is_relative_to(root / 'library' / 'originals'):
+    if not candidate.is_relative_to(base_store):
         raise ValueError('Ruta de original fuera del almacén permitido.')
     return candidate
 

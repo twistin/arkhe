@@ -544,3 +544,179 @@ def test_reviewer_rubric_evaluation_and_repair_loop(corpus):
     assert 'No sustituye a la revisión ni al criterio del profesor' in md
     assert 'Aviso de reparación' in md
 
+
+def test_validate_timeline_canonical_authors_omission():
+    from docente_ai.agents.pedagogy import validate
+
+    evidence_text = 'Platón y Aristóteles debatieron sobre el ethos musical en Atenas, mientras Pitágoras fijó las proporciones.'
+    evidence = [{
+        'source_id': 'S1',
+        'text': evidence_text,
+        'passages': [
+            {'quote': 'quote_001', 'text': evidence_text}
+        ]
+    }]
+    context = {
+        'duration_minutes': 30,
+        'requirements': [
+            {'id': 'R1', 'description': 'Crear una línea de tiempo con los principales autores y conceptos.'}
+        ],
+        'unit': {'title': 'Música en la Antigüedad', 'objectives': [], 'contents': [], 'criteria': []},
+        'topic': 'Teoría musical griega'
+    }
+
+    # Propuesta que solo menciona a Pitágoras pero omite Platón y Aristóteles
+    prop = proposal()
+    prop['claims'][0]['text'] = 'Pitágoras investigó las razones acústicas fundamentales.'
+    prop['claims'][0]['evidence'] = [{'source_id': 'S1', 'quote': evidence_text}]
+    prop['coverage'] = [{
+        'requirement_id': 'R1',
+        'status': 'cubierto',
+        'claim_ids': [1],
+        'note': 'Línea de tiempo centrada en la tradición pitagórica.'
+    }]
+
+
+    # Debe fallar porque Platón y Aristóteles están en las fuentes y se omitieron sin nota explicativa
+    with pytest.raises(Exception, match='Omisión en la línea temporal / autores canónicos'):
+        validate(json.dumps(prop), evidence, context)
+
+    # Si se incluye una nota de coverage justificando la omisión o si se incluyen en la cronología, pasa:
+    prop['coverage'][0]['note'] = 'Línea temporal pitagórica; Platón y Aristóteles quedan pendientes de ampliar en sesiones posteriores.'
+    validated = validate(json.dumps(prop), evidence, context)
+    assert validated['status'] == 'answered'
+
+
+def test_validate_timeline_canonical_authors_only_checks_sources():
+    from docente_ai.agents.pedagogy import validate
+
+    # Fuentes que SOLO mencionan a Aristóxeno
+    evidence_text = 'Aristóxeno de Tarento escribió los Elementos Armónicos.'
+    evidence = [{
+        'source_id': 'S1',
+        'text': evidence_text,
+        'passages': [
+            {'quote': 'quote_001', 'text': evidence_text}
+        ]
+    }]
+    context = {
+        'duration_minutes': 30,
+        'requirements': [
+            {'id': 'R1', 'description': 'Línea de tiempo con autores principales.'}
+        ],
+        'unit': {'title': 'Música en la Antigüedad', 'objectives': [], 'contents': [], 'criteria': []},
+        'topic': 'Teoría musical griega'
+    }
+
+    # Propuesta que incluye a Aristóxeno pero NO a Platón ni Aristóteles
+    prop = proposal()
+    prop['claims'][0]['text'] = 'Aristóxeno de Tarento sistematizó la teoría empírica.'
+    prop['claims'][0]['evidence'] = [{'source_id': 'S1', 'quote': evidence_text}]
+    prop['coverage'] = [{
+        'requirement_id': 'R1',
+        'status': 'cubierto',
+        'claim_ids': [1],
+        'note': 'Línea temporal con Aristóxeno.'
+    }]
+
+    # Pasa sin exigir Platón ni Aristóteles porque no están en las fuentes
+    validated = validate(json.dumps(prop), evidence, context, retry=True)
+    assert validated['status'] == 'answered'
+
+
+def test_validate_timeline_canonical_authors_resilience_after_repair():
+    from docente_ai.agents.pedagogy import validate
+    from docente_ai.generation.render import render
+
+    evidence_text = 'Platón y Aristóteles debatieron sobre el ethos musical en Atenas, mientras Pitágoras fijó las proporciones.'
+    evidence = [{
+        'source_id': 'S1',
+        'text': evidence_text,
+        'passages': [
+            {'quote': 'quote_001', 'text': evidence_text}
+        ]
+    }]
+    context = {
+        'duration_minutes': 30,
+        'requirements': [
+            {'id': 'R1', 'description': 'Crear una línea de tiempo con los principales autores y conceptos.'}
+        ],
+        'unit': {'title': 'Música en la Antigüedad', 'objectives': [], 'contents': [], 'criteria': []},
+        'topic': 'Teoría musical griega'
+    }
+
+    # Propuesta que solo menciona a Pitágoras pero omite Platón y Aristóteles
+    prop = proposal()
+    prop['claims'][0]['text'] = 'Pitágoras investigó las razones acústicas fundamentales.'
+    prop['claims'][0]['evidence'] = [{'source_id': 'S1', 'quote': evidence_text}]
+    prop['coverage'] = [{
+        'requirement_id': 'R1',
+        'status': 'cubierto',
+        'claim_ids': [1],
+        'note': 'Línea de tiempo centrada en la tradición pitagórica.'
+    }]
+
+    # Si se valida con retry=False (intento final / tras reparación), no debe fallar ni bloquearse:
+    validated = validate(json.dumps(prop), evidence, context, retry=False)
+    assert validated['status'] == 'answered'
+
+    # La cobertura para R1 debe haber pasado a 'parcial' y contener el aviso
+    cov_r1 = next(item for item in validated['coverage'] if item['requirement_id'] == 'R1')
+    assert cov_r1['status'] == 'parcial'
+    assert 'Autores presentes en las fuentes y no incluidos: Aristóteles, Platón' in cov_r1['note']
+
+    # Las observaciones del plan deben contener el aviso visible para la guía docente
+    assert 'Autores presentes en las fuentes y no incluidos: Aristóteles, Platón' in validated['plan']['observations']
+
+    # Renderizado en la guía docente: debe verse el estado Parcial y el aviso
+    run_dict = {
+        'id': 'run-test-resilience',
+        'request': {
+            'question': 'Teoría musical griega',
+            'pedagogy': context,
+            'requirements': context['requirements']
+        },
+        'result': validated,
+        'evidence': evidence
+    }
+    rendered = render(run_dict)
+    assert 'Parcial' in rendered
+    assert 'Autores presentes en las fuentes y no incluidos: Aristóteles, Platón' in rendered
+
+
+def test_validate_rejects_source_meta_talk_in_student_materials():
+    from docente_ai.agents.pedagogy import validate, ValidationError
+
+    evidence_text = TEXT
+    evidence = [{'source_id': 'S1', 'text': evidence_text, 'passages': [{'quote': 'quote_001', 'text': evidence_text}]}]
+    context = {'duration_minutes': 30, 'topic': 'Teoría musical'}
+
+    # 1. En student_summary
+    p1 = proposal()
+    p1['claims'][0]['student_summary'] = 'Debido a la ausencia de San Agustín en las fuentes, nos centraremos en Grecia.'
+    with pytest.raises(ValidationError) as exc1:
+        validate(json.dumps(p1), evidence, context, retry=True)
+    assert 'student_summary' in str(exc1.value) and 'fuentes' in str(exc1.value)
+
+    # 2. En objectives
+    p2 = proposal()
+    p2['plan']['objectives'] = ['Debatir sobre la falta de fuentes sobre San Agustín en la biblioteca.']
+    with pytest.raises(ValidationError) as exc2:
+        validate(json.dumps(p2), evidence, context, retry=True)
+    assert 'objectives' in str(exc2.value) and 'fuentes' in str(exc2.value)
+
+    # 3. En student_task
+    p3 = proposal()
+    p3['plan']['activities'][0]['student_task'] = 'Debatid sobre la ausencia de San Agustín en la biblioteca.'
+    with pytest.raises(ValidationError) as exc3:
+        validate(json.dumps(p3), evidence, context, retry=True)
+    assert 'student_task' in str(exc3.value) and 'fuentes' in str(exc3.value)
+
+    # 4. En deliverable
+    p4 = proposal()
+    p4['plan']['activities'][0]['deliverable'] = 'Ficha analizando las fuentes y los pasajes disponibles.'
+    with pytest.raises(ValidationError) as exc4:
+        validate(json.dumps(p4), evidence, context, retry=True)
+    assert 'deliverable' in str(exc4.value) and 'fuentes' in str(exc4.value)
+
+

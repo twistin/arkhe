@@ -1,21 +1,17 @@
 # Caso de evaluación: Polifonía franco-flamenca del siglo XV
 id: polifonia-siglo-xv
 descripcion: "Polifonía franco-flamenca del siglo XV: Du Fay, Binchois, Ockeghem, misa cíclica y formes fixes"
-group_id: historia-3gp
-level: "3º GP"
+group_id: historia-5-gp
+level: "5º GP"
 duration_minutes: 60
-unit_id: unidad-1
+unit_id: null
 
 # Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
-topic: "Polifonia franco-flamenca del s. xv: Dufay, Binchois e Ockehem"
+topic: "Polifonia del siglo XV en Europa continental"
 
-# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas
+# Criterios pedagógicos del profesor con indicaciones detalladas y erratas deliberadas (copia literal de run-d81bcb3473e44d5e94432a567bb987cc)
 teacher_criteria: >
-  Analizar las generaciones franco-flamencas del siglo XV borgoñon e internacional.
-  Primera generacion borgoñona con Guillaume Du Fay y Gilles Binchois: transicion desde el
-  Ars Subtilior, influencia de la contenance angloise de Dunstaple (3as y 6as paralelas),
-  chansons en formes fixes (rondeau, ballade, virelai) y creacion de la misa ciclica sobre cantus firmus profano (Se la face ay pale, L'homme arme).
-  Segunda generacion: Johannes Ockeghem, ensanchamiento del registro grave hacia el Bassus,
-  estilo de flujo continuo evitando cadencias simultaneas, y tecnicas de canon y misa prolacionum.
-  Diferenciar tecnicas de composicion de misa: cantus firmus, parafrasis y misa parodia o imitacion.
-  En el aula el alumnado debe comparar auditivamente un rondeau de Binchois con un movimiento de misa de Dufay y Ockeghem.
+  Para ampliar contenido consulta las fuentes de Allan Atlas  y Gustave Resse
+  Preparamos la polifonia del Renacimiento durante el Siglo XV. Contextualización, Introducción, 5 generaciones de compositores franco-flamencos. Formes Fixes, Motete y Misa. Técnicas de composición. Compositores de 1ª y 2ª ngeneracion: Dufay, Binchois, Ockehem, Busnois
+  Ampliación: 
+  Ampliación: 

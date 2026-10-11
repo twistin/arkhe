@@ -106,9 +106,15 @@ def load_test_cases():
 
 def run_single_case(case_data, db_path, rag_settings, gen_settings, embedder_factory=None, generator_factory=None):
     """Ejecuta una propuesta pedagógica para un caso de prueba."""
+    from docente_ai.storage import read_config
+    config = read_config(db_path)
+    existing_group_ids = {g['id'] for g in config.get('groups', [])}
+    req_gid = case_data.get('group_id', 'historia-3gp')
+    gid = req_gid if req_gid in existing_group_ids else (next(iter(existing_group_ids)) if existing_group_ids else req_gid)
+
     context = context_for(
         db_path,
-        case_data.get('group_id', 'historia-3gp'),
+        gid,
         case_data.get('duration_minutes', 60),
         unit_id=case_data.get('unit_id'),
         criteria=case_data.get('teacher_criteria', '')
@@ -489,12 +495,14 @@ def create_synthetic_proposal_response(case_data):
     return resp
 
 
-def run_benchmark(offline=False, enable_review=False, provider=None, model=None, date_str=None):
-    """Ejecuta el banco completo de pruebas."""
+def run_benchmark(offline=False, enable_review=False, provider=None, model=None, date_str=None, case_filter=None):
+    """Ejecuta el banco de pruebas."""
     cases = load_test_cases()
+    if case_filter:
+        cases = [(p, d) for p, d in cases if d.get('id') == case_filter or case_filter in p.stem]
     if not cases:
-        print("No se encontraron casos en eval/casos/*.yaml")
-        return 1
+        print("No se encontraron casos coincidentes en eval/casos/*.yaml")
+        return []
 
     date_str = date_str or datetime.now().strftime('%Y-%m-%d_%H%M%S')
     run_dir = RESULTS_BASE_DIR / date_str
@@ -509,8 +517,8 @@ def run_benchmark(offline=False, enable_review=False, provider=None, model=None,
     print(f"  Modo: {'Sintético determinista (Offline)' if offline else f'Modelo generativo activo ({prov_label})'}")
     print(f"============================================================\n")
 
-    rag_cfg_path = ROOT / 'config/rag.example.yaml'
-    ped_cfg_path = ROOT / 'config/pedagogy.example.yaml'
+    rag_cfg_path = (ROOT / 'config/rag.yaml') if (not offline and (ROOT / 'config/rag.yaml').exists()) else (ROOT / 'config/rag.example.yaml')
+    ped_cfg_path = (ROOT / 'config/pedagogy.yaml') if (not offline and (ROOT / 'config/pedagogy.yaml').exists()) else (ROOT / 'config/pedagogy.example.yaml')
     rag_settings = load_rag_settings(rag_cfg_path)
     gen_settings = load_generation_settings(ped_cfg_path)
 
@@ -538,29 +546,36 @@ def run_benchmark(offline=False, enable_review=False, provider=None, model=None,
     results_report = []
 
     with tempfile.TemporaryDirectory(prefix='docente-eval-') as tmpdir:
-        db_path = Path(tmpdir) / 'docente.sqlite3'
-        import_config(db_path, load(ROOT / 'config/teaching.example.yaml'))
+        if not offline and (ROOT / 'data/docente.sqlite3').exists():
+            # Ejecución real contra la biblioteca del profesor sobre copia temporal (no contamina data/docente.sqlite3)
+            import shutil
+            db_path = Path(tmpdir) / 'docente_eval.sqlite3'
+            shutil.copy2(ROOT / 'data/docente.sqlite3', db_path)
+            lib_link = Path(tmpdir) / 'library'
+            if (ROOT / 'data/library').exists() and not lib_link.exists():
+                lib_link.symlink_to((ROOT / 'data/library').resolve())
+            from docente_ai.rag.ollama import OllamaEmbedder
+            embedder_factory = OllamaEmbedder
+        else:
+            db_path = Path(tmpdir) / 'docente.sqlite3'
+            # Modo offline / pruebas unitarias: entorno temporal seguro
+            import_config(db_path, load(ROOT / 'config/teaching.example.yaml'))
 
-        # Importar y autorizar fuentes sintéticas representativas
-        for case_id, content in CASE_SOURCES.items():
-            src_file = Path(tmpdir) / f"{case_id}.txt"
-            src_file.write_text(content, encoding='utf-8')
-            doc = import_document(db_path, src_file, category='documental', subjects=['historia-i'],
-                                  values={'title': f"Fuente de evaluación: {case_id}", 'authors': ['Musicología Académica']})
-            authorize_document(db_path, doc['document_id'], enabled=True)
+            # Fuentes sintéticas marcadas con origin 'generado_ia' y tipo 'texto_prueba' (nunca 'bibliografia')
+            for case_id, content in CASE_SOURCES.items():
+                src_file = Path(tmpdir) / f"{case_id}.txt"
+                src_file.write_text(content, encoding='utf-8')
+                doc = import_document(db_path, src_file, category='documental', subjects=['historia-i'],
+                                      values={
+                                          'title': f"Texto de prueba sintetico: {case_id}",
+                                          'authors': ['Entorno de prueba (offline)'],
+                                          'origin': 'generado_ia',
+                                          'document_type': 'texto_prueba'
+                                      })
+                authorize_document(db_path, doc['document_id'], enabled=True)
 
-        if offline:
             embedder_factory = FakeEmbedder
             index_library(db_path, rag_settings, FakeEmbedder())
-        else:
-            try:
-                with OllamaEmbedder(rag_settings) as embedder:
-                    index_library(db_path, rag_settings, embedder)
-                embedder_factory = None
-            except Exception as e:
-                print(f"[Aviso] No se pudo conectar a Ollama para embeddings ({e}). Usando FakeEmbedder.")
-                embedder_factory = FakeEmbedder
-                index_library(db_path, rag_settings, FakeEmbedder())
 
         for case_path, case_data in cases:
             case_id = case_data.get('id', case_path.stem)
@@ -741,6 +756,7 @@ if __name__ == '__main__':
     parser.add_argument('--provider', default='deepseek', help='Proveedor LLM (deepseek u ollama).')
     parser.add_argument('--model', default='deepseek-chat', help='Modelo generativo.')
     parser.add_argument('--date-str', default=None, help='Fecha o identificador de salida en eval/resultados/<date-str>/')
+    parser.add_argument('--case', default=None, help='Filtrar por id de caso específico.')
     args = parser.parse_args()
 
     offline_mode = args.offline
@@ -753,10 +769,10 @@ if __name__ == '__main__':
         print("\n>>> EJECUTANDO COMPARACIÓN: REVISIÓN DESACTIVADA VS ACTIVADA <<<\n")
         print("--- 1. Ejecución con Revisión DESACTIVADA ---")
         date_off = args.date_str or (datetime.now().strftime('%Y-%m-%d_%H%M%S') + '_sin_revision')
-        res_off = run_benchmark(offline=offline_mode, enable_review=False, provider=provider, model=model, date_str=date_off)
+        res_off = run_benchmark(offline=offline_mode, enable_review=False, provider=provider, model=model, date_str=date_off, case_filter=args.case)
         print("\n--- 2. Ejecución con Revisión ACTIVADA ---")
         date_on = args.date_str or (datetime.now().strftime('%Y-%m-%d_%H%M%S') + '_con_revision')
-        res_on = run_benchmark(offline=offline_mode, enable_review=True, provider=provider, model=model, date_str=date_on)
+        res_on = run_benchmark(offline=offline_mode, enable_review=True, provider=provider, model=model, date_str=date_on, case_filter=args.case)
 
         print("\n" + "=" * 110)
         print("               TABLA COMPARATIVA DETALLADA: REVISIÓN DESACTIVADA VS ACTIVADA")
@@ -783,6 +799,6 @@ if __name__ == '__main__':
         print("=" * 110 + "\n")
         sys.exit(0)
 
-    run_benchmark(offline=offline_mode, enable_review=with_review, provider=provider, model=model, date_str=args.date_str)
+    run_benchmark(offline=offline_mode, enable_review=with_review, provider=provider, model=model, date_str=args.date_str, case_filter=args.case)
     sys.exit(0)
 

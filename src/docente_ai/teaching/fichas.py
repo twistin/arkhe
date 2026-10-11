@@ -97,3 +97,38 @@ def find_relevant_fichas(topic: str, criteria: str = '', directory: Path | str |
             
     scored.sort(key=lambda x: x[0], reverse=True)
     return [f for _, f in scored[:limit]]
+
+
+def index_fichas_to_library(db_path: Path | str, directory: Path | str | None = None) -> list[str]:
+    """Indexa las fichas Markdown en la biblioteca SQLite según su frontmatter."""
+    from docente_ai.library.service import import_document, authorize_document
+    fichas = load_all_fichas(directory)
+    imported_ids = []
+    for ficha in fichas:
+        p = Path(ficha['path'])
+        meta = ficha['metadata']
+        origen = meta.get('origen') or 'bibliografia'
+        categoria = 'profesor' if origen == 'notas_profesor' else 'documental'
+        
+        # Extraer autores de la fuente bibliográfica o frontmatter
+        fuente_bib = meta.get('fuente_bibliografica') or ''
+        authors = meta.get('autores') or []
+        if not authors and fuente_bib:
+            authors = [fuente_bib.split('(')[0].strip()] if '(' in fuente_bib else [fuente_bib.split('.')[0].strip()]
+        if not authors:
+            authors = ['Profesor' if categoria == 'profesor' else 'Musicología']
+            
+        doc_values = {
+            'title': meta.get('titulo') or meta.get('tema') or p.stem,
+            'authors': authors,
+            'origin': origen,
+            'tags': meta.get('palabras_clave') or [],
+            'document_type': meta.get('tipo') or 'ficha_curricular'
+        }
+        try:
+            doc = import_document(db_path, p, category=categoria, subjects=['historia-i'], values=doc_values)
+            authorize_document(db_path, doc['document_id'], enabled=True)
+            imported_ids.append(doc['document_id'])
+        except Exception:
+            pass
+    return imported_ids

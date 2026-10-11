@@ -262,3 +262,60 @@ def test_web_docx_y_descargas_original_derivada(web, fake_ocr):
     assert client.get(endpoint).json()['versions'][-1]['text_origin'] == 'texto OCR'
     script = client.get('/assets/js/componentes/documentos.js').text
     assert 'posible error de reconocimiento' in script and 'docx_paragraph' in script
+
+
+def test_corregir_erratas_i_l_en_ocr_y_preservacion(fake_ocr):
+    from docente_ai.library.parsers import corregir_erratas_i_l
+
+    # 1. Función corregir_erratas_i_l: 'lastian' -> 'Iastian', 'lonian' -> 'Ionian'
+    texto_entrada = 'The lastian tonos and an lonian harmonia in ancient Greek music.'
+    corregido, susts = corregir_erratas_i_l(texto_entrada)
+    assert corregido == 'The Iastian tonos and an Ionian harmonia in ancient Greek music.'
+    assert len(susts) == 2
+    assert susts[0]['original'] == 'lastian' and susts[0]['corregido'] == 'Iastian'
+    assert susts[1]['original'] == 'lonian' and susts[1]['corregido'] == 'Ionian'
+
+    # 2. Palabras correctas con 'l' no deben tocarse ni alterarse
+    texto_intacto = 'The lyre, lawful melody, classic mode and linear scale remain completely valid.'
+    corregido_intacto, susts_vacias = corregir_erratas_i_l(texto_intacto)
+    assert corregido_intacto == texto_intacto
+    assert susts_vacias == []
+
+    # 3. Integración en extract: segmentos OCR se corrigen guardando original en locator
+    calls, output_ocr = fake_ocr
+    # Simular texto OCR reconocido con erratas de OCR
+    ocr_text_with_typos = 'The lastian tonos is documented along with the lonian harmonia and a lyre.'
+    pdf_ocr_bytes = pdf_bytes(ocr_text_with_typos)
+    
+    # Inyectar el runner que escribe el PDF con erratas OCR
+    def custom_run(command, **kwargs):
+        Path(command[-1]).write_bytes(pdf_ocr_bytes)
+        return subprocess.CompletedProcess(command, 0)
+    import pytest
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(ocr.subprocess, 'run', custom_run)
+    try:
+        # PDF escaneado (sin texto) procesado mediante OCR
+        scanned_pdf = pdf_bytes(None)
+        resultado = extract(scanned_pdf, '.pdf')
+        assert resultado.status == 'ready' or resultado.status == 'needs_review'
+        seg = resultado.segments[0]
+        assert seg['locator']['ocr_document'] is True
+        assert 'Iastian' in seg['text']
+        assert 'Ionian' in seg['text']
+        assert 'lastian' not in seg['text']
+        assert 'lyre' in seg['text']  # 'l' correcta intacta
+        assert seg['locator']['texto_ocr_original'] == ocr_text_with_typos
+        assert len(seg['locator']['ocr_correcciones_i_l']) == 2
+    finally:
+        monkeypatch.undo()
+
+    # 4. Segmento no OCR (PDF con texto digital o documento de texto) no se modifica
+    digital_text = 'A digital text with lastian and lonian untouched if not processed by OCR.'
+    digital_pdf = pdf_bytes(digital_text)
+    resultado_digital = extract(digital_pdf, '.pdf')
+    seg_digital = resultado_digital.segments[0]
+    assert not seg_digital['locator'].get('ocr_document')
+    assert seg_digital['text'] == digital_text
+    assert 'texto_ocr_original' not in seg_digital['locator']
+

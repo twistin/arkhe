@@ -9,7 +9,7 @@ import sqlite3
 
 from docente_ai.config import RELATIONS, SCHEMAS, validate
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 
 
 
@@ -105,6 +105,34 @@ def migrate(connection: sqlite3.Connection) -> None:
                 connection.execute('UPDATE subjects SET payload=? WHERE id=?', (json.dumps(subject), key))
         connection.execute('PRAGMA user_version = 8')
         connection.commit()
+        version = 8
+    if version == 8:
+        from docente_ai.teaching.terms import normalize_topic
+        cols = {col[1] for col in connection.execute('PRAGMA table_info(generation_runs)').fetchall()}
+        if 'display_title' not in cols:
+            connection.execute('ALTER TABLE generation_runs ADD COLUMN display_title TEXT')
+        if 'original_topic' not in cols:
+            connection.execute('ALTER TABLE generation_runs ADD COLUMN original_topic TEXT')
+        cursor = connection.execute('SELECT id, request_json FROM generation_runs')
+        for run_id, request_raw in cursor.fetchall():
+            req = json.loads(request_raw) if request_raw else {}
+            original = req.get('original_topic') or req.get('question') or ''
+            manual = req.get('manual_title')
+            existing_display = req.get('display_title')
+            if manual and existing_display:
+                display = existing_display
+            else:
+                norm = normalize_topic(original)
+                display = (norm[:1].upper() + norm[1:]) if norm else original
+            req['original_topic'] = original
+            req['display_title'] = display
+            connection.execute(
+                'UPDATE generation_runs SET display_title = ?, original_topic = ?, request_json = ? WHERE id = ?',
+                (display, original, json.dumps(req, ensure_ascii=False), run_id),
+            )
+        connection.execute('PRAGMA user_version = 9')
+        connection.commit()
+        version = 9
 
 
 def import_config(path: Path, raw: dict, *, replace: bool = False) -> dict:

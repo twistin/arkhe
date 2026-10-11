@@ -22,10 +22,10 @@ export function studentDocumentHTML(run) {
     claims = run.result?.claims || [];
   const session = context.session;
   const sources = [...new Map((run.evidence || []).map(item => [item.document_id, item.metadata])).values()];
-  const rawQuestion = (run.request?.question || '').trim();
+  const rawQuestion = (run.original_topic || run.request?.original_topic || run.request?.question || '').trim();
   const normalizedQuestion = normalizeTopic(rawQuestion);
-  const title = normalizedQuestion.charAt(0).toLocaleUpperCase('es') + normalizedQuestion.slice(1);
-  const hasDiffTopic = rawQuestion && normalizedQuestion.toLowerCase() !== rawQuestion.toLowerCase();
+  const rawTitle = (run.display_title || run.title || run.request?.display_title || '').trim();
+  const title = rawTitle || (normalizedQuestion.charAt(0).toLocaleUpperCase('es') + normalizedQuestion.slice(1));
   const visuals = run.result?.visualizations || [];
   const isNTAM = isNTAMSubject(run);
   const isPolyphony = is15thCenturyPolyphony(run);
@@ -38,8 +38,6 @@ export function studentDocumentHTML(run) {
     `<div class="student-brand">\n        <span class="student-pill">ARKHÉ · `,
     `MATERIAL DE CLASE</span>\n        <span class="student-topic-tag">CUADERNO `,
     `DIDÁCTICO DEL ALUMNADO</span>\n      </div>\n      <h1>${e(title)}</h1>\n`,
-    `${hasDiffTopic ? `      <p class="student-topic-original"><em>Tema original propuesto: ` +
-      `${e(rawQuestion)}</em></p>\n` : ''}`,
     `      <div class="student-meta">\n        <strong>${e(context.group?.name || 'Grupo')}</strong>\n` +
     `        <span>${e(context.group?.level || 'Conservatorio')}</span>\n` +
     `        <span>⏱ ${e(context.duration_minutes || 60)} minutos</span>\n` +
@@ -263,45 +261,25 @@ export function studentDocumentHTML(run) {
       }`
     ].join(''),
     `\n      </div>\n    </section>\n\n`,
-    `${isNTAM ? '' : [
-      `<!-- SECCIÓN 04: RELACIÓN DE 4 AUDICIONES COMENTADAS -->\n`,
+    `${(isNTAM || (!isEgypt && !isPolyphony && (!listenings || !listenings.length))) ? '' : [
+      `<!-- SECCIÓN 04: RELACIÓN DE AUDICIONES COMENTADAS -->\n`,
       `    <section class="student-section section-listenings">\n`,
       `      <div class="student-section-header">\n`,
       `        <span class="student-section-number">04</span>\n`,
       `        <div>\n          <h2>Relación `,
-      `de 4 audiciones comentadas</h2>\n          <p class="student-section-intro">`,
-      `Obras maestras y repertorio de audición activa con análisis formal y antologías `,
+      `de audiciones comentadas</h2>\n          <p class="student-section-intro">`,
+      `Obras y repertorio de audición activa con análisis formal y antologías `,
       `de referencia.</p>\n        </div>\n      </div>\n      <div class="listening-grid">\n        `,
       `${
         isEgypt ? renderEgyptListeningsHTML(false) : isPolyphony ? POLYPHONY_LISTENINGS.map(l =>
           renderListeningCardItem(l, false)).join('') : (listenings?.length ? listenings.map(l =>
-          renderListeningCardItem(l, false)).join('') : (
-          [1, 2, 3, 4].map(i => {
-            const act = (plan.activities || [])[i - 1] || {};
-            const actTitle = act.title || `Obra y audición ${e(i)} de la sesión`;
-            return [
-              `\n              <div class="listening-card">\n                <div `,
-              `class="listening-head">\n                  <span class="listening-badge">AUDICIÓN ${e(i)}`,
-              `</span>\n                  <div>\n                    <strong>${e(actTitle)}`,
-              `</strong>\n                    <small>Ejemplo práctico y análisis para ${e(title)}`,
-              `</small>\n                  </div>\n                </div>\n                <div `,
-              `class="listening-anthology">📚 Antología de partituras y fuentes de la `,
-              `materia</div>\n                <div class="listening-points">\n                  `,
-              `<strong>Puntos clave de escucha activa:</strong>\n                  <ul>\n                    <li>`,
-              `${
-                e(act.instructions || 'Identificar la textura predominante y la articulación formal de las frases.')
-              }`,
-              `</li>\n                    <li>Seguir la conducción melódica y los puntos de `,
-              `tensión y reposo cadencial.</li>\n                    <li>Relacionar los `,
-              `procedimientos técnicos escuchados con el marco histórico de la sesión.</li>\n   `,
-              `               </ul>\n                </div>\n              </div>\n            `
-            ].join('');
-          }).join('')
-        ))
+          renderListeningCardItem(l, false)).join('') : '')
       }`,
       `\n      </div>\n    </section>\n\n`
     ].join('')}`,
-    `<!-- SECCIÓN ${isNTAM ? '04' : '05'}: TRABAJOS PARA EL ALUMNADO -->\n`,
+    `<!-- SECCIÓN ${
+      isNTAM || (!isEgypt && !isPolyphony && (!listenings || !listenings.length)) ? '04' : '05'
+    }: TRABAJOS PARA EL ALUMNADO -->\n`,
     `    <section class="student-section section-assignments">\n`,
     `      <div class="student-section-header">\n`,
     `        <span class="student-section-number">`,
@@ -418,47 +396,31 @@ export function studentDocumentHTML(run) {
           `firmus de la misa cíclica?</li>\n                <li>¿Qué función estructural `,
           `desempeñaba la técnica del <em>motto</em> o motivo de cabeza?</li>\n             `,
           ` </ul>\n            </div>\n          </div>\n        `
-        ].join('') : [
-          `\n          <div class="assignment-card">\n            <div class="assign-head">`,
-          `\n              <span class="assign-tag">TAREA 1 · PARTITURA</span>\n            `,
-          `  <strong>Análisis auditivo y sobre partitura</strong>\n            </div>\n     `,
-          `       <p><strong>Objetivo:</strong> Localizar en la partitura los elementos `,
-          `constructivos y técnicos trabajados en la sesión de ${e(title)}`,
-          `.</p>\n            <div class="assign-instructions">\n              <ul>\n       `,
-          `         <li>Marcar las entradas motívicas, cesuras y cambios de textura `,
-          `musical.</li>\n                <li>Identificar los puntos de articulación formal `,
-          `y las cadencias principales.</li>\n              </ul>\n            </div>\n     `,
-          `     </div>\n\n          <div class="assignment-card">\n            <div `,
-          `class="assign-head">\n              <span class="assign-tag">TAREA 2 · FORMA Y `,
-          `ESTRUCTURA</span>\n              <strong>Diagramación formal y esquema `,
-          `estructural</strong>\n            </div>\n            <p><strong>`,
-          `Objetivo:</strong> Diseñar un mapa visual de la arquitectura formal de las obras `,
-          `estudiadas.</p>\n            <div class="assign-instructions">\n              `,
-          `<ul>\n                <li>Esquematizar las secciones principales (exposición, `,
-          `desarrollo, reexposiciones o estribillos).</li>\n                <li>Indicar la `,
-          `modulación o centros tonales/modales de cada sección.</li>\n              </ul>`,
-          `\n            </div>\n          </div>\n\n          <div class="assignment-card">`,
-          `\n            <div class="assign-head">\n              <span class="assign-tag">`,
-          `TAREA 3 · ESTILO Y TEXTURA</span>\n              <strong>Matriz comparativa de `,
-          `estilo</strong>\n            </div>\n            <p><strong>Objetivo:</strong> `,
-          `Contrastar dos pasajes o ejemplos musicales analizando sus rasgos `,
-          `diferenciales.</p>\n            <div class="assign-instructions">\n              `,
-          `<ul>\n                <li>Elaborar una tabla analítica comparando textura `,
-          `(homofonía vs. contrapunto), ritmo armónico y perfil melódico.</li>\n            `,
-          `    <li>Justificar las conclusiones utilizando vocabulario técnico de `,
-          `conservatorio.</li>\n              </ul>\n            </div>\n          </div>`,
-          `\n\n          <div class="assignment-card">\n            <div `,
-          `class="assign-head">\n              <span class="assign-tag">TAREA 4 · `,
-          `CONSOLIDACIÓN</span>\n              <strong>Cuestionario de conceptos `,
-          `clave</strong>\n            </div>\n            <p><strong>Objetivo:</strong> `,
-          `Afianzar el dominio de los conceptos obligatorios de la unidad.</p>\n            `,
-          `<div class="assign-instructions">\n              <ul>\n                <li>`,
-          `Definir con precisión técnica los términos obligatorios de la sesión.</li>\n     `,
-          `           <li>Redactar una síntesis razonada ilustrando cada concepto con un `,
-          [
-            `ejemplo musical concreto.</li>\n              </ul>\n            </div>\n          </div>\n        `
+        ].join('') : (
+          (plan.activities && plan.activities.length) ? plan.activities.map((act, i) => [
+            `\n          <div class="assignment-card">\n            <div class="assign-head">`,
+            `\n              <span class="assign-tag">TRABAJO ${e(i + 1)}</span>\n            `,
+            `  <strong>${e(act.title || `Trabajo práctico ${i + 1}`)}</strong>\n            </div>\n     `,
+            `       <p><strong>Objetivo:</strong> Aplicar de forma activa los contenidos teóricos `,
+            `y prácticos trabajados en la sesión.</p>\n`,
+            `            <div class="assign-instructions">\n              <ul>\n       `,
+            `         <li>${e(
+              act.student_task || act.instructions ||
+              'Desarrollo analítico o práctico según las pautas de la sesión.'
+            )}</li>\n`,
+            `${act.deliverable ? `                <li><strong>Entregable:</strong> ${e(act.deliverable)}</li>\n` : ''}`,
+            `              </ul>\n            </div>\n          </div>\n        `
+          ].join('')).join('') : [
+            `\n          <div class="assignment-card">\n            <div class="assign-head">`,
+            `\n              <span class="assign-tag">TRABAJO 1</span>\n            `,
+            `  <strong>Análisis auditivo y sobre partitura</strong>\n            </div>\n     `,
+            `       <p><strong>Objetivo:</strong> Localizar en la partitura los elementos `,
+            `constructivos y técnicos de la sesión.</p>\n`,
+            `            <div class="assign-instructions">\n              <ul>\n       `,
+            `         <li>Seguir las pautas de análisis y anotación en partitura facilitadas.</li>\n`,
+            `              </ul>\n            </div>\n          </div>\n        `
           ].join('')
-        ].join('')
+        )
       }`
     ].join(''),
     `\n      </div>\n\n      <!-- SECUENCIA DE TRABAJO EN EL AULA -->\n      <div `,
@@ -547,8 +509,12 @@ export function studentDocumentHTML(run) {
     `\n        `,
     [
       `${
-        sources.filter(s => s.title && !s.title.includes('Atlas') && !s.title.includes('Reese') && !s.title.includes(
-          'Duchesne')).map(meta => [
+        sources.filter(s => {
+          const t = s.title || '';
+          const tl = t.toLowerCase();
+          return t && !t.includes('Fuente de evaluación:') && !tl.includes('prueba') &&
+            !t.includes('Atlas') && !t.includes('Reese') && !t.includes('Duchesne');
+        }).map(meta => [
           `\n          <div class="source-pill-card">\n            <span `,
           [
             `class="source-pill-icon">📄</span>\n            <div>\n              <strong>${e(meta.title)}`
@@ -678,7 +644,8 @@ async function accionOpenDownloadStudent({target}) {
   const url = URL.createObjectURL(await response.blob()),
     link = document.createElement('a');
   link.href = url;
-  link.download = 'material-alumnado-' + identifier + '.md';
+  const headerFilename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1];
+  link.download = headerFilename || ('material-alumnado-' + identifier + '.md');
   document.body.appendChild(link);
   link.click();
   link.remove();

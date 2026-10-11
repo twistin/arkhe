@@ -856,8 +856,10 @@ def test_normalize_topic_typos_in_header():
     from docente_ai.generation.render import render_student, render_pedagogy
 
     assert normalize_topic('Ockehem y la misa ciclica') == 'Johannes Ockeghem y la misa cíclica'
-    assert normalize_topic('Resse y Dufay') == 'Gustave Reese y Guillaume Du Fay'
-    assert normalize_topic('Teoria y epitafio de seikilos') == 'Teoria y Epitafio de Sícilo (Seikilos)'
+    assert normalize_topic('Teoria y epitafio de seikilos') == 'Teoria y Epitafio de Seikilos'
+    assert normalize_topic('seikilos') == 'Seikilos'
+    assert 'Sícilo' not in normalize_topic('seikilos')
+    assert 'Sícilo' not in normalize_topic('epitafio de seikilos')
 
     run = {
         'id': 'run-test-typos',
@@ -887,11 +889,122 @@ def test_normalize_topic_typos_in_header():
     }
     student_md = render_student(run)
     assert '## Johannes Ockeghem y la misa cíclica' in student_md
-    assert '*Tema original propuesto:* Ockehem y la misa ciclica' in student_md
+    assert 'Tema original propuesto' not in student_md
+    assert 'Tema original' not in student_md
 
     pedagogy_md = render_pedagogy(run)
     assert 'Tema elegido: Johannes Ockeghem y la misa cíclica' in pedagogy_md
     assert 'Tema original: Ockehem y la misa ciclica' in pedagogy_md
+    assert '**Tema:** Johannes Ockeghem y la misa cíclica' in pedagogy_md
+
+
+def test_epitafio_de_srikilos_display_title_en_todos_los_formatos(tmp_path):
+    from docente_ai.web.workspace import Workspace
+    from docente_ai.generation.render import render_student, render_pedagogy
+    from docente_ai.generation.service import ask, get_run, list_runs
+
+    ws = Workspace(tmp_path, embedder_factory=FakeEmbedder)
+    import_config(ws.db, load(EXAMPLE), replace=True)
+    rag_cfg = RagSettings('fake:1')
+    gen_cfg = GenerationSettings('fake:1')
+    run = ask(ws.db, rag_cfg, gen_cfg, 'epitafio de srikilos',
+              subject='historia-i', embedder_factory=FakeEmbedder, generator_factory=FakeGenerator,
+              pedagogy_context={
+                  'group': {'id': 'g1', 'name': 'Historia I', 'subject_id': 'historia-i', 'level': '3º GP'},
+                  'duration_minutes': 60,
+                  'teacher_criteria': 'Epitafio de Seikilos y modos griegos',
+              })
+
+    assert run['display_title'] == 'Epitafio de Seikilos'
+    assert run['original_topic'] == 'epitafio de srikilos'
+
+    # 1. En la lista de propuestas (list_runs y workspace.state())
+    runs = list_runs(ws.db)
+    found = next(r for r in runs if r['id'] == run['id'])
+    assert found['display_title'] == 'Epitafio de Seikilos'
+
+    state = ws.state()
+    state_run = next(r for r in state['runs'] if r['id'] == run['id'])
+    assert state_run['title'] == 'Epitafio de Seikilos'
+    assert state_run['display_title'] == 'Epitafio de Seikilos'
+
+    # 2. En la guía docente (render_pedagogy) con plan
+    run['status'] = 'draft'
+    run['result'] = {
+        'claims': [{'student_summary': 'El epitafio es una obra griega antigua.', 'text': 'El epitafio es una obra griega antigua.'}],
+        'plan': {
+            'objectives': ['Conocer el epitafio'],
+            'difficulty': 'Media',
+            'activities': [{'title': 'Análisis', 'minutes': 60, 'claim_ids': [1]}],
+            'resources': ['Partitura'],
+            'observations': ''
+        }
+    }
+    pedagogy_md = render_pedagogy(run)
+    assert 'Tema elegido: Epitafio de Seikilos' in pedagogy_md
+    assert 'Tema original: epitafio de srikilos' in pedagogy_md
+    # Y en la Parte 2:
+    assert '**Tema:** Epitafio de Seikilos' in pedagogy_md
+    assert '**Tema:** epitafio de srikilos' not in pedagogy_md
+
+    # 3. En el material del alumnado (render_student)
+    student_md = render_student(run)
+    assert '## Epitafio de Seikilos' in student_md
+    assert 'Tema original' not in student_md
+    assert 'Tema original propuesto' not in student_md
+    assert 'srikilos' not in student_md
+
+
+def test_migracion_recalcula_display_title_y_respeta_edicion_manual(tmp_path):
+    import sqlite3
+    import json
+    from docente_ai.storage import connect, migrate, SCHEMA_VERSION
+    from docente_ai.generation.service import get_run, update_run_title
+
+    db = tmp_path / 'migracion_test.sqlite3'
+    # Crear base en versión 8 con una propuesta sin normalizar
+    with connect(db) as conn:
+        migrate(conn)
+        # Bajar a versión 8 y quitar columnas si existen
+        cursor = conn.execute("SELECT id, request_json FROM generation_runs LIMIT 1")
+
+    # Insertamos un run como si viniera de v8
+    run_id = 'run-v8-srikilos'
+    req = {
+        'question': 'epitafio de srikilos',
+        'subject': 'historia-i',
+        'pedagogy': {'group': {'name': 'Historia I', 'subject_id': 'historia-i', 'level': '3º GP'}, 'duration_minutes': 60}
+    }
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            "INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version) VALUES (?, ?, ?, ?, ?)",
+            (run_id, '2026-10-10T10:00:00Z', 'draft', json.dumps(req), '1.0')
+        )
+        conn.execute("PRAGMA user_version = 8")
+        conn.commit()
+        # Ejecutar migración v8 -> v9
+        migrate(conn)
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
+
+    # Comprobar que display_title fue recalculado y original_topic conservado
+    run_migrado = get_run(db, run_id)
+    assert run_migrado['display_title'] == 'Epitafio de Seikilos'
+    assert run_migrado['original_topic'] == 'epitafio de srikilos'
+
+    # Ahora editar manualmente el título
+    update_run_title(db, run_id, 'Tema Personalizado del Epitafio')
+    run_editado = get_run(db, run_id)
+    assert run_editado['display_title'] == 'Tema Personalizado del Epitafio'
+    assert run_editado['original_topic'] == 'epitafio de srikilos'
+
+    # Ejecutar migrate de nuevo no debe sobrescribir la edición manual
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA user_version = 8")
+        conn.commit()
+        migrate(conn)
+
+    run_tras_migracion = get_run(db, run_id)
+    assert run_tras_migracion['display_title'] == 'Tema Personalizado del Epitafio'
 
 
 def test_render_detailed_sources_and_unbacked_warning():
@@ -966,3 +1079,18 @@ def test_render_detailed_sources_and_unbacked_warning():
     assert 'Aviso: algunos contenidos carecen de fuente bibliográfica en la biblioteca' in pedagogy_md
 
 
+def test_quotations_abbreviations_no_split():
+    from docente_ai.generation.quotations import passages
+
+    text = (
+        'Pitágoras (c. 530 a. C.) investigó las proporciones numéricas acústicas mediante el monocordio, '
+        'estableciendo la octava (diapason, 2:1), la quinta (diapente, 3:2) y la cuarta (diatessaron, 4:3). '
+        'Aristóxeno de Tarento fundamentó la teoría armónica empírica en el siglo IV a. C. '
+        'Claudio Ptolomeo sistematizó los modos y géneros armónicos en el siglo II d. C.'
+    )
+    result = passages(text)
+    # «Pitágoras (c. 530 a. C.) investigó...» no debe cortarse en 'c.' ni en 'a.' ni en 'C.'
+    p1 = result[0]['text']
+    assert 'Pitágoras (c. 530 a. C.) investigó' in p1
+    assert 'estableciendo la octava' in p1
+    assert p1.startswith('Pitágoras (c. 530 a. C.) investigó')

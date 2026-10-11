@@ -1,10 +1,10 @@
 # Caso de evaluación: Tema del Barroco sin plantilla fija (música instrumental y bajo continuo)
 id: barroco-concerto-grosso
 descripcion: "El Barroco instrumental: evolución del bajo continuo, sonata da chiesa y nacimiento del concerto grosso (Corelli y Vivaldi)"
-group_id: historia-3gp
-level: "3º GP"
+group_id: historia-5-gp
+level: "5º GP"
 duration_minutes: 60
-unit_id: unidad-1
+unit_id: unit-h2-2
 
 # Tema tal como lo escribiría el profesor (con erratas/variantes habituales)
 topic: "Barroco instrumental: do baixo continuo ao concerto grosso en Corelli e Vivaldi"

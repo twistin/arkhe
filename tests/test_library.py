@@ -332,8 +332,9 @@ def test_v1_migration_preserves_configuration(tmp_path):
     source.write_text('Synthetic source')
     import_document(db, source, category='documental', subjects=['historia-i'])
     assert read_config(db) == config
+    from docente_ai.storage import SCHEMA_VERSION
     with sqlite3.connect(db) as connection:
-        assert connection.execute('PRAGMA user_version').fetchone()[0] == 8
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == SCHEMA_VERSION
 
 
 def test_missing_original_prevents_duplicate_success(library):
@@ -402,4 +403,27 @@ def test_origin_validation_and_ai_detection(library, tmp_path):
     docs_unclass = list_documents(db, origin='sin_clasificar')
     assert any(d['id'] == res1['document_id'] for d in docs_unclass)
     assert show_document(db, res1['document_id'])['metadata']['origin'] == 'sin_clasificar'
+
+
+def test_corregir_erratas_i_l_en_ingesta_ocr():
+    from docente_ai.library.parsers import corregir_erratas_i_l
+
+    # 'lastian' -> 'Iastian'
+    corregido, susts = corregir_erratas_i_l('The lastian tonos is described by Alypius.')
+    assert corregido == 'The Iastian tonos is described by Alypius.'
+    assert len(susts) == 1
+    assert susts[0]['original'] == 'lastian'
+    assert susts[0]['corregido'] == 'Iastian'
+
+    # 'lonian' -> 'Ionian'
+    corregido, susts = corregir_erratas_i_l('an lonian harmonia mentioned in ancient texts')
+    assert corregido == 'an Ionian harmonia mentioned in ancient texts'
+    assert len(susts) == 1
+    assert susts[0]['original'] == 'lonian'
+    assert susts[0]['corregido'] == 'Ionian'
+
+    # Preservar mayúsculas/minúsculas y no tocar palabras no afectadas
+    corregido, susts = corregir_erratas_i_l('Normal text without typos')
+    assert corregido == 'Normal text without typos'
+    assert susts == []
 
