@@ -30,6 +30,33 @@ class EvidenceCardinalityError(ResponseValidationError):
     error_type = 'evidence_count'
 
 
+MUSICAL_NOTATION_REGEX = re.compile(
+    r'(?:'
+    r'<\?xml[^>]*\?>\s*<score-(?:partwise|timewise)'
+    r'|<score-(?:partwise|timewise)'
+    r'|<measure\b[^>]*>[\s\S]*?</measure>'
+    r'|<note\b[^>]*>[\s\S]*?</note>'
+    r'|\*\*kern\b'
+    r'|\*\*mens\b'
+    r'|<mei\b'
+    r'|<staffDef\b'
+    r'|\\score\s*\{'
+    r'|\\relative\s*[a-g]'
+    r'|(?:\n|^)\s*[XTMKLV]:\s*[^\n]+(?:\n\s*[XTMKLV]:\s*[^\n]+){2,}'
+    r')',
+    re.IGNORECASE
+)
+
+
+def check_no_musical_notation(content: str):
+    """Rechaza cualquier notación musical generada directamente por el modelo."""
+    if isinstance(content, str) and MUSICAL_NOTATION_REGEX.search(content):
+        fail(
+            'El modelo no puede escribir notación musical en la respuesta. '
+            'Usa music_requests para describir la obra y técnica requeridas.'
+        )
+
+
 def fail(message):
     raise ResponseValidationError(message)
 
@@ -116,7 +143,12 @@ def validate_evidence(value, known, *, owner):
         if not isinstance(excerpt, str) or not 8 <= len(excerpt.strip()) <= 500:
             fail('La cita debe tener entre 8 y 500 caracteres.')
         if not quote_matches(excerpt, known[source_id]['text']):
-            raise QuoteResolutionError(f'{owner}.evidence[{index}]: La cita textual no coincide con el fragmento autorizado. Usa un quote_XXX permitido para esa fuente.')
+            avail = sorted(choices.keys()) if isinstance(excerpt, str) and 'choices' in locals() else []
+            raise QuoteResolutionError(
+                f'{owner}.evidence[{index}]: La cita textual no coincide con el fragmento autorizado de {source_id}. '
+                f'Usa un quote_XXX permitido para esa fuente (disponibles en {source_id}: {avail}) '
+                f'o elimina esta evidencia si no está respaldada.'
+            )
     return quotes
 
 
@@ -130,6 +162,7 @@ def validate_generated_text(value, *, label, maximum):
 
 
 def validate_response(content: str, evidence: list[dict]) -> dict:
+    check_no_musical_notation(content)
     try:
         data = json.loads(content, object_pairs_hook=unique_object,
                           parse_constant=lambda value: fail('Constante JSON inválida.'))

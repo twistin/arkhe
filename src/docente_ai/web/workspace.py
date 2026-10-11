@@ -245,12 +245,26 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
     def state(self):
         runs = list_runs(self.db, limit=100)
+        from docente_ai.teaching.terms import normalize_topic
         # Titles and scope for the real history, without sending prompts or raw responses.
         with closing(read_connection(self.db)) as connection:
+            cols = {col[1] for col in connection.execute('PRAGMA table_info(generation_runs)').fetchall()}
+            has_display = 'display_title' in cols
             for item in runs:
-                row = connection.execute('SELECT request_json,prompt_version FROM generation_runs WHERE id=?', (item['id'],)).fetchone()
-                request = json.loads(row[0])
-                item.update(title=request['question'], subject=request['subject'], kind='proposal' if 'pedagogy' in request else 'answer')
+                if has_display:
+                    row = connection.execute('SELECT request_json,prompt_version,display_title,original_topic FROM generation_runs WHERE id=?', (item['id'],)).fetchone()
+                    request = json.loads(row[0])
+                    raw_q = row[3] or request.get('original_topic') or request.get('question', '')
+                    disp_q = row[2] or request.get('display_title')
+                else:
+                    row = connection.execute('SELECT request_json,prompt_version FROM generation_runs WHERE id=?', (item['id'],)).fetchone()
+                    request = json.loads(row[0])
+                    raw_q = request.get('original_topic') or request.get('question', '')
+                    disp_q = request.get('display_title')
+                if not disp_q:
+                    norm_q = normalize_topic(raw_q)
+                    disp_q = (norm_q[:1].upper() + norm_q[1:]) if norm_q else raw_q
+                item.update(title=disp_q, display_title=disp_q, original_topic=raw_q, raw_title=raw_q, subject=request.get('subject'), kind='proposal' if 'pedagogy' in request else 'answer')
         try:
             gen_cfg = generation_settings(self.root / 'config/generation.yaml')
             gen_provider = gen_cfg.provider
@@ -278,6 +292,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 'generation_provider': gen_provider, 'generation_model': gen_model,
                 'api_key_configured': secret_configured(gen_cfg.secret_name) if gen_provider in PRESETS and provider_info['is_remote'] else False,
                 'provider_info': provider_info, 'pedagogy_provider_info': pedagogy_info, 'provider_presets': PRESETS,
+                'music_capabilities': self.music_capabilities(),
                 'run_stats': run_stats(self.db, 100)}
 
     def model_status(self):
@@ -432,11 +447,33 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         allowed_patch_keys = {'objectives', 'difficulty', 'activities', 'resources', 'observations'}
         patch = {k: v for k, v in data.items() if k in allowed_patch_keys}
         result = _edit_run(self.db, run_id, plan_patch=patch)
-        return {k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review')}
+        return {k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
+
+    def update_run_title(self, run_id: str, title: str) -> dict:
+        from docente_ai.generation.service import update_run_title as _update_run_title
+        result = _update_run_title(self.db, run_id, title)
+        return {k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
 
     def delete_run(self, run_id: str) -> dict:
         from docente_ai.generation.service import delete_run as _delete_run
         return _delete_run(self.db, run_id)
+
+    def adopt_score_candidate(self, run_id: str, request_id: str, data: dict) -> dict:
+        from docente_ai.generation.service import adopt_score_candidate as _adopt
+        rango = data.get('compases') or '1-8'
+        voz = data.get('voz')
+        cand_id = data.get('candidate_id')
+        dest = data.get('directorio_destino')
+        return _adopt(self.db, run_id, request_id, cand_id, rango_compases=rango, voz_resaltar=voz, directorio_destino=dest)
+
+    def discard_score_candidate(self, run_id: str, request_id: str, data: dict) -> dict:
+        from docente_ai.generation.service import discard_score_candidate as _discard
+        cand_id = data.get('candidate_id')
+        return _discard(self.db, run_id, request_id, cand_id)
+
+    def search_open_score_repos(self, run_id: str, request_id: str, data: dict | None = None) -> dict:
+        from docente_ai.generation.service import search_open_score_repos as _search
+        return _search(self.db, run_id, request_id)
 
     def delete_source(self, document_id: str) -> dict:
         from docente_ai.library.service import delete_document as _delete_document
@@ -752,3 +789,115 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         from docente_ai.teaching.calendar import to_ical
         config = read_config(self.db)
         return to_ical(config, group_id=group_id, reminder_minutes=reminder_minutes)
+
+    def music_capabilities(self) -> dict:
+        from docente_ai.music import ntam_available, fluidsynth_available, get_ntam_info
+        return {
+            "fluidsynth": fluidsynth_available(),
+            "ntam": ntam_available(),
+            "ntam_info": get_ntam_info(),
+        }
+
+    def calculate_tetrachords(self, data: dict) -> dict:
+        from docente_ai.music import generar_tetracordos
+        base = data.get("base", "E4")
+        direccion = data.get("direccion", "descendente")
+        sistema = data.get("sistema", "temperado")
+        return generar_tetracordos(base=base, direccion=direccion, sistema=sistema)
+
+    def export_score_wav(self, score_id: str, soundfont: str | None = None) -> bytes:
+        from docente_ai.music import fluidsynth_available, export_midi_to_wav, get_music21
+        from docente_ai.teaching.ejemplos import get_ejemplo
+        import tempfile
+
+        if not fluidsynth_available():
+            raise ValueError("FluidSynth no está disponible en este sistema.")
+
+        ej = get_ejemplo(score_id)
+        if not ej or not ej.get("archivo_path"):
+            raise ValueError(f"Ejemplo {score_id} no encontrado o sin archivo asociado.")
+
+        archivo_path = Path(ej["archivo_path"])
+        if not archivo_path.is_file():
+            raise ValueError(f"Archivo de partitura no encontrado: {archivo_path}")
+
+        m21 = get_music21()
+        score = m21.converter.parse(str(archivo_path))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_midi = Path(tmpdir) / "output.mid"
+            tmp_wav = Path(tmpdir) / "output.wav"
+            score.write("midi", fp=str(tmp_midi))
+            export_midi_to_wav(tmp_midi, tmp_wav, soundfont_path=soundfont)
+            if not tmp_wav.is_file():
+                raise RuntimeError("Error al generar el archivo WAV con FluidSynth.")
+            return tmp_wav.read_bytes()
+
+    def render_score_svg(self, file_path: str, start_measure: int = 1, end_measure: int = 8) -> str:
+        """Renderiza un SVG real usando Verovio y recortando al rango de compases indicado."""
+        import verovio
+        from docente_ai.music import get_music21, slice_measures
+        import tempfile
+
+        p = Path(file_path)
+        if not p.is_file():
+            raise FileNotFoundError(f"Partitura no encontrada: {file_path}")
+
+        m21 = get_music21()
+        try:
+            score = m21.converter.parse(str(p))
+            recorte = slice_measures(score, start_measure, end_measure)
+        except Exception:
+            # Si no se puede recortar directamente, usar la partitura completa
+            recorte = score
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xml_path = Path(tmpdir) / "slice.musicxml"
+            recorte.write("musicxml", fp=str(xml_path))
+            xml_content = xml_path.read_text(encoding="utf-8")
+
+        data_dir = Path(verovio.__file__).parent / "data"
+        tk = verovio.toolkit(False)
+        if data_dir.is_dir():
+            tk.setResourcePath(str(data_dir))
+        tk.setOptions({
+            "pageWidth": 1200,
+            "pageHeight": 800,
+            "scale": 45,
+            "adjustPageHeight": True,
+            "breaks": "auto",
+        })
+        tk.loadData(xml_content)
+        if tk.getPageCount() < 1:
+            return ""
+        return tk.renderToSVG(1)
+
+    def render_score_midi(self, file_path: str, start_measure: int = 1, end_measure: int = 8) -> str:
+        """Genera el MIDI base64 real mediante Verovio para el rango de compases elegido."""
+        import verovio
+        from docente_ai.music import get_music21, slice_measures
+        import tempfile
+
+        p = Path(file_path)
+        if not p.is_file():
+            raise FileNotFoundError(f"Partitura no encontrada: {file_path}")
+
+        m21 = get_music21()
+        try:
+            score = m21.converter.parse(str(p))
+            recorte = slice_measures(score, start_measure, end_measure)
+        except Exception:
+            recorte = score
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            xml_path = Path(tmpdir) / "slice.musicxml"
+            recorte.write("musicxml", fp=str(xml_path))
+            xml_content = xml_path.read_text(encoding="utf-8")
+
+        data_dir = Path(verovio.__file__).parent / "data"
+        tk = verovio.toolkit(False)
+        if data_dir.is_dir():
+            tk.setResourcePath(str(data_dir))
+        tk.loadData(xml_content)
+        return tk.renderToMIDI()
+

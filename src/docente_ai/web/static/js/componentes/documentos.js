@@ -12,6 +12,7 @@ import {
 } from './audiciones.js';
 import { renderEgyptInfographic } from '../infografias/egipto.js';
 import { renderStudentInfographic } from '../infografias/musica.js';
+import { renderMusicRequestsBlock } from './partituras.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function resultHTML(run) {
@@ -69,15 +70,13 @@ export function resultHTML(run) {
     groupLabel, levelLabel
   ].filter(Boolean).join(' · ');
 
-  const rawQuestion = (run.request?.question || '').trim();
+  const rawQuestion = (run.original_topic || run.request?.original_topic || run.request?.question || '').trim();
   const normalizedQuestion = normalizeTopic(rawQuestion);
-  const rawTitle = (run.title || '').trim();
+  const rawTitle = (run.display_title || run.title || run.request?.display_title || '').trim();
   const titleText = rawTitle || normalizedQuestion || (isPedagogy ? 'Propuesta pedagógica' :
     'Consulta documental');
-  const hasLongQuestion = (rawTitle && rawTitle !== rawQuestion) ||
-    (rawQuestion && normalizedQuestion !== rawQuestion);
-  const subtitleText = (rawTitle && rawTitle !== rawQuestion) ? rawQuestion :
-    (normalizedQuestion !== rawQuestion ? `Tema original propuesto: ${rawQuestion}` : '');
+  const subtitleText = (rawQuestion && rawQuestion.toLowerCase() !== titleText.toLowerCase()) ?
+    `Tema original: ${rawQuestion}` : '';
 
   let content = [
     `<section class="panel result result-document"><header class="result-cover"><div `,
@@ -103,7 +102,11 @@ export function resultHTML(run) {
         context?.session?.date ? `<span class="result-meta-pill">${e(context.session.date)}</span>` : ''
       }`
     ].join(''),
-    `</div><h2 class="result-title">${e(titleText)}</h2>`,
+    `</div><div class="result-title-container"><h2 class="result-title editable-title" ` +
+    `data-action="edit-proposal-title" data-run="${e(run.id)}" title="Clic para editar el título" ` +
+    `style="cursor:pointer; display:inline-flex; align-items:center; gap:0.5rem;">${e(titleText)} ` +
+    `<button class="button small ghost icon-button inline-edit-btn" data-action="edit-proposal-title" ` +
+    `data-run="${e(run.id)}" aria-label="Editar título" title="Editar título">${icon('edit')}</button></h2></div>`,
     `${
       subtitleText ? `<p class="result-subtitle">${e(subtitleText)}</p>` : ''
     }`,
@@ -482,6 +485,9 @@ export function resultHTML(run) {
   if (!hasGraphic) {
     for (const visual of visuals) content += visualHTML(run, visual);
   }
+  if (isPedagogy && (run.result?.music_requests?.length || run.result?.resolved_music_requests?.length)) {
+    content += renderMusicRequestsBlock(run);
+  }
   if (run.status === 'draft' && isPedagogy && !review) {
     content += [
       [
@@ -678,7 +684,8 @@ async function accionOpenDownloadSources({target}) {
   const url = URL.createObjectURL(await response.blob()),
     link = document.createElement('a');
   link.href = url;
-  link.download = 'anexo-fuentes-' + identifier + '.md';
+  const headerFilename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1];
+  link.download = headerFilename || ('anexo-fuentes-' + identifier + '.md');
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -726,11 +733,11 @@ async function accionOpenDownload({target}) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
+    const headerFilename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1];
     const filename = isOrig ?
       (decodeURIComponent(response.headers.get('Content-Disposition')?.match(
-          /filename\*=utf-8''([^;]+)/i)?.[1] || '') || response.headers.get('Content-Disposition')
-        ?.match(/filename="([^"]+)"/)?.[1] || 'original') :
-      'arkhe-' + identifier + '.md';
+          /filename\*=utf-8''([^;]+)/i)?.[1] || '') || headerFilename || 'original') :
+      (headerFilename || ('arkhe-' + identifier + '.md'));
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
@@ -744,15 +751,68 @@ async function accionOpenDownload({target}) {
   }
 }
 
+async function accionEditProposalTitle({target}) {
+  const el = target.closest('[data-run]');
+  const runId = el?.dataset.run || store.currentRun?.id;
+  const currentTitle = (store.currentRun?.display_title || store.currentRun?.title || '').trim();
+  modal('Editar título de la propuesta', [
+    '<form data-form="edit-proposal-title-form" class="stack">',
+    `<input type="hidden" name="run_id" value="${e(runId)}">`,
+    '<div class="field">',
+    '<label class="label" for="new-proposal-title">Título de la propuesta</label>',
+    `<input class="input" id="new-proposal-title" name="title" maxlength="500" required ` +
+    `value="${e(currentTitle)}" autofocus>`,
+    '</div>',
+    '<p class="field-hint">Este título se usará en la lista de propuestas, la guía docente, ' +
+    'el material del alumnado y las descargas.</p>',
+    '<div class="dialog-actions">',
+    '<button class="button ghost" type="button" data-action="close-dialog">Cancelar</button>',
+    '<button class="button primary" type="submit">Guardar título</button>',
+    '</div>',
+    '</form>'
+  ].join(''));
+}
+
+async function formEditProposalTitle({form, data}) {
+  const runId = data.run_id;
+  const title = (data.title || '').trim();
+  if (!title) throw new Error('El título no puede estar vacío.');
+  const updated = await api('/runs/' + encodeURIComponent(runId) + '/title', {title});
+  if (store.currentRun && store.currentRun.id === runId) {
+    Object.assign(store.currentRun, updated);
+  }
+  if (store.state?.runs) {
+    const found = store.state.runs.find(r => r.id === runId);
+    if (found) {
+      found.display_title = title;
+      found.title = title;
+    }
+  }
+  document.getElementById('dialog')?.close();
+  document.dispatchEvent(new CustomEvent('enjambre:render'));
+  toast('Título de la propuesta actualizado.');
+}
+
 export const actions = {
   'open-sources-run': accionOpenSourcesRun,
   'copy-code': accionOpenCopyCode,
   'download-sources': accionOpenDownloadSources,
   'copy-markdown': accionOpenCopyMarkdown,
   'download': accionOpenDownload,
+  'edit-proposal-title': accionEditProposalTitle,
+};
+
+export const forms = {
+  'edit-proposal-title-form': formEditProposalTitle,
 };
 
 export const clickBindings = [
+  {
+    priority: 3,
+    matches: target => target.dataset.action === 'edit-proposal-title' ||
+      target.closest('[data-action="edit-proposal-title"]'),
+    action: 'edit-proposal-title'
+  },
   {priority: 4, matches: target => target.dataset.sourcesRun, action: 'open-sources-run'},
   {priority: 6, matches: target => target.dataset.copyCode, action: 'copy-code'},
   {priority: 8, matches: target => target.dataset.downloadSources, action: 'download-sources'},

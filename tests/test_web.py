@@ -589,3 +589,12 @@ def test_cabeceras_workspace_marca_nueva_y_compatibilidad(web):
     calendar = client.get('/api/calendar.ics').text
     assert 'PRODID:-//Docente AI//Arkhé Docente//ES' in calendar
     assert '@enjambre.local' in calendar  # UID estable: no duplicar clases importadas.
+
+
+def test_endpoints_ejemplos_musicales(web):
+    client, ws = web
+    res = client.get('/api/ejemplos')
+    assert res.status_code == 200
+    ejemplos = res.json()
+    assert isinstance(ejemplos, list)
+

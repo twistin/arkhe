@@ -6,69 +6,61 @@ import json
 import re
 
 from docente_ai.generation import prompt as grounded
-from docente_ai.generation.validation import validate_response, unique_object, fail, JsonFormatError, ExtraFieldsError
+from docente_ai.generation.validation import (
+    validate_response, unique_object, fail, JsonFormatError, ExtraFieldsError, ResponseValidationError,
+    check_no_musical_notation
+)
 from docente_ai.llm.generation import OllamaGenerator
 from docente_ai.storage import read_config
 from docente_ai.teaching.curriculum import show_curriculum
 
+ValidationError = ResponseValidationError
+
 PROMPT_VERSION = 'pedagogy:9'
-SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Cada fuente incluye autor, título, año y tipo. Los criterios del profesor orientan la búsqueda y actividades, pero no son evidencia factual. Las fuentes con role="programming" son la programación didáctica: determinan objetivos, contenidos, secuencia, temporalización y evaluación; las demás documentan contenido técnico. Si falta información en las fuentes, indícalo en observations y no inventes.
+SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Las fuentes role="programming" son la programación didáctica: fijan objetivos, contenidos y evaluación; las demás documentan contenido técnico. Lagunas documentales van solo en coverage y observations de la guía docente; nunca inventes ni menciones fuentes ni autores ausentes en objetivos, student_summary ni tareas del alumno.
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
-- coverage: lista de evaluación de requisitos del profesor con requirement_id ("R1"-"RN"), status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Cada claim de la propuesta debe estar vinculado al requisito correspondiente en coverage. Si un requisito está "cubierto", enlaza sus claims; si "sin_fuentes", claim_ids es [].
-- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda para la sesión), student_summary (2 a 4 frases al alumno, sin hablar de 'alumnado' en 3ª persona ni pautas metodológicas) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
-- plan: objectives (2-5), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title (sin minutos), teacher_notes, student_task (2ª persona, acción práctica; no verbos docentes), grouping ("individual", "grupo" o "colectivo"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based).
+- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Cada claim vinculado a su requisito. Si piden cronología o autores no documentados en fuentes, declararlo expresamente aquí y en observations.
+- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda), student_summary (2 a 4 frases directas al alumno en 2ª persona sin hablar de fuentes ni 'alumnado' en 3ª persona) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
+- plan: objectives (2-5, orientados al aprendizaje musical; sin hablar de fuentes ni autores ausentes), difficulty, activities (2-5), resources (1-5), assessment y observations. Actividades: title, teacher_notes, student_task (2ª persona, tarea práctica activa; sin hablar de fuentes ni verbos docentes), grouping ("individual", "grupo" o "colectivo"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based). En teacher_notes y solution, hechos sin respaldo indican "aportación del profesor pendiente". Temporización: si hay teoría nueva, reserva 15-20 min de exposición; no comprimir teoría y transcripción en 10 min.
 - visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{"label":"...","detail":"..."}]), caption y evidence.
+- music_requests: 0 a 4 peticiones de ejemplos musicales con id ("MR1"-"MR4"), composer, work, section, voice (o null), technique (o null), activity_title y description (qué ilustra). Prohibido terminantemente escribir código o notación musical en la respuesta (el validador la rechaza).
 Devuelve solo JSON.'''
 
-TEXT = {'type': 'string', 'minLength': 1, 'maxLength': 3500}
-SHORT_TEXT = {'type': 'string', 'minLength': 1, 'maxLength': 1500}
-STRINGS = {'type': 'array', 'minItems': 1, 'maxItems': 5, 'items': SHORT_TEXT}
+TEXT = {'type': 'string'}
+STRINGS = {'type': 'array', 'items': TEXT}
 
 ACTIVITY_SCHEMA = {
     'type': 'object',
-    'additionalProperties': False,
     'properties': {
-        'title': {'type': 'string', 'minLength': 1, 'maxLength': 200},
-        'teacher_notes': {'type': 'string', 'minLength': 1, 'maxLength': 2000},
-        'student_task': {'type': 'string', 'minLength': 1, 'maxLength': 2000},
+        'title': TEXT,
+        'teacher_notes': TEXT,
+        'student_task': TEXT,
         'grouping': {'type': 'string', 'enum': ['individual', 'grupo', 'colectivo']},
-        'deliverable': {'type': 'string', 'minLength': 1, 'maxLength': 1000},
-        'solution': {'type': 'string', 'minLength': 1, 'maxLength': 2500},
-        'instructions': {'type': 'string', 'minLength': 1, 'maxLength': 2000},  # Compatibilidad histórica
+        'deliverable': TEXT,
+        'solution': TEXT,
         'minutes': {'type': 'integer', 'minimum': 1},
-        'claim_ids': {
-            'type': 'array',
-            'minItems': 1,
-            'maxItems': 12,
-            'items': {'type': 'integer', 'minimum': 1, 'maximum': 12}
-        }
+        'claim_ids': {'type': 'array', 'items': {'type': 'integer', 'minimum': 1}}
     },
     'required': ['title', 'minutes', 'claim_ids']
 }
 
 COVERAGE_ITEM_SCHEMA = {
     'type': 'object',
-    'additionalProperties': False,
     'properties': {
-        'requirement_id': {'type': 'string', 'minLength': 1, 'maxLength': 20},
+        'requirement_id': TEXT,
         'status': {'type': 'string', 'enum': ['cubierto', 'sin_fuentes', 'parcial']},
-        'claim_ids': {
-            'type': 'array',
-            'items': {'type': 'integer', 'minimum': 1, 'maximum': 12}
-        },
-        'note': {'type': 'string', 'maxLength': 500}
+        'claim_ids': {'type': 'array', 'items': {'type': 'integer'}},
+        'note': TEXT
     },
     'required': ['requirement_id', 'status', 'claim_ids']
 }
 
 RESPONSE_SCHEMA = deepcopy(grounded.RESPONSE_SCHEMA)
 # Claims en schema generativo: text, kind, student_summary, evidence
-RESPONSE_SCHEMA['properties']['claims']['items']['properties']['student_summary'] = SHORT_TEXT
+RESPONSE_SCHEMA['properties']['claims']['items']['properties']['student_summary'] = TEXT
 RESPONSE_SCHEMA['properties']['coverage'] = {
     'type': 'array',
-    'minItems': 0,
-    'maxItems': 10,
     'items': COVERAGE_ITEM_SCHEMA
 }
 RESPONSE_SCHEMA['properties']['plan'] = {
@@ -76,25 +68,41 @@ RESPONSE_SCHEMA['properties']['plan'] = {
         {'type': 'null'},
         {
             'type': 'object',
-            'additionalProperties': False,
             'properties': {
                 'objectives': STRINGS,
-                'difficulty': SHORT_TEXT,
+                'difficulty': TEXT,
                 'activities': {
                     'type': 'array',
-                    'minItems': 2,
-                    'maxItems': 5,
                     'items': ACTIVITY_SCHEMA
                 },
                 'resources': STRINGS,
-                'assessment': SHORT_TEXT,
-                'observations': SHORT_TEXT,
+                'assessment': TEXT,
+                'observations': TEXT,
             },
             'required': ['objectives', 'difficulty', 'activities', 'resources', 'assessment', 'observations'],
         }
     ]
 }
 RESPONSE_SCHEMA['required'].append('plan')
+
+MUSIC_REQUEST_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'id': TEXT,
+        'composer': TEXT,
+        'work': TEXT,
+        'section': TEXT,
+        'voice': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+        'technique': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+        'activity_title': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
+        'description': TEXT,
+    },
+    'required': ['id', 'composer', 'work', 'section', 'description'],
+}
+RESPONSE_SCHEMA['properties']['music_requests'] = {
+    'type': 'array',
+    'items': MUSIC_REQUEST_SCHEMA,
+}
 
 
 class PedagogicalGenerator(OllamaGenerator):
@@ -234,7 +242,8 @@ def normalize_claims(claims):
     return normalized
 
 
-def validate(content, evidence, context):
+def validate(content, evidence, context, *, retry: bool = True):
+    check_no_musical_notation(content)
     try:
         data = json.loads(content, object_pairs_hook=unique_object, parse_constant=lambda _: fail('Constante JSON inválida.'))
     except (json.JSONDecodeError, RecursionError):
@@ -243,7 +252,7 @@ def validate(content, evidence, context):
         fail('La propuesta requiere status, claims y plan.')
     top_level_obs = data.pop('observations', None) or data.pop('reason', None) or data.pop('notes', None)
     for k in list(data.keys()):
-        if k not in {'status', 'claims', 'plan', 'visualizations', 'coverage'}:
+        if k not in {'status', 'claims', 'plan', 'visualizations', 'coverage', 'music_requests'}:
             data.pop(k, None)
     if 'claims' in data:
         data['claims'] = normalize_claims(data['claims'])
@@ -272,6 +281,13 @@ def validate(content, evidence, context):
 
     # Validar student_summary por cada claim
     THIRD_PERSON_ALUMNADO = re.compile(r'\b(?:el\s+alumnado|los\s+alumnos|las\s+alumnas|los\s+estudiantes|las\s+estudiantes)\b', re.IGNORECASE)
+    SOURCE_META_TALK = re.compile(
+        r'\b(?:las\s+fuentes|los\s+pasajes|la\s+biblioteca|en\s+las\s+fuentes|seg[uú]n\s+las\s+fuentes|'
+        r'ausencia\s+de\s+[a-záéíóúñ\s]+\s+en\s+las\s+fuentes|falta\s+de\s+fuentes|sin\s+fuentes|'
+        r'fuentes\s+no\s+(?:mencionan|documentan|aportan|disponen|desarrollan)|laguna\s+documental|'
+        r'no\s+(?:hay|tenemos|se\s+dispone\s+de)\s+fuentes|pendiente\s+de\s+aportar\s+por\s+el\s+profesor)\b',
+        re.IGNORECASE
+    )
     for index, claim in enumerate(data['claims']):
         ss = student_summaries[index] if index < len(student_summaries) else None
         if ss is not None:
@@ -283,6 +299,13 @@ def validate(content, evidence, context):
                 fail(
                     f'claims[{index}].student_summary no debe hablar del "alumnado" o de los estudiantes en tercera persona '
                     'ni incluir instrucciones metodológicas. Explica el concepto directamente al grupo en 2 a 4 frases.'
+                )
+            if SOURCE_META_TALK.search(ss):
+                fail(
+                    f'claims[{index}].student_summary menciona fuentes o lagunas documentales. '
+                    'El material del alumnado explica los conceptos directamente sin hablar de "las fuentes", '
+                    '"los pasajes" ni de la ausencia de autores en la biblioteca. Esas observaciones van exclusivamente '
+                    'en la guía docente (cobertura y observaciones del plan).'
                 )
             claim['student_summary'] = ss.strip()
 
@@ -312,6 +335,14 @@ def validate(content, evidence, context):
             fail(f'{key} requiere entre uno y cinco elementos.')
         for item in plan[key]:
             text(item, label=f'Elemento de {key}', max_len=1500)
+    for obj_idx, obj in enumerate(plan.get('objectives', [])):
+        if SOURCE_META_TALK.search(obj):
+            fail(
+                f'plan.objectives[{obj_idx}] menciona fuentes o lagunas documentales. '
+                'Los objetivos corresponden al aprendizaje musical e histórico del alumnado y no deben hablar de "las fuentes", '
+                '"la biblioteca" ni de la ausencia de autores en los textos. Esas observaciones van exclusivamente '
+                'en la guía docente (cobertura y observaciones del plan).'
+            )
     text(plan['difficulty'], label='Dificultad', max_len=1500)
     text(plan['observations'], label='Observaciones', max_len=1500)
     if 'assessment' in plan:
@@ -383,6 +414,24 @@ def validate(content, evidence, context):
                     f'student_task en actividad {index + 1} no debe empezar con un verbo de acción del profesor '
                     '(explicar, proyectar, reproducir, dibujar, manejar, introducir, etc.). '
                     'Redáctala en segunda persona dirigida al alumno con una acción práctica (p. ej., "Escucha...", "Analiza...", "Compara...").'
+                )
+            if SOURCE_META_TALK.search(activity['student_task']):
+                fail(
+                    f'activities[{index}].student_task menciona fuentes o lagunas documentales. '
+                    'La consigna del estudiante no debe hablar de "las fuentes", "los pasajes" ni de la ausencia de autores en la biblioteca. '
+                    'Esas observaciones van exclusivamente en la guía docente (cobertura y observaciones del plan).'
+                )
+            if SOURCE_META_TALK.search(activity['deliverable']):
+                fail(
+                    f'activities[{index}].deliverable menciona fuentes o lagunas documentales. '
+                    'El entregable no debe hablar de "las fuentes", "los pasajes" ni de la ausencia de autores en la biblioteca. '
+                    'Esas observaciones van exclusivamente en la guía docente (cobertura y observaciones del plan).'
+                )
+            if SOURCE_META_TALK.search(activity['title']):
+                fail(
+                    f'activities[{index}].title menciona fuentes o lagunas documentales. '
+                    'El título de la actividad no debe hablar de "las fuentes", "los pasajes" ni de la ausencia de autores en la biblioteca. '
+                    'Esas observaciones van exclusivamente en la guía docente (cobertura y observaciones del plan).'
                 )
 
         if type(activity['minutes']) is not int or activity['minutes'] <= 0:
@@ -471,8 +520,119 @@ def validate(content, evidence, context):
                         f'El claim {c_idx} no responde a ningún requisito del profesor ni a la unidad didáctica de la programación. '
                         'Elimínalo o vincúlalo a un requisito en coverage.'
                     )
+
+        # Comprobación determinista de omisiones en requisitos de línea temporal o autores:
+        # Si un requisito pide cronología, línea temporal o autores, extrae los nombres de autores canónicos
+        # que aparezcan en los pasajes de evidencia enviados al modelo. Si alguno no figura en la propuesta
+        # (claims, línea temporal/visualizaciones o plan) ni en una nota de coverage que justifique su exclusión,
+        # devolver a reparación con la lista concreta.
+        from docente_ai.teaching.terms import find_canonical_authors_in_text
+        TIMELINE_AUTHOR_KEYWORDS = re.compile(
+            r'\b(?:l[ií]nea\s+de\s+tiempo|cronolog[íi]a|timeline|autores|principales\s+autores|pensadores|te[óo]ricos)\b',
+            re.IGNORECASE
+        )
+        timeline_reqs = [
+            r for r in requirements
+            if TIMELINE_AUTHOR_KEYWORDS.search(r.get('description', ''))
+        ]
+        if timeline_reqs and evidence:
+            # Extraer autores canónicos presentes en los pasajes de evidencia enviados
+            all_evidence_text = ' '.join(
+                s.get('text', '') or ' '.join(p.get('text', '') for p in s.get('passages', []))
+                for s in evidence
+            )
+            canonical_in_sources = find_canonical_authors_in_text(all_evidence_text)
+            if canonical_in_sources:
+                # Comprobar dónde aparecen en la propuesta generada
+                # 1. En el texto de claims
+                claims_text = ' '.join(c.get('text', '') for c in data.get('claims', []))
+                # 2. En las visualizaciones (línea temporal / esquemas)
+                viz_text = ' '.join(
+                    str(v.get('title', '')) + ' ' + ' '.join(str(item.get('label', '')) + ' ' + str(item.get('detail', '')) for item in v.get('items', []))
+                    for v in data.get('visualizations', []) or []
+                )
+                # 3. En las notas de coverage para los requisitos de timeline
+                cov_notes = ' '.join(
+                    cov_by_id[r['id']].get('note', '')
+                    for r in timeline_reqs
+                    if r['id'] in cov_by_id
+                )
+                # 4. En observaciones generales si las hubiera
+                obs_text = str(top_level_obs or '')
+
+                proposal_coverage_corpus = f"{claims_text} {viz_text} {cov_notes} {obs_text}"
+                omitted_authors = []
+                for author in sorted(canonical_in_sources):
+                    author_in_proposal = bool(find_canonical_authors_in_text(proposal_coverage_corpus).intersection({author}))
+                    if not author_in_proposal:
+                        omitted_authors.append(author)
+
+                if omitted_authors:
+                    msg = (
+                        f'Autores presentes en las fuentes y no incluidos: {", ".join(omitted_authors)}. '
+                        f'Deben incluirse en la línea temporal o documentarse con una nota de cobertura '
+                        f'en el requisito que justifique su exclusión o falta de desarrollo.'
+                    )
+                    if retry:
+                        fail(f'Omisión en la línea temporal / autores canónicos documentados en las fuentes: {", ".join(omitted_authors)}.')
+                    else:
+                        # Si tras la ronda de reparación persisten omisiones, no abortar la propuesta:
+                        # marcar cobertura en estado parcial y registrar el aviso visible para la guía docente.
+                        aviso = f"Autores presentes en las fuentes y no incluidos: {', '.join(omitted_authors)}"
+                        for r in timeline_reqs:
+                            if r['id'] in cov_by_id:
+                                cov_item = cov_by_id[r['id']]
+                                cov_item['status'] = 'parcial'
+                                prev_note = cov_item.get('note') or ''
+                                if aviso not in prev_note:
+                                    cov_item['note'] = (prev_note + f' | {aviso}').strip(' |')
+                        # Añadir aviso a observaciones del plan para que aparezca visible en la guía docente
+                        plan = data.get('plan')
+                        if isinstance(plan, dict):
+                            obs_prev = plan.get('observations') or ''
+                            if aviso not in obs_prev:
+                                plan['observations'] = (obs_prev + f' · {aviso}').strip(' ·')
+
+            # Si el profesor o los requisitos mencionan autores canónicos y alguno no figura en las fuentes:
+            requested_authors = find_canonical_authors_in_text(
+                ' '.join(r.get('description', '') for r in requirements) + ' ' + str(context.get('teacher_criteria', ''))
+            )
+            authors_without_sources = requested_authors - canonical_in_sources
+            if authors_without_sources:
+                aviso_sin_fuentes = f"Fuentes no documentan pasajes específicos para: {', '.join(sorted(authors_without_sources))}"
+                for r in timeline_reqs:
+                    if r['id'] in cov_by_id:
+                        cov_item = cov_by_id[r['id']]
+                        prev_note = cov_item.get('note') or ''
+                        if aviso_sin_fuentes not in prev_note:
+                            cov_item['note'] = (prev_note + f' | {aviso_sin_fuentes}').strip(' |')
+
     elif coverage is not None:
         if not isinstance(coverage, list):
             fail('coverage debe ser una lista.')
+
+    if 'music_requests' in data:
+        m_reqs = data['music_requests']
+        if not isinstance(m_reqs, list) or len(m_reqs) > 6:
+            fail('music_requests debe ser una lista con un máximo de seis peticiones.')
+        valid_requests = []
+        for idx, mr in enumerate(m_reqs):
+            if not isinstance(mr, dict):
+                fail(f'music_requests[{idx}] debe ser un objeto.')
+            for req_field in ('id', 'composer', 'work', 'section', 'description'):
+                val = mr.get(req_field)
+                if not isinstance(val, str) or not val.strip():
+                    fail(f'music_requests[{idx}].{req_field} es obligatorio y debe ser texto no vacío.')
+            valid_requests.append({
+                'id': str(mr['id']).strip(),
+                'composer': str(mr['composer']).strip(),
+                'work': str(mr['work']).strip(),
+                'section': str(mr['section']).strip(),
+                'voice': str(mr['voice']).strip() if mr.get('voice') else None,
+                'technique': str(mr['technique']).strip() if mr.get('technique') else None,
+                'activity_title': str(mr['activity_title']).strip() if mr.get('activity_title') else None,
+                'description': str(mr['description']).strip(),
+            })
+        data['music_requests'] = valid_requests
 
     return data

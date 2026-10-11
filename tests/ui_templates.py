@@ -161,10 +161,16 @@ HTML_SEGURO = frozenset(
         "studentDocumentHTML",
         "renderStudentInfographic",
         "renderEgyptInfographic",
-        "renderStaffSvg",
+        "renderEjemploPendiente",
         "renderListeningCardItem",
         "renderEgyptListeningsHTML",
         "renderStudentDiscographySection",
+        "renderScoreVoiceItem",
+        "renderScoreCandidateItem",
+        "renderMusicRequestCard",
+        "renderMusicRequestsBlock",
+        "renderWavDownloadButton",
+        "renderScorePreviewSvg",
         "libraryResults",
         "filaFuente",
         "botonPeriodo",
@@ -186,7 +192,7 @@ HTML_SEGURO = frozenset(
 )
 
 # Dos constructores de base tienen valores locales ya seguros: formatMarkdown
-# escapa el texto al entrar; icon y renderStaffSvg usan SVG literal del código.
+# escapa el texto al entrar; icon usa SVG literal del código.
 # modal recibe exclusivamente HTML compuesto por los constructores anteriores.
 INTERNOS_SEGUROS = {
     "formatMarkdown": {
@@ -197,7 +203,6 @@ INTERNOS_SEGUROS = {
         "trimmed.replace(/\\n/g, '<br>')",
     },
     "icon": {"paths[name] || paths.document"},
-    "renderStaffSvg": {"lines", "content"},
     "header": {"actions"},
     "dialogHTML": {"content"},
 }

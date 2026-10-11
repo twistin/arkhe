@@ -76,10 +76,29 @@ esperado (`deliverable`) y la solución o criterios de corrección (`solution`).
 cada claim incluye una síntesis redactada para el nivel del grupo (`student_summary`)
 y el plan incorpora un campo de evaluación formativa (`assessment`). El renderizado
 garantiza que el material del alumnado nunca contenga notas internas ni soluciones
-del profesor. También limpia minutos duplicados en los títulos, normaliza erratas en
-el encabezado (preservando el texto original) y convierte cronologías a secuencias.
+del profesor, ni menciones a erratas o carencias en las fuentes. El título se normaliza
+al generar y se almacena en `display_title` (conservando el original en `original_topic`),
+utilizándose en la lista de propuestas, cabeceras, Parte 2, nombres de archivos exportados
+y diario docente. En la guía docente se preserva el tema original como auditoría. Además,
+el título puede editarse manualmente desde la interfaz, teniendo dicha edición prioridad
+permanente sobre cualquier normalización automática posterior.
 Las propuestas de contratos anteriores conservan compatibilidad hacia atrás.
 La revisión pedagógica sigue siendo del profesor.
+
+Para la ilustración analítica de obras y técnicas, las propuestas pueden solicitar
+ejemplos mediante `music_requests` (obra, compositor, sección, técnica y actividad).
+El modelo nunca genera notación musical directa; un validador estricto rechaza cualquier
+bloque en MusicXML, MEI, LilyPond, ABC o Humdrum en la respuesta del LLM. Cada petición
+se resuelve automáticamente en cascada: (1) catálogo local `data/ejemplos/`; (2) carpeta de
+partituras del profesor (`Conocimiento/Partituras/`), cuyos archivos MusicXML, MXL, MEI,
+Humdrum (`.krn`) o ABC se indexan automáticamente extrayendo compositor, título, voces,
+compases, claves y mensuración; y (3) repositorios abiertos (Josquin Research Project,
+KernScores, CPDL y corpus music21), únicamente tras consentimiento explícito del profesor.
+En la guía docente, cada petición no resuelta ofrece una tarjeta «Ejemplo pendiente»
+con previsualización, selector de rango de compases y opciones para «Usar» (incorporándolo
+al catálogo verificado) o «Descartar». En el material del alumnado solo se incluyen
+ejemplos con verificación confirmada (`verificado: true`), impidiendo que aparezcan
+pentagramas o notas inventadas a mano en HTML o CSS.
 
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes
@@ -991,13 +1010,40 @@ Para evitar la inclusión de contenido estático y tablas fijas en el código:
 - **Directorio de fichas curadas (`data/fichas/`, con respaldo en `config/fichas/`):** Archivos Markdown con metadatos frontmatter YAML (`tema`, `periodo`, `palabras_clave`, `tipo`, `fuente_bibliografica`, `fecha_verificacion`). Las fichas se indexan y recuperan de forma dinámica en el pipeline RAG como fuentes con origen `notas_profesor` o `bibliografia` según su frontmatter. Incluye plantilla de ficha (`00_plantilla_ficha.md`) y ejemplo de Grecia (`grecia_teoria_y_seikilos.md`) con campos factuales marcados como `PENDIENTE DE VERIFICAR`.
 - **Catálogo de audiciones verificadas (`data/audiciones.yaml` y `config/audiciones.example.yaml`):** Obras musicales con compositor, movimiento, intérprete, URL, bibliografía, puntos de escucha y comentario docente. Las audiciones se resuelven por identificador de catálogo (`listening_ids`), asegurando que las URLs procedan exclusivamente del repositorio verificado y nunca sean generadas libremente por el modelo.
 - **Recursos pendientes explícitos:** Si un tema propuesto carece de audiciones en el catálogo verificado, la propuesta y la interfaz advierten expresamente: *«Recurso de audición pendiente de incorporar al catálogo»*.
+- **Catálogo de ejemplos musicales y partituras (`data/ejemplos/`, con respaldo en `config/ejemplos/`):** Fragmentos reales en formato MusicXML con metadatos estructurados (`ejemplos.yaml`), autoría, fuentes con licencia libre o dominio público (CPDL) y estado de verificación (`verificado: false` hasta la revisión del profesor). Si un esquema requiere ilustrar una técnica compositiva sin un ejemplo verificado en el catálogo, queda terminantemente prohibido dibujar notas a mano en HTML o CSS; el sistema renderiza el aviso unificado: *«Ejemplo musical pendiente de añadir al catálogo»*.
 
-## Revisión pedagógica automática y reparación (opcional)
+## Servicio musical determinista y análisis de partituras
 
-- **Configuración (`enable_review`):** Desactivada por defecto (`enable_review: false`) para preservar la agilidad de generación interactiva y ahorrar llamadas/tokens del modelo.
-- **Rol Revisor (Rúbrica de 6 criterios):** Cuando se activa, un evaluador especializado audita la propuesta contra la rúbrica oficial (`eval/rubrica.md`): cobertura de requisitos, rigor factual y citas, separación docente/alumnado, actividades activas y prácticas, adecuación al nivel educativo y temporización.
-- **Ronda de auto-reparación acotada:** Si alguna dimensión puntúa por debajo de 2 (escala 0-3), se activa una ronda de reparación guiada por los problemas detectados (`repair_with_review`), sin que el revisor invente hechos ni reescriba libremente el contenido.
-- **Auditoría visible:** Los resultados de la rúbrica se guardan en el run y se muestran en una sección plegable de la Guía Docente con aviso explícito de que no sustituyen la revisión del profesor.
-- **Herramienta de benchmark (`scripts/run_eval.py`):** Permite comparar el impacto con `--with-review` y `--compare-review`.
+El módulo `docente_ai.music` proporciona un conjunto de herramientas musicales deterministas sin dependencias nativas obligatorias:
+
+1. **Manipulación y metadatos de partituras:**
+   - Importa y valida MusicXML (`.xml`, `.musicxml`), comprimido (`.mxl`), MEI (`.mei`), Humdrum (`.krn`) y ABC (`.abc`) usando `music21` bajo demanda (carga perezosa para no penalizar el arranque).
+   - Recorte de compases (`measures(start, end)`) y transposición determinista.
+2. **Análisis musical calculado:**
+   - Ámbito por voz (nota más grave, más aguda e intervalo).
+   - Nota final / finalis por voz y del conjunto.
+   - Intervalos melódicos más frecuentes.
+   - Detección de aumentación y proporción de duraciones entre dos melodías (por ejemplo, melodía modelo y tenor de cantus firmus).
+   - Todos estos datos se presentan explícitamente etiquetados como *«calculado a partir de la partitura»* y no requieren citas bibliográficas.
+3. **Teoría griega y microtonalidad:**
+   - Generador determinista de tetracordos en los tres géneros de la Grecia Antigua (diatónico, cromático y enarmónico con cuartos de tono) con frecuencias exactas en Hz a partir de una nota base o frecuencia.
+   - Reproducción de microtonos en el navegador mediante Web Audio API y osciladores sinusoidales locales.
+4. **Exportación de audio con FluidSynth (opcional):**
+   - FluidSynth **no** es una dependencia de Python ni un requisito obligatorio. Si el ejecutable `fluidsynth` está instalado en el sistema, la interfaz habilita el botón *«Exportar audio (WAV)»* para los ejemplos de partitura; si no está instalado, la opción no se muestra.
+   - **Instalación de FluidSynth en macOS:**
+     ```sh
+     brew install fluidsynth
+     ```
+   - **Instalación de FluidSynth en Linux (Debian/Ubuntu):**
+     ```sh
+     sudo apt update && sudo apt install -y fluidsynth fluid-soundfont-gm
+     ```
+   - **SoundFont recomendado:** Se recomienda el banco general MIDI **Fluid R3 GM** (`FluidR3_GM.sf2`), distribuido bajo licencia libre MIT / Debian Free Software Guidelines, ubicado habitualmente en `/usr/share/sounds/sf2/FluidR3_GM.sf2` o `/opt/homebrew/share/soundfonts/FluidR3_GM.sf2`.
+5. **Grupo opcional para análisis de audio y DSP (`ntam`):**
+   - Incluye `librosa` y `pedalboard`:
+     ```sh
+     uv sync --extra ntam
+     ```
+   - La aplicación funciona plenamente sin este grupo; las funciones que lo requieran comprueban su disponibilidad y la interfaz informa de su estado sin bloquear ninguna operación docente.
 
 

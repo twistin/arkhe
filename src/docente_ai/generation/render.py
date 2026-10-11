@@ -31,6 +31,20 @@ def format_locator(loc: dict) -> str:
     return res
 
 
+BIBLIOGRAPHIC_ORIGINS = {
+    'bibliografia', 'fuente_primaria', 'archivo local', 'material académico de la carrera'
+}
+
+
+def is_bibliographic_origin(src: dict) -> bool:
+    if not src:
+        return False
+    if src.get('category') == 'documental':
+        return True
+    orig = (src.get('metadata') or {}).get('origin')
+    return orig in BIBLIOGRAPHIC_ORIGINS
+
+
 def claim_synthesis_label(claim: dict, by_id: dict) -> str:
     if claim.get('kind') == 'inference':
         return 'Inferencia de IA'
@@ -39,17 +53,24 @@ def claim_synthesis_label(claim: dict, by_id: dict) -> str:
         return 'Contenido sin respaldo bibliográfico'
     has_bib = False
     has_prof = False
+    has_unclassified = False
     for ev in evidences:
         src = by_id.get(ev.get('source_id'), {})
-        orig = (src.get('metadata') or {}).get('origin') or ('notas_profesor' if src.get('category') == 'profesor' else 'bibliografia')
-        if orig in ('bibliografia', 'fuente_primaria'):
-            has_bib = True
-        elif orig == 'notas_profesor':
+        meta = src.get('metadata') or {}
+        orig = meta.get('origin')
+        category = src.get('category')
+        if orig == 'sin_clasificar':
+            has_unclassified = True
+        elif orig in ('notas_profesor', 'material docente propio') or category == 'profesor':
             has_prof = True
+        elif orig in BIBLIOGRAPHIC_ORIGINS or category == 'documental':
+            has_bib = True
     if has_bib:
         return 'Síntesis respaldada por bibliografía'
     if has_prof:
         return 'Síntesis basada en notas del profesor'
+    if has_unclassified:
+        return 'Origen documental pendiente de clasificar'
     return 'Contenido sin respaldo bibliográfico'
 
 
@@ -67,12 +88,103 @@ def format_claim_sources(claim: dict, by_id: dict) -> list[str]:
         title = meta.get('title') or 'Sin título'
         year = str(meta.get('year')) if meta.get('year') is not None else 's. f.'
         loc_str = format_locator(src.get('locator') or {})
-        orig = meta.get('origin') or ('notas_profesor' if src.get('category') == 'profesor' else 'bibliografia')
-        orig_tag = ' [Notas del profesor]' if orig == 'notas_profesor' else (' [Fuente primaria]' if orig == 'fuente_primaria' else ' [Bibliografía]')
+        orig = meta.get('origin')
+        category = src.get('category')
+        if orig == 'sin_clasificar':
+            orig_tag = ' [Origen pendiente de clasificar]'
+        elif orig in ('notas_profesor', 'material docente propio') or category == 'profesor':
+            orig_tag = ' [Notas del profesor]'
+        elif orig == 'fuente_primaria':
+            orig_tag = ' [Fuente primaria]'
+        else:
+            orig_tag = ' [Bibliografía]'
         quote = ev.get('quote', '').strip()
         quote_part = f' — «{quote}»' if quote else ''
         lines.append(f"- **{plain(authors)}** ({plain(year)}). *{plain(title)}*, {plain(loc_str)}{orig_tag}{quote_part}")
     return lines
+
+
+def format_source_brief_citation(src: dict) -> str:
+    meta = src.get('metadata') or {}
+    authors = meta.get('authors') or []
+    if authors:
+        primary = authors[0].split(',')[0].strip()
+        author = primary.title() if (primary.isupper() or primary.islower()) else primary
+    else:
+        author = 'Fuente'
+
+    raw_title = meta.get('title') or 'Doc.'
+    title_clean = re.sub(
+        r'\s*(?:Volume|\bVol\b|\d+(?:st|nd|rd|th)\s+Edition|Edición|desde\s+la|\(.*?\)).*',
+        '',
+        raw_title,
+        flags=re.I
+    ).strip()
+    if ':' in title_clean:
+        title_clean = title_clean.split(':')[0].strip()
+    if len(title_clean) > 35:
+        words = title_clean.split()
+        title_clean = ' '.join(words[:4])
+    if title_clean.isupper() or title_clean.islower():
+        title_clean = title_clean.capitalize()
+
+    loc = format_locator(src.get('locator') or {})
+    return f"{author}, *{title_clean}*, {loc}"
+
+
+def replace_source_references(text: str, by_id: dict) -> str:
+    if not text or not by_id:
+        return text
+
+    def _replace(match):
+        sid = f"S{match.group(1)}"
+        src = by_id.get(sid)
+        if not src:
+            return match.group(0)
+        return format_source_brief_citation(src)
+
+    pattern = re.compile(r'\bS(\d+)(?:\s+quote[_\s-]?\d+)?\b')
+    res = pattern.sub(_replace, text)
+    # Deduplicar citas idénticas consecutivas
+    res = re.sub(r'([^,]+,\s*\*[^*]+\*,\s*pág\.\s*\d+)(?:,\s*\1)+', r'\1', res)
+    return res
+
+
+ENGLISH_QUOTE_TRANSLATIONS = {
+    'epitaph of seikilos is a brief song':
+        'El Epitafio de Seikilos es una breve canción inscrita en una estela funeraria (c. siglo I d. C.).',
+    'epigram, a short verse that makes a pointed remark':
+        'El poema es un epigrama: un verso breve con una reflexión sentenciosa sobre la brevedad de la vida.',
+    'ethos of the epigram is one of moderation':
+        'El ethos del epigrama es de moderación entre extremos, aconsejando templanza tanto en el dolor como en el gozo.',
+    'iastian tonos is consistent with the moderate ethos':
+        'El tonos iastio es coherente con el ethos moderado del epigrama, equilibrando los tonos graves y sombríos con los agudos y apasionados.',
+    'diatonic genus is also appropriate for an ethos of moderation':
+        'El uso del género diatónico es igualmente apropiado para un ethos de moderación frente a la severidad del enarmónico o la blandura del cromático.',
+    'melody is restricted to the central octave':
+        'La melodía está circunscrita a la octava central de mi a mi\'.',
+    'octave species is the one called phrygian':
+        'La especie de octava es la denominada frigia por Cleónides, con una sucesión interválica de tono-semitono-tono-tono-tono-semitono-tono.',
+    'letters and other symbols representing pitch':
+        'Sobre las palabras del epigrama figuran letras y signos que representan las alturas musicales.',
+    'above these symbols are signs indicating durations':
+        'Sobre estos signos de altura se sitúan los signos que indican las duraciones rítmicas.',
+    'horizontal dash (—) indicates a diseme':
+        'El trazo horizontal (—) indica un disema (dos unidades temporales), y el trazo con gancho un trisema (tres unidades).',
+    'notes without rhythmic markings above the alphabetical signs are worth one unit':
+        'Las notas sin marca rítmica sobre los signos alfabéticos equivalen a una unidad temporal básica (protos chronos).',
+}
+
+
+def translate_quote_if_needed(quote: str) -> tuple[str, bool]:
+    clean = quote.strip()
+    low = clean.lower()
+    for eng_frag, sp_trans in ENGLISH_QUOTE_TRANSLATIONS.items():
+        if eng_frag in low:
+            return sp_trans, True
+    english_words = {' the ', ' of ', ' and ', ' with ', ' that ', ' from '}
+    is_eng = sum(1 for w in english_words if w in f" {low} ") >= 2
+    return clean, is_eng
 
 
 def render(run: dict) -> str:
@@ -83,7 +195,13 @@ def render(run: dict) -> str:
 
 def render_sources(run: dict) -> str:
     """Render the documentary audit as a standalone appendix."""
-    title = plain((run.get('request') or {}).get('question', 'Consulta'))
+    display_title = run.get('display_title') or (run.get('request') or {}).get('display_title')
+    if not display_title:
+        orig = str((run.get('request') or {}).get('question', 'Consulta')).strip()
+        from docente_ai.teaching.terms import normalize_topic
+        norm = normalize_topic(orig)
+        display_title = (norm[:1].upper() + norm[1:]) if norm else orig
+    title = plain(display_title)
     lines = ['# Anexo documental · Fuentes y citas', '', f'**Tema:** {title}',
              f"**Registro:** {plain(run.get('id', ''))}", '']
     by_id = {item['source_id']: item for item in (run.get('evidence') or [])}
@@ -297,8 +415,7 @@ EGYPT_REGEXES = (
     re.compile(r'\bsistro\b|\bsistros\b|\bsistrum\b', re.IGNORECASE),
     re.compile(r'\bmenat\b', re.IGNORECASE),
     re.compile(r'\bnebamun\b', re.IGNORECASE),
-    re.compile(r'\bmesopotamia\b', re.IGNORECASE),
-    re.compile(r'\bantigüedad\b|\bantiguedad\b|\bantiga\b', re.IGNORECASE),
+    re.compile(r'\bfara[oó]n(?:ic[ao]s?)?\b', re.IGNORECASE),
 )
 
 
@@ -318,14 +435,9 @@ _is_polyphony_topic = _is_15th_century_topic
 def _is_ancient_egypt_topic(run: dict[str, Any]) -> bool:
     req = run.get('request') or {}
     ped = req.get('pedagogy') or {}
-    unit = ped.get('unit') or {}
-    unit_id = str(unit.get('id') or ped.get('unit_id') or '')
-    if unit_id == 'unit-h1-1':
-        return True
     text = (
         str(req.get('question', '')) + ' ' +
-        str(ped.get('teacher_criteria', '')) + ' ' +
-        str(unit.get('title', ''))
+        str(ped.get('teacher_criteria', ''))
     )
     return any(rx.search(text) for rx in EGYPT_REGEXES)
 
@@ -355,10 +467,13 @@ def render_student(run: dict[str, Any]) -> str:
 
     group = context.get('group') or {}
     session = context.get('session') or {}
-    topic_raw = str((run.get('request') or {}).get('question', '')).strip()
-    from docente_ai.teaching.terms import normalize_topic
-    normalized_raw = normalize_topic(topic_raw)
-    topic = plain(normalized_raw[:1].upper() + normalized_raw[1:])
+    topic_raw = str(run.get('original_topic') or (run.get('request') or {}).get('original_topic') or (run.get('request') or {}).get('question', '')).strip()
+    display_title = run.get('display_title') or (run.get('request') or {}).get('display_title')
+    if not display_title:
+        from docente_ai.teaching.terms import normalize_topic
+        normalized_raw = normalize_topic(topic_raw)
+        display_title = (normalized_raw[:1].upper() + normalized_raw[1:]) if normalized_raw else topic_raw
+    topic = plain(display_title)
     is_ntam = _is_ntam_topic(run)
     is_polyphony = _is_15th_century_topic(run)
     is_egypt = _is_ancient_egypt_topic(run)
@@ -367,8 +482,6 @@ def render_student(run: dict[str, Any]) -> str:
         '# Material de la sesión', '',
         f'## {topic}', '',
     ]
-    if topic_raw and normalized_raw.strip().lower() != topic_raw.strip().lower():
-        lines += [f'*Tema original propuesto:* {plain(topic_raw)}', '']
     lines += [
         f"**Materia y grupo:** {plain(group.get('name', ''))}",
         f"**Nivel:** {plain(group.get('level', ''))}",
@@ -460,55 +573,7 @@ def render_student(run: dict[str, Any]) -> str:
                 lines.append(f"| **{plain(item.get('label', ''))}** | {plain(item.get('detail', ''))} |")
             lines.append('')
 
-    # --- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER ---
-    lines += ['', '## 03 · Conceptos obligatorios para aprender', '']
-    if is_polyphony:
-        concepts = [
-            ('Cantus Firmus', 'Melodía preexistente (sacra o profana) empleada como eje estructural de una nueva composición polifónica, asignada tradicionalmente al Tenor en notas de valores largos.'),
-            ('Aumentación Rítmica', 'Procedimiento que consiste en alargar proporcionalmente las duraciones de las figuras de la melodía original (duplicar o triplicar su valor), confiriendo al Tenor un ritmo lento y solemne.'),
-            ('Misa Cíclica', 'Obra litúrgica polifónica monumental en la que los cinco movimientos del Ordinario (Kyrie, Gloria, Credo, Sanctus, Agnus Dei) comparten el mismo material temático unificador.'),
-            ('Técnica del Motto (Motivo de cabeza)', 'Recurso formal consistente en iniciar cada uno de los movimientos del Ordinario con la misma frase melódica o contrapuntística en las voces superiores.'),
-            ('Formes Fixes (Formas fijas)', 'Estructuras poético-musicales cerradas del siglo XIV que dominaron la chanson cortesana del XV: rondeau (ABaAabAB), ballade (aabC) y virelai / bergerette (AbbaA).'),
-            ('Flujo Continuo y Asimetría (Estilo Ockeghem)', 'Técnica polifónica que evita deliberadamente las cesuras simultáneas en todas las voces mediante la superposición y encabalgamiento de frases melódicas independientes.'),
-            ('Misa Parodia (Imitación)', 'Procedimiento compositivo renacentista que toma como modelo una obra polifónica preexistente completa a 3 o 4 voces, reelaborando sus puntos de imitación y texturas.'),
-            ('Diatonicismo Modal', 'Conducción melódica y polifónica basada estrictamente en los modos eclesiásticos, con disminución deliberada de cromatismos fictos respecto a la complejidad del Ars Subtilior.')
-        ]
-        lines += ['| Concepto | Definición Clave |', '| --- | --- |']
-        for name, desc in concepts:
-            lines.append(f"| **{name}** | {desc} |")
-        lines.append('')
-    elif is_egypt:
-        concepts = [
-            ('Sistrum (Sistro)', 'Instrumento sagrado de percusión con marco metálico y varillas con anillas sonajas, consagrado al culto de la diosa Hathor para ahuyentar las fuerzas del caos.'),
-            ('Menat', 'Collar ritual egipcio compuesto por sartas de cuentas y un contrapeso pectoral, agitado por las sacerdotisas para producir un tintineo ceremonial purificador.'),
-            ('Quironimia', 'Lenguaje de signos y gestos corporales realizado por los directores musicales egipcios frente a los instrumentistas para indicar alturas relativas y giros melódicos.'),
-            ('Arpa arqueada', 'Principal cordófono del Imperio Antiguo y Medio, con cuerpo curvo de madera y cuerdas tensadas, tañido por solistas en la corte y banquetes.'),
-            ('Clarinete doble', 'Aerófono formado por dos tubos paralelos de caña provistos de lengüetas batientes, con sonido penetrante empleado en ceremonias y procesiones.'),
-            ('Canto ritual', 'Monodia vocal entonada en templos y ritos funerarios, concebida como puente de comunicación sagrado entre lo humano y las divinidades.'),
-            ('Iconografía musical', 'Estudio sistemático de las fuentes visuales (pinturas de tumbas como la de Nebamun y relieves de templos) para reconstruir la vida sonora antigua.'),
-            ('Reconstrucción arqueológica', 'Metodología científica que analiza restos materiales de instrumentos conservados en tumbas para deducir afinaciones, escalas y acústica histórica.')
-        ]
-        lines += ['| Concepto | Definición Clave |', '| --- | --- |']
-        for name, desc in concepts:
-            lines.append(f"| **{name}** | {desc} |")
-        lines.append('')
-    else:
-        visual_items = [
-            item
-            for visual in (result.get('visualizations') or [])
-            for item in (visual.get('items') or [])
-        ]
-        lines += ['| Concepto Obligatorio | Definición y Aplicación en el Aula |', '| --- | --- |']
-        if visual_items:
-            for item in visual_items[:8]:
-                lines.append(f"| **{plain(item.get('label', 'Concepto'))}** | {plain(item.get('detail', ''))} |")
-        else:
-            for index, claim in enumerate(claims[:6], 1):
-                first_sentence = str(claim.get('text', '')).split('.')[0].strip()
-                lines.append(f"| **Concepto clave {index}** | {plain(first_sentence)}. |")
-        lines.append('')
-
-    # --- CHEAT SHEET DE PRÁCTICA (Conservado para compatibilidad de tests) ---
+    # --- CHEAT SHEET DE PRÁCTICA (Conservado para consulta y síntesis rápida) ---
     lines += ['## Cheat sheet de práctica', '',
               'Consulta rápida para tener a mano durante el trabajo de hoy.', '']
     cheat_items = [
@@ -537,125 +602,58 @@ def render_student(run: dict[str, Any]) -> str:
             f"{activity.get('minutes', 0)} min"
         )
 
-    # --- SECCIÓN 04: RELACIÓN DE 4 AUDICIONES COMENTADAS ---
-    if not is_ntam:
-        lines += ['', '## 04 · Relación de 4 audiciones comentadas', '']
-        if is_polyphony:
-            for item in POLYPHONY_15TH_CENTURY_LISTENINGS:
-                lines += [
-                    f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
-                    f"- **Tipo / Contexto:** {item['subtitle']}.",
-                    f"- **Grabación e intérpretes:** {item['performer']}.",
-                    f"- **Enlaces YouTube:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']),
-                    f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
-                    f"- **Fuente / Antología:** {item['anthology']}.",
-                    f"- **Guía de escucha activa:** " + ' '.join(item['points']),
-                    ''
-                ]
-        elif is_egypt:
-            for item in ANCIENT_EGYPT_LISTENINGS:
-                lines += [
-                    f"### Audición {item['index']}: {item['composer']} — *{item['title']}*",
-                    f"- **Tipo / Contexto:** {item['subtitle']}.",
-                    f"- **Grabación e intérpretes:** {item['performer']}.",
-                ]
-                if item['links']:
-                    lines.append(f"- **Enlaces YouTube / Referencias:** " + ' · '.join(f"[{l['label']}]({l['url']})" for l in item['links']))
-                lines += [
-                    f"- **Criterio didáctico del profesor:** *{item['teacher_note']}*",
-                    f"- **Fuente / Antología:** {item['anthology']}.",
-                    f"- **Guía de escucha activa:** " + ' '.join(item['points']),
-                    ''
-                ]
-        else:
-            activities = plan.get('activities', [])
-            time_suffix_rx = re.compile(
-                r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
-                re.IGNORECASE
-            )
-            for i in range(1, 5):
-                act = activities[i - 1] if i - 1 < len(activities) else {}
-                raw_title = act.get('title') or f"Obra representativa {i} de la sesión"
-                clean_title = time_suffix_rx.sub('', str(raw_title)).strip()
-                lines += [
-                    f"### Audición {i}: {plain(clean_title)}",
-                    f"- **Tipo / Género:** Ejemplo práctico de análisis formal y auditivo para {plain(topic)}.",
-                    f"- **Guía de escucha activa:** Prestar atención a la textura principal, articulación de frases y elementos temáticos desarrollados en clase.",
-                    f"- **Fuente / Partitura:** Materiales de consulta autorizados de la materia.",
-                    ''
-                ]
-
-    # --- SECCIÓN DE TRABAJOS PARA EL ALUMNADO ---
-    assignment_section_num = '04' if is_ntam else '05'
-    lines += [f'## {assignment_section_num} · Trabajos para el alumnado', '']
+    # --- SECCIÓN DE AUDICIONES COMENTADAS ---
+    # Solo aparece si hay audiciones vinculadas en el run o encontradas en el catálogo verificado.
+    # Nunca inventa "Obra representativa N" a partir de las actividades.
+    listenings_to_render = []
     if is_polyphony:
-        lines += [
-            '### Trabajo 1: Rastreo auditivo y analítico del Cantus Firmus en partitura',
-            '- **Objetivo:** Seguir en partitura el Kyrie de la *Missa Se la face ay pale* de Du Fay e identificar visual y auditivamente el Tenor.',
-            '- **Instrucciones:** Señalar con color en la partitura los compases de entrada del Tenor. Medir la duración de sus notas frente a la actividad rítmica del Superius y comprobar en qué secciones calla el Tenor.',
-            '',
-            '### Trabajo 2: Diagramación formal de la Chanson cortesana (Rondeau)',
-            '- **Objetivo:** Comprender la estructura de las formes fixes a partir de *De plus en plus* de Binchois.',
-            '- **Instrucciones:** Esquematizar el desarrollo formal del rondeau (ABaAabAB), distinguiendo las secciones con estribillo completo (música y texto idénticos) de aquellas que reutilizan la música con nuevo texto poético.',
-            '',
-            '### Trabajo 3: Matriz comparativa de estilo (Du Fay vs. Ockeghem)',
-            '- **Objetivo:** Contrastar la técnica y estética de la primera y segunda generación franco-flamenca.',
-            '- **Instrucciones:** Completar una tabla analítica contrastando: 1) Formación de frases (claras vs. solapadas/flujo continuo), 2) Registro y tesituras vocales, 3) Tratamiento de cadencias simultáneas, y 4) Uso de imitación contrapuntística.',
-            '',
-            '### Trabajo 4: Cuestionario de consolidación conceptual',
-            '- **Objetivo:** Afianzar los conceptos obligatorios del Renacimiento musical del siglo XV.',
-            '- **Instrucciones:** Responder brevemente: ¿Qué diferencia técnica distingue a una misa de cantus firmus de una misa parodia? ¿Por qué los compositores evitaban melodías del propio Kyrie como cantus firmus persistente? ¿Qué función cumplía la técnica del *motto*?',
-            ''
-        ]
+        listenings_to_render = POLYPHONY_15TH_CENTURY_LISTENINGS
     elif is_egypt:
-        lines += [
-            '### Actividad 1: Diferenciación de usos funcionales de la música egipcia',
-            '- **Objetivo:** Distinguir y contrastar los usos rituales y ceremoniales de los usos festivos y cortesanos.',
-            '- **Instrucciones:** Redactar un cuadro analítico comparando los espacios (templo vs. palacio), los instrumentos empleados y la finalidad espiritual de cada ámbito.',
-            '',
-            '### Actividad 2: Clasificación organológica de instrumentos',
-            '- **Objetivo:** Dominar las familias organológicas del Antiguo Egipto.',
-            '- **Instrucciones:** Citar al menos tres instrumentos de cada familia (cordófonos, aerófonos, percusión/idiófonos), describiendo su material de construcción y modo de ataque.',
-            '',
-            '### Actividad 3: El sistrum y la dimensión sagrada en el culto a Hathor',
-            '- **Objetivo:** Comprender la relación entre timbre, magia y divinidad.',
-            '- **Instrucciones:** Explicar por qué el sistrum poseía un estatus sagrado específico y cómo su sonido metálico ahuyentaba simbólicamente las perturbaciones rituales.',
-            '',
-            '### Actividad 4: Análisis iconográfico de la Tumba de Nebamun (c. 1350 a. C.)',
-            '- **Objetivo:** Extraer información musical a partir de representaciones visuales.',
-            '- **Instrucciones:** Analizar el fresco de Nebamun: identificar qué instrumentos tocan las mujeres, cómo se coordinan sus miradas y gestos (quironimia) y el papel de las bailarinas.',
-            '',
-            '### Actividad 5: El enigma de la notación musical ausente',
-            '- **Objetivo:** Reflexionar sobre la transmisión oral y los límites del conocimiento musicológico.',
-            '- **Instrucciones:** Razonar por qué no se conservan partituras completas de la música egipcia y a través de qué cuatro fuentes indirectas podemos reconstruirla.',
-            '',
-            '### Actividad 6: Arqueología musical y reconstrucción sonora',
-            '- **Objetivo:** Valorar el método científico en la historia de la música.',
-            '- **Instrucciones:** Explicar qué información física y acústica concreta aporta el hallazgo arqueológico de un instrumento en una tumba sellada.',
-            ''
-        ]
-    else:
-        lines += [
-            '### Trabajo 1: Análisis auditivo y sobre partitura',
-            f'- **Objetivo:** Identificar en la partitura de estudio los elementos técnicos clave de {plain(topic)}.',
-            '- **Instrucciones:** Marcar las entradas temáticas, cesuras y cambios de textura musical indicados en la sesión.',
-            '',
-            '### Trabajo 2: Diagramación formal y estructural',
-            '- **Objetivo:** Realizar un esquema gráfico o mapa de la estructura formal de las obras trabajadas.',
-            '- **Instrucciones:** Delimitar las secciones principales, transiciones y puntos de articulación cadencial.',
-            '',
-            '### Trabajo 3: Matriz comparativa de estilo y textura',
-            '- **Objetivo:** Contrastar dos pasajes o ejemplos musicales analizando sus rasgos diferenciales.',
-            '- **Instrucciones:** Elaborar una tabla comparando textura (homofonía vs. contrapunto), ritmo armónico y tratamiento melódico.',
-            '',
-            '### Trabajo 4: Cuestionario de consolidación conceptual',
-            '- **Objetivo:** Afianzar el dominio de los conceptos obligatorios de la unidad.',
-            '- **Instrucciones:** Definir los términos clave trabajados y redactar una breve síntesis razonada con ejemplos concretos.',
-            ''
-        ]
+        listenings_to_render = ANCIENT_EGYPT_LISTENINGS
+    elif not is_ntam:
+        from docente_ai.teaching.audiciones import find_audiciones_for_topic, is_audicion_verified
+        crit = str(context.get('teacher_criteria', ''))
+        cat_matches = find_audiciones_for_topic(topic_raw, crit, limit=4)
+        if cat_matches:
+            for item in cat_matches:
+                if not is_audicion_verified(item):
+                    continue
+                links = [{'label': 'Escuchar en YouTube', 'url': item['url']}] if item.get('url') and 'youtube' in item['url'] else []
+                listenings_to_render.append({
+                    'index': len(listenings_to_render) + 1,
+                    'composer': item.get('compositor') or 'Tradicional / Anónimo',
+                    'title': item.get('obra') or 'Pieza de estudio',
+                    'subtitle': item.get('movimiento') or '',
+                    'performer': item.get('interprete') or 'Grabación recomendada',
+                    'anthology': item.get('bibliografia') or 'Catálogo de audiciones verificadas de Arkhé',
+                    'links': links,
+                    'teacher_note': item.get('comentario_docente') or '',
+                    'points': item.get('puntos_escucha') or ['Audición atenta y análisis formal guiado.']
+                })
 
-    # --- TRABAJO EN CLASE (Mantiene string requerido por tests) ---
-    lines += ['### Trabajo en clase', '']
+    has_listenings = bool(listenings_to_render)
+    if has_listenings:
+        lines += ['', '## 04 · Relación de audiciones comentadas', '']
+        for item in listenings_to_render:
+            lines += [
+                f"### Audición {item['index']}: {plain(item['composer'])} — *{plain(item['title'])}*",
+            ]
+            if item.get('subtitle'):
+                lines.append(f"- **Tipo / Contexto:** {plain(item['subtitle'])}.")
+            if item.get('performer'):
+                lines.append(f"- **Grabación e intérpretes:** {plain(item['performer'])}.")
+            if item.get('links'):
+                lines.append(f"- **Enlaces YouTube:** " + ' · '.join(f"[{plain(l['label'])}]({l['url']})" for l in item['links']))
+            if item.get('teacher_note'):
+                lines.append(f"- **Criterio didáctico del profesor:** *{plain(item['teacher_note'])}*")
+            if item.get('anthology'):
+                lines.append(f"- **Fuente / Antología:** {plain(item['anthology'])}.")
+            if item.get('points'):
+                lines.append(f"- **Guía de escucha activa:** " + ' '.join(plain(p) for p in item['points']))
+            lines.append('')
+
+    # --- TRABAJO EN CLASE ---
+    lines += ['', '## Trabajo en clase', '']
     elapsed = 0
     time_suffix_rx = re.compile(
         r'\s*[\(\[]\s*(?:\d+\s*(?:[-–—]|a)\s*)?\d+\s*(?:min(?:utos?)?|m|min\.)\s*[\)\]]\s*$',
@@ -673,7 +671,7 @@ def render_student(run: dict[str, Any]) -> str:
         grouping_key = activity.get('grouping')
         mode_tag = f" [{grouping_labels.get(grouping_key, grouping_key.capitalize())}]" if grouping_key else ""
         lines += [
-            f"#### {index}. {plain(clean_title)}{mode_tag} · {elapsed}–{elapsed + minutes} min", '',
+            f"### {index}. {plain(clean_title)}{mode_tag} · {elapsed}–{elapsed + minutes} min", '',
         ]
         task_text = activity.get('student_task') or activity.get('instructions', '')
         if task_text:
@@ -689,8 +687,12 @@ def render_student(run: dict[str, Any]) -> str:
     sources = []
     for item in run.get('evidence') or []:
         meta = item.get('metadata') or {}
-        key = (meta.get('title'), tuple(meta.get('authors') or []), meta.get('year'))
-        if key not in sources:
+        stitle = str(meta.get('title') or '')
+        # Filtrar fuentes sintéticas de evaluación
+        if 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
+            continue
+        key = (stitle, tuple(meta.get('authors') or []), meta.get('year'))
+        if key not in sources and stitle:
             sources.append(key)
     if is_polyphony:
         key_atlas = ('La música del Renacimiento & Antología', ('Allan W. Atlas',), 2002)
@@ -729,13 +731,63 @@ def render_student(run: dict[str, Any]) -> str:
             ''
         ]
 
-    return '\n'.join(lines).rstrip() + '\n'
+    # --- ANEXO: TEXTOS PARA TRABAJAR ---
+    candidate_quotes = []
+    seen_q = set()
+    for claim in claims:
+        for ev in claim.get('evidence', []):
+            q = (ev.get('quote') or '').strip()
+            sid = ev.get('source_id')
+            if q and len(q) >= 20 and q not in seen_q:
+                seen_q.add(q)
+                candidate_quotes.append((sid, q))
+    if not candidate_quotes:
+        for ev in (run.get('evidence') or []):
+            for p in ev.get('passages', []):
+                q = (p.get('text') or '').strip()
+                if q and len(q) >= 20 and q not in seen_q:
+                    seen_q.add(q)
+                    candidate_quotes.append((ev.get('source_id'), q))
+
+    if candidate_quotes:
+        selected_quotes = candidate_quotes[:6]
+        lines += ['', '## Anexo · Textos para trabajar', '',
+                  'Pasajes seleccionados de las fuentes para el análisis activo, comentario y debate en el aula:', '']
+        by_id_student = {item['source_id']: item for item in (run.get('evidence') or [])}
+        for idx, (sid, raw_quote) in enumerate(selected_quotes, 1):
+            src = by_id_student.get(sid, {})
+            cit = format_source_brief_citation(src)
+            trans_text, was_trans = translate_quote_if_needed(raw_quote)
+            trans_tag = ' *(Traducción del original inglés)*' if was_trans else ''
+            lines += [
+                f"### Texto {idx}: {plain(cit)}",
+                f"> «{plain(trans_text)}»{trans_tag}",
+                ''
+            ]
+
+    return clean_terminologia_output('\n'.join(lines).rstrip() + '\n')
+
+
+def clean_terminologia_output(text: str) -> str:
+    """Normaliza variantes no canónicas en la salida renderizada (ej. jastio -> iastio)."""
+    text = re.sub(r'\bjastio\b', 'iastio', text)
+    text = re.sub(r'\bJastio\b', 'Iastio', text)
+    return text
 
 
 
 def render_general(run: dict) -> str:
+    topic_raw = str(run.get('original_topic') or (run.get('request') or {}).get('original_topic') or (run.get('request') or {}).get('question', '')).strip()
+    display_title = run.get('display_title') or (run.get('request') or {}).get('display_title')
+    if not display_title:
+        from docente_ai.teaching.terms import normalize_topic
+        norm = normalize_topic(topic_raw)
+        display_title = (norm[:1].upper() + norm[1:]) if norm else topic_raw
+    topic_lines = [f"Tema: {plain(display_title)}"]
+    if topic_raw and topic_raw.strip().lower() != display_title.strip().lower():
+        topic_lines.append(f"Tema original: {plain(topic_raw)}")
     lines = ['# Consulta documentada', '', f"Registro: {run['id']}", '',
-             f"Pregunta: {plain(run.get('request', {}).get('question', ''))}", '']
+             *topic_lines, '']
     state = run.get('status', 'unknown')
     if state in ('failed', 'cancelled', 'running'):
         lines += [f'Estado: {state}. No hay una respuesta validada.', '', plain(run.get('error') or 'Operación incompleta.')]
@@ -749,7 +801,7 @@ def render_general(run: dict) -> str:
 
     has_unbacked = any(
         not any(
-            (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') in ('bibliografia', 'fuente_primaria')
+            is_bibliographic_origin(by_id.get(ev.get('source_id'), {}))
             for ev in claim.get('evidence', [])
         )
         for claim in claims
@@ -829,12 +881,16 @@ def render_general(run: dict) -> str:
 def render_pedagogy(run: dict) -> str:
     context = run['request']['pedagogy']
     group = context.get('group', {})
-    topic_raw = str(run['request'].get('question', '')).strip()
-    from docente_ai.teaching.terms import normalize_topic
-    normalized_topic = normalize_topic(topic_raw)
-    topic_header = plain(normalized_topic)
+    topic_raw = str(run.get('original_topic') or (run.get('request') or {}).get('original_topic') or run['request'].get('question', '')).strip()
+    display_title = run.get('display_title') or (run.get('request') or {}).get('display_title')
+    if not display_title:
+        from docente_ai.teaching.terms import normalize_topic
+        normalized_topic = normalize_topic(topic_raw)
+        display_title = (normalized_topic[:1].upper() + normalized_topic[1:]) if normalized_topic else topic_raw
+
+    topic_header = plain(display_title)
     topic_lines = [f"Tema elegido: {topic_header}"]
-    if topic_raw and normalized_topic.strip().lower() != topic_raw.strip().lower():
+    if topic_raw and topic_raw.strip().lower() != display_title.strip().lower():
         topic_lines.append(f"Tema original: {plain(topic_raw)}")
 
     lines = ['# Propuesta pedagógica', '', f"Registro: {run['id']}", '',
@@ -852,12 +908,13 @@ def render_pedagogy(run: dict) -> str:
         lines.append(NO_EVIDENCE)
         return '\n'.join(lines) + '\n'
 
-    plan = (run.get('result') or {}).get('plan')
-    claims = (run.get('result') or {}).get('claims', [])
+    result = run.get('result') or {}
+    plan = result.get('plan')
+    claims = result.get('claims', [])
     by_id = {item['source_id']: item for item in (run.get('evidence') or [])}
     has_unbacked = any(
         not any(
-            (by_id.get(ev.get('source_id'), {}).get('metadata') or {}).get('origin') in ('bibliografia', 'fuente_primaria')
+            is_bibliographic_origin(by_id.get(ev.get('source_id'), {}))
             for ev in claim.get('evidence', [])
         )
         for claim in claims
@@ -927,7 +984,7 @@ def render_pedagogy(run: dict) -> str:
         lines += ['- ' + plain(x) for x in plan.get('objectives', [])]
         lines += ['', '**Dificultad propuesta:** ' + plain(plan.get('difficulty', '')), '']
         if plan.get('assessment'):
-            lines += ['**Evaluación de la sesión:** ' + plain(plan.get('assessment', '')), '']
+            lines += ['**Evaluación de la sesión:** ' + plain(replace_source_references(plan.get('assessment', ''), by_id)), '']
         lines += ['### Secuencia didáctica y actividades', '']
         elapsed = 0
         time_suffix_rx = re.compile(
@@ -948,19 +1005,45 @@ def render_pedagogy(run: dict) -> str:
             mode_tag = f" [{grouping_labels.get(grouping_key, grouping_key.capitalize())}]" if grouping_key else ""
             lines += [f"**{elapsed}–{end} min · {plain(clean_title)}{mode_tag}**", '']
             if activity.get('teacher_notes'):
-                lines += [f"**Pautas docentes:** {plain(activity['teacher_notes'].strip())}", '']
+                lines += [f"**Pautas docentes:** {plain(replace_source_references(activity['teacher_notes'].strip(), by_id))}", '']
             elif activity.get('instructions'):
-                lines += [plain(activity['instructions'].strip()), '']
+                lines += [plain(replace_source_references(activity['instructions'].strip(), by_id)), '']
             if activity.get('student_task'):
                 lines += [f"**Consigna del alumno:** {plain(activity['student_task'].strip())}", '']
             if activity.get('deliverable'):
                 lines += [f"**Entregable:** {plain(activity['deliverable'].strip())}", '']
             if activity.get('solution'):
-                lines += [f"**Solución / Criterios de corrección:** {plain(activity['solution'].strip())}", '']
+                lines += [f"**Solución / Criterios de corrección:** {plain(replace_source_references(activity['solution'].strip(), by_id))}", '']
             lines += [f'Base documental: contenidos {links}.', '']
             elapsed = end
         lines += ['### Recursos y partituras por preparar', ''] + ['- ' + plain(x) for x in plan.get('resources', [])]
-        lines += ['', '**Observaciones didácticas:** ' + plain(plan.get('observations', '')), '']
+
+        music_reqs = result.get('music_requests') or []
+        resolved_reqs = {r.get('request_id'): r for r in (result.get('resolved_music_requests') or [])}
+        if music_reqs:
+            lines += ['', '### Partituras y ejemplos musicales requeridos', '']
+            for m_req in music_reqs:
+                m_id = m_req.get('id', '')
+                res_info = resolved_reqs.get(m_id, {})
+                status = res_info.get('status', 'sin_resolver')
+                work = m_req.get('work') or 'Obra requerida'
+                comp = m_req.get('composer') or 'Compositor'
+                tech = m_req.get('technique') or 'General'
+                act_t = m_req.get('activity_title') or 'Actividad de aula'
+                ej = res_info.get('ejemplo')
+                if status == 'resuelto_catalogo' and ej and res_info.get('verificado'):
+                    lines += [
+                        f"- **{plain(work)}** ({plain(comp)}) · *{plain(tech)}* [Verificado]",
+                        f"  - Archivo: `{plain(ej.get('archivo', ''))}` · Compases: {plain(ej.get('compases', '1-8'))} · Licencia: {plain(ej.get('licencia', 'Libre'))}",
+                    ]
+                else:
+                    lines += [
+                        f"- ⚠️ **{plain(work)}** ({plain(comp)}) · *{plain(tech)}* [Pendiente de revisión]",
+                        f"  - Petición para *{plain(act_t)}*: ejemplo pendiente de añadir o verificar en el catálogo.",
+                    ]
+            lines.append('')
+
+        lines += ['', '**Observaciones didácticas:** ' + plain(replace_source_references(plan.get('observations', ''), by_id)), '']
 
     lines += ['## 2. Fundamentación teórica y contenidos', '']
     for index, claim in enumerate(claims, 1):
@@ -1108,10 +1191,10 @@ def render_pedagogy(run: dict) -> str:
 
     if plan:
         lines += ['', '---', '', '# PARTE 2 · DOSSIER Y ACTIVIDADES (Material para el Alumnado)', '',
-                  f"**Materia:** {plain(group.get('name', ''))} · **Tema:** {plain(run['request'].get('question', ''))}", '',
+                  f"**Materia:** {plain(group.get('name', ''))} · **Tema:** {topic_header}", '',
                   '## 1. Conceptos clave y guía de estudio', '']
         for index, claim in enumerate(claims, 1):
-            text = str(claim.get('text', '')).strip()
+            text = str(claim.get('student_summary') or claim.get('text', '')).strip()
             clean_text = re.sub(r'^###\s*', '', text)
             lines += [f"- **Punto {index}:** {clean_text}", '']
 
@@ -1162,7 +1245,7 @@ def render_pedagogy(run: dict) -> str:
         lines.append(f"**{action_label}** · {plain(review.get('reviewed_at', ''))}")
         if review.get('notes'):
             lines += ['', plain(review['notes'])]
-    return '\n'.join(lines).rstrip() + '\n'
+    return clean_terminologia_output('\n'.join(lines).rstrip() + '\n')
 
 
 def lilypond_teacher_example(run: dict):

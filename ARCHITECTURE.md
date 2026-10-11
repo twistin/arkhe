@@ -180,7 +180,7 @@ SQLite con claves foráneas activadas, migraciones numeradas, transacciones y fe
 | `chunks` | id, document_version_id, ordinal, texto, hash, página física/etiqueta/impresa verificable o sección/líneas, offsets |
 | `embedding_profiles` | id, proveedor, modelo, digest, dimensión, normalización, versión de fragmentación |
 | `chunk_embeddings` | chunk_id, profile_id, vector; unicidad por pareja; solo versiones activas en consulta |
-| `generation_runs` | id, session_id, tema solicitado, fuentes autorizadas, modelo/digest, parámetros, versión prompt/aplicación, fecha, estado y advertencias |
+| `generation_runs` | id, session_id, display_title, original_topic, tema solicitado, fuentes autorizadas, modelo/digest, parámetros, versión prompt/aplicación, fecha, estado y advertencias |
 | `retrieval_evidence` | run_id, chunk_id, rango, distancia, instantánea de metadatos y extracto utilizado |
 | `proposals` | id, run_id, versión, estado draft/approved/rejected, contenido estructurado, Markdown, hash, versión_previa, fecha de revisión |
 | `proposal_evidence` | proposal_id, bloque/afirmación, chunk_id, clase documental/profesor/inferencia/generación |
@@ -880,6 +880,7 @@ Para preservar el rigor documental e impedir la reincorporación de textos sint�
 Para desacoplar el conocimiento especializado del código fuente de renderizado y JavaScript:
 - **Módulo `teaching/fichas.py`:** Administra el directorio de fichas docentes (`data/fichas/` y fallback en `config/fichas/`). Carga y parsea documentos Markdown con cabecera YAML, indexándolos de forma estructurada según sus etiquetas y palabras clave. Durante la generación, las fichas relevantes se integran de forma dinámica en la etapa RAG como fuentes con origen `notas_profesor` o `bibliografia`.
 - **Módulo `teaching/audiciones.py`:** Gestiona el catálogo canónico de audiciones (`data/audiciones.yaml` y fallback en `config/audiciones.example.yaml`). La selección de audiciones se produce mediante identificadores únicos del catálogo. Se prohíbe taxativamente la generación libre de URLs por el modelo generativo. Si un tema no cuenta con audiciones en el catálogo, la propuesta declara el estado de recurso pendiente.
+- **Módulo `teaching/ejemplos.py`:** Administra el catálogo de ejemplos musicales y partituras (`data/ejemplos/` y fallback en `config/ejemplos/`). Almacena metadatos estructurados (`ejemplos.yaml`) y partituras en formato MusicXML de dominio público o licencia libre (CPDL). Cada ejemplo especifica su estado de verificación (`verificado: bool`), compositor, obra, voces y notas de análisis. Si un esquema visual requiere ilustrar una técnica y no existe un ejemplo verificado en el catálogo, queda prohibido dibujar notas a mano en HTML o CSS; la interfaz presenta el aviso *"Ejemplo musical pendiente de añadir al catálogo"*.
 ## Rol Revisor opcional y rúbrica pedagógica (Opción B)
 
 Siguiendo el patrón de roles secuenciales acotados (Opción B de la arquitectura de agentes):
@@ -887,4 +888,36 @@ Siguiendo el patrón de roles secuenciales acotados (Opción B de la arquitectur
 - **Evaluación determinista y semántica con rúbrica:** Tras la generación y validación determinista (`pedagogy:9`), el rol revisor (`src/docente_ai/agents/reviewer.py`) recibe la propuesta completa, los requisitos extraídos, la tabla de cobertura y los mismos pasajes de evidencia recuperados. Evalúa la propuesta contra los 6 criterios de `eval/rubrica.md` (puntuación de 0 a 3: `cobertura`, `rigor_factual`, `separacion_roles`, `actividades_activas`, `adecuacion_nivel`, `temporizacion`), devolviendo un JSON estructurado con `scores`, `issues` (`field`, `issue`, `proposal`) y `summary`.
 - **Ronda de reparación acotada:** Si algún criterio de la rúbrica obtiene una puntuación inferior a 2, se ejecuta como máximo una ronda de reparación (`repair_with_review` en `generation/repair.py`) guiada estrictamente por los problemas reportados. El revisor nunca reescribe directamente el texto ni aporta hechos nuevos; el generador repara su borrador preservando el contrato de citas `quote_XXX`.
 - **Trazabilidad y renderizado transparente:** El resultado de la revisión se guarda en `metrics['auto_review']` (`scores`, `issues`, `repaired`, `summary`). La Guía Docente renderiza una sección plegable final (`<details><summary>Revisión automática (Rúbrica pedagógica)</summary>...`) que muestra la tabla de criterios, avisos de reparación y una advertencia explícita: *«Esta evaluación automática se basa en la rúbrica pedagógica interna y no sustituye la revisión ni el criterio del profesor.»*
+
+## Arquitectura de resolución de partituras y ejemplos musicales (`music_requests`)
+
+Para permitir la incorporación rigurosa de partituras sin requerir que el docente transcriba código ni que el modelo invente notación:
+- **Contrato del modelo (`music_requests`):** La respuesta pedagógica puede incluir peticiones estructuradas de partituras (`id`, `work`, `composer`, `section`, `technique`, `voice`, `activity_title`, `description`). Un validador estricto (`validation.py: check_no_musical_notation`) rechaza cualquier bloque en MusicXML, MEI, LilyPond, ABC o Humdrum generado directamente por el LLM.
+- **Analizador de formatos musicales (`teaching/score_parser.py`):** Extrae de forma no destructiva metadatos de cabecera (título, compositor, partes/voces, número de compases, claves y mensuración) para MusicXML (`.xml`, `.musicxml`), comprimido (`.mxl`), Humdrum (`**kern`, `.krn`), MEI (`.mei`) y ABC (`.abc`).
+- **Conectores de repositorios abiertos (`teaching/score_repositories.py`):** Define metadatos y conectores para Josquin Research Project (JRP, CC BY-NC 4.0), KernScores (dominio público/académico), CPDL (licencia CPDL/dominio público) y el corpus de music21 (BSD). Opera en modo determinista offline en entornos de prueba o sin red.
+- **Motor de resolución en cascada (`teaching/score_resolver.py`):**
+  1. *Catálogo local (`data/ejemplos/` y `config/ejemplos/`)*: coincidencia por obra, compositor, sección y técnica.
+  2. *Carpeta del profesor (`Conocimiento/Partituras/` y `config/partituras/`)*: escaneo e indexación sobre la marcha.
+  3. *Repositorios abiertos*: búsqueda remota condicionada estrictamente al consentimiento explícito previo del usuario (`POST /api/runs/{id}/music_requests/{req_id}/search_open_repos`).
+- **Adopción y exclusión de candidatos (`usar_candidato_como_ejemplo`, `adopt_score_candidate`, `discard_score_candidate`):** Al seleccionar «Usar», el candidato se persiste en `data/ejemplos/` con `verificado: true`, el rango de compases y la voz destacada, quedando reutilizable para futuras sesiones. Si se descarta, se excluye de la propuesta.
+- **Control estricto en el material del alumnado:** Solo se presentan ejemplos musicales verificados (`verificado: true`). Si una petición queda pendiente o sin resolver, la guía docente incluye una tarjeta con aviso y selector interactivo, mientras que el material del alumnado omite cualquier pentagrama o código, impidiendo notas dibujadas a mano.
+
+## Servicio musical determinista y capacidades analíticas (`docente_ai.music`)
+
+Para dotar al sistema de capacidad de análisis y cálculo musical sin depender de llamadas al modelo ni comprometer la velocidad de arranque:
+- **Carga perezosa de dependencias pesadas (`music.lazy: get_music21`):** `music21` solo se importa bajo demanda durante el análisis o manipulación de una partitura, evitando el retardo de ~2.8 s en el arranque de la aplicación web y de la CLI.
+- **Manipulación y análisis determinista de partituras (`music.score`, `music.analysis`):**
+  - Soporte de formatos estándar: MusicXML, MXL, MEI, Humdrum (**kern) y ABC.
+  - Recorte de compases (`measures(start, end)`) y transposición por intervalo.
+  - Cálculo de ámbito por voz (nota mínima, máxima e intervalo), finalis / notas finales por voz y del conjunto, e intervalos melódicos más frecuentes.
+  - Detección de aumentación rítmica mediante comparación proporcional de duraciones entre melodías (relación 2:1, 3:1, 4:1 o disminución 1:2).
+  - Todos los resultados se etiquetan automáticamente como *«calculado a partir de la partitura»*, eximiéndose del requisito de cita documental.
+- **Teoría musical griega y microtonalidad (`music.greek`):**
+  - Generación de tetracordos diatónico, cromático y enarmónico (con cuartos de tono / diéseis) calculando frecuencias exactas en Hz a partir de una nota base o frecuencia.
+  - Reproducción microtonal en cliente mediante Web Audio API con osciladores sinusoidales puros, sin requerir librerías externas ni dependencias nativas.
+- **Renderizado de audio con FluidSynth opcional (`music.fluidsynth`):**
+  - Detección dinámica del binario `fluidsynth` en el sistema (`fluidsynth_available`). Si está disponible junto a un SoundFont libre (ej. FluidR3 GM), expone el endpoint `GET /api/ejemplos/{id}/wav` para exportar a WAV. Si no está instalado, la opción no se muestra en la interfaz. No utiliza PyDub ni mido.
+- **Grupo opcional para análisis y DSP (`[project.optional-dependencies] ntam`):**
+  - Agrupa `librosa` y `pedalboard`. La aplicación funciona de manera completa e independiente sin este grupo instalado, verificando su presencia mediante `ntam_available()`.
+
 
