@@ -93,7 +93,10 @@ se resuelve automáticamente en cascada: (1) catálogo local `data/ejemplos/`; (
 partituras del profesor (`Conocimiento/Partituras/`), cuyos archivos MusicXML, MXL, MEI,
 Humdrum (`.krn`) o ABC se indexan automáticamente extrayendo compositor, título, voces,
 compases, claves y mensuración; y (3) repositorios abiertos (Josquin Research Project,
-KernScores, CPDL y corpus music21), únicamente tras consentimiento explícito del profesor.
+KernScores, CPDL, corpus music21 y la fuente opcional HfM Weimar – Computergestützte Musikanalyse),
+únicamente tras consentimiento explícito del profesor. Las partituras de HfM Weimar se restringen
+a archivos MusicXML (.xml, excluyendo .sv) bajo «licencia no especificada: uso docente con atribución»,
+no pudiendo exportarse fuera del material de clase y priorizándose el JRP ante duplicados del repertorio renacentista.
 En la guía docente, cada petición no resuelta ofrece una tarjeta «Ejemplo pendiente»
 con previsualización, selector de rango de compases y opciones para «Usar» (incorporándolo
 al catálogo verificado) o «Descartar». En el material del alumnado solo se incluyen
@@ -1032,7 +1035,8 @@ El módulo `docente_ai.music` proporciona un conjunto de herramientas musicales 
 1. **Manipulación, renderizado y metadatos de partituras:**
    - Importa y valida MusicXML (`.xml`, `.musicxml`), comprimido (`.mxl`), MEI (`.mei`), Humdrum (`.krn`) y ABC (`.abc`) usando `music21` bajo demanda (carga perezosa para no penalizar el arranque).
    - **Renderizado determinista con Verovio (Python):** La generación de SVG vectoriales y secuencias MIDI base64 para previsualización y reproducción polifónica se procesa íntegramente en el backend mediante el paquete Python `verovio`. No se emplean librerías WebAssembly ni bundles en el navegador (`vendor/verovio/` eliminado del repositorio).
-   - **Seguridad en endpoints de partituras:** Los endpoints `/api/scores/render-svg` y `/api/scores/render-midi` no admiten rutas del cliente. Resuelven el identificador (`id`) exclusivamente en el servidor y validan que la ruta canónica (tras resolver enlaces simbólicos) resida estrictamente dentro de `data/ejemplos/`, la carpeta de partituras del profesor (`Conocimiento/Partituras/`), la caché de JRP o el corpus de `music21`; cualquier intento de escape o acceso a archivos del sistema devuelve error 400 o 404.
+   - **Vista de Piano Roll polifónico en SVG (`docente_ai.music.pianoroll`):** Generador SVG en el servidor a partir de cualquier archivo MusicXML o Humdrum mediante `music21` sin dependencias externas. Representa notas con franja de color por voz, eje horizontal en compases y vertical en alturas MIDI, soporte de recorte por compases y conmutador interactivo *«🎼 Partitura / 🎹 Piano roll»* (con el tenor resaltado en dorada en la caja de cantus firmus). La reproducción de audio sincroniza un cursor vertical de avance (`.pianoroll-playhead`) en tiempo real.
+   - **Seguridad en endpoints de partituras:** Los endpoints `/api/scores/render-svg`, `/api/scores/render-midi` y `/api/scores/render-pianoroll` no admiten rutas del cliente. Resuelven el identificador (`id`) exclusivamente en el servidor y validan que la ruta canónica (tras resolver enlaces simbólicos) resida estrictamente dentro de `data/ejemplos/`, la carpeta de partituras del profesor (`Conocimiento/Partituras/`), la caché de JRP o HfM Weimar, o el corpus de `music21`; cualquier intento de escape o acceso a archivos del sistema devuelve error 400 o 404.
    - **Recorte estricto de compases:** El recorte (`measures(start, end)`) valida los límites solicitados. Si el rango falla o excede la extensión de la partitura, el servicio devuelve un error explícito con el motivo en lugar de servir la partitura completa sin recortar. Transposición determinista por intervalo o semitonos.
 2. **Análisis musical calculado:**
    - Ámbito por voz (nota más grave, más aguda e intervalo).

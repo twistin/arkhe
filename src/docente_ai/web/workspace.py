@@ -813,9 +813,14 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         if not fluidsynth_available():
             raise ValueError("FluidSynth no está disponible en este sistema.")
 
-        ej = get_ejemplo(score_id)
+        ej = get_ejemplo(score_id, directory=self.root / "data/ejemplos") or get_ejemplo(
+            score_id, directory=self.root / "config/ejemplos"
+        ) or get_ejemplo(score_id)
         if not ej or not ej.get("archivo_path"):
             raise ValueError(f"Ejemplo {score_id} no encontrado o sin archivo asociado.")
+
+        if ej.get("exportable") is False or ej.get("licencia") == "licencia no especificada: uso docente con atribución":
+            raise ValueError("Esta partitura tiene licencia no especificada y no puede exportarse fuera del material de clase.")
 
         archivo_path = Path(ej["archivo_path"])
         if not archivo_path.is_file():
@@ -845,8 +850,13 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         for p in (self.knowledge / "Partituras", self.root / "config/partituras"):
             roots.append(p.resolve())
 
-        # 3. Caché de JRP
-        for p in (self.root / "data/cache/partituras/jrp", self.root / "data/cache/jrp"):
+        # 3. Caché de JRP y HfM Weimar
+        for p in (
+            self.root / "data/cache/partituras/jrp",
+            self.root / "data/cache/jrp",
+            self.root / "data/cache/partituras/hfm_weimar",
+            self.root / "data/cache/hfm_weimar",
+        ):
             roots.append(p.resolve())
 
         # 4. Corpus de music21
@@ -939,7 +949,35 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                     if resolved_path:
                         break
 
-        # 6. Corpus de music21 (prefijo m21- o identificador de corpus)
+        # 6. Caché de HfM Weimar (prefijo hfm-weimar- o hfm-)
+        if not resolved_path:
+            clean_hfm = score_id
+            for prefix in ("hfm-weimar-", "hfm-"):
+                if clean_hfm.startswith(prefix):
+                    clean_hfm = clean_hfm[len(prefix):]
+                    break
+            for cache_dir in (
+                self.root / "data/cache/partituras/hfm_weimar",
+                self.root / "data/cache/hfm_weimar",
+            ):
+                if cache_dir.is_dir():
+                    for f in cache_dir.iterdir():
+                        if f.is_file():
+                            cand_id = f"hfm-weimar-{f.stem}".replace(".", "-").replace(" ", "-")
+                            cand_id_short = f"hfm-{f.stem}".replace(".", "-").replace(" ", "-")
+                            if (
+                                cand_id == score_id
+                                or cand_id_short == score_id
+                                or f.stem == clean_hfm
+                                or f.name == clean_hfm
+                                or f.stem == score_id
+                            ):
+                                resolved_path = f.resolve()
+                                break
+                    if resolved_path:
+                        break
+
+        # 7. Corpus de music21 (prefijo m21- o identificador de corpus)
         if not resolved_path:
             try:
                 from docente_ai.music.lazy import get_music21
@@ -1040,4 +1078,24 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             tk.setResourcePath(str(data_dir))
         tk.loadData(xml_content)
         return tk.renderToMIDI()
+
+    def render_score_pianoroll(
+        self,
+        file_path: str,
+        start_measure: int = 1,
+        end_measure: int = 8,
+        highlight_voice: str | None = None,
+    ) -> str:
+        """Renderiza un Piano Roll SVG real recortado al rango de compases indicado."""
+        from docente_ai.music import render_pianoroll_svg
+        p = Path(file_path)
+        if not p.is_file():
+            raise FileNotFoundError(f"Partitura no encontrada: {file_path}")
+        return render_pianoroll_svg(
+            p,
+            start_measure=start_measure,
+            end_measure=end_measure,
+            highlight_voice=highlight_voice,
+        )
+
 

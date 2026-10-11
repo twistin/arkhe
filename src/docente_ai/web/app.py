@@ -396,11 +396,21 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
     async def obtener_ejemplo(request):
         from docente_ai.teaching.ejemplos import get_ejemplo, get_ejemplo_musicxml
         id_ej = request.path_params['id']
-        ej = await run_in_threadpool(get_ejemplo, id_ej)
+        ej = await run_in_threadpool(get_ejemplo, id_ej, directory=ws.root / 'data/ejemplos')
+        if not ej:
+            ej = await run_in_threadpool(get_ejemplo, id_ej, directory=ws.root / 'config/ejemplos')
+        if not ej:
+            ej = await run_in_threadpool(get_ejemplo, id_ej)
         if not ej:
             raise ValueError(f'Ejemplo musical {id_ej} no encontrado.')
         if request.query_params.get('musicxml') == '1':
-            xml_content = await run_in_threadpool(get_ejemplo_musicxml, id_ej)
+            if ej.get("exportable") is False or ej.get("licencia") == "licencia no especificada: uso docente con atribución":
+                raise ValueError("Esta partitura tiene licencia no especificada y no puede exportarse fuera del material de clase.")
+            xml_content = await run_in_threadpool(get_ejemplo_musicxml, id_ej, directory=ws.root / 'data/ejemplos')
+            if not xml_content:
+                xml_content = await run_in_threadpool(get_ejemplo_musicxml, id_ej, directory=ws.root / 'config/ejemplos')
+            if not xml_content:
+                xml_content = await run_in_threadpool(get_ejemplo_musicxml, id_ej)
             if not xml_content:
                 raise ValueError(f'Contenido MusicXML no disponible para {id_ej}.')
             return Response(xml_content, media_type='application/vnd.recordare.musicxml+xml', headers={
@@ -417,6 +427,28 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
 
     async def music_capabilities_route(request):
         return JSONResponse(await run_in_threadpool(ws.music_capabilities))
+
+    async def render_score_pianoroll(request):
+        data = await body(request)
+        if 'path' in data:
+            raise ValueError('No se admiten rutas del cliente. Proporciona el identificador del candidato o ejemplo.')
+        score_id = data.get('id') or data.get('candidate_id') or data.get('ejemplo_id')
+        if not score_id:
+            raise ValueError('Se requiere el identificador del candidato o ejemplo del catálogo.')
+        run_id = data.get('run_id')
+        start = int(data.get('start', 1))
+        end = int(data.get('end', 8))
+        voice = data.get('voice') or data.get('highlight_voice')
+        try:
+            resolved_file = await run_in_threadpool(ws.resolve_score_path, score_id, run_id)
+        except FileNotFoundError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=404)
+        except PermissionError as exc:
+            return JSONResponse({'error': str(exc)}, status_code=400)
+        svg = await run_in_threadpool(ws.render_score_pianoroll, str(resolved_file), start, end, voice)
+        if request.headers.get('accept') == 'image/svg+xml':
+            return Response(svg, media_type='image/svg+xml')
+        return JSONResponse({'svg': svg})
 
     async def render_verovio_svg(request):
         data = await body(request)
@@ -499,6 +531,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/ejemplos/{id}', obtener_ejemplo),
               Route('/api/ejemplos/{id}/wav', exportar_ejemplo_wav),
               Route('/api/scores/render-svg', render_verovio_svg, methods=['POST']),
+              Route('/api/scores/render-pianoroll', render_score_pianoroll, methods=['POST']),
               Route('/api/scores/render-midi', render_verovio_midi, methods=['POST']),
               Route('/api/music/capabilities', music_capabilities_route),
               Route('/api/subjects', subject, methods=['POST']), Route('/api/groups', group, methods=['POST']),
