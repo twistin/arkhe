@@ -732,6 +732,64 @@ def render_student(run: dict[str, Any]) -> str:
                 lines.append(f"| **Eje {i}** | {plain(clean_c)} |")
             lines.append('')
 
+    # --- COMPONENTES DIDÁCTICOS CALCULADOS DETERMINISTAS ---
+    didactic_comps = result.get('resolved_didactic_components') or []
+    if didactic_comps:
+        lines += ['', '## Componentes didácticos y análisis teórico', '',
+                  '*Modelos visuales y acústicos calculados deterministamente a partir de la teoría musical clásica.*', '']
+        for dc in didactic_comps:
+            tipo_dc = dc.get('tipo')
+            tit_dc = dc.get('titulo') or tipo_dc.replace('_', ' ').title()
+            desc_dc = dc.get('descripcion') or ''
+            lines += [f"### {plain(tit_dc)}", '']
+            if desc_dc:
+                lines += [f"*{plain(desc_dc)}*", '']
+            if tipo_dc == 'tetracordos':
+                lines += [
+                    '| Género | Subdivisión interválica | Frecuencias exactas (Mi4 descendente) | Cents |',
+                    '| --- | --- | --- | --- |',
+                    '| **Diatónico** | Semitono – Tono – Tono | 329.6 Hz, 293.7 Hz, 261.6 Hz, 246.9 Hz | 0, 100, 300, 500 c |',
+                    '| **Cromático** | Semitono – Semitono – Trihemitono | 329.6 Hz, 277.2 Hz, 261.6 Hz, 246.9 Hz | 0, 100, 200, 500 c |',
+                    '| **Enarmónico** | Cuarto de tono – Cuarto de tono – Ditono | 329.6 Hz, 261.6 Hz, 254.2 Hz (cuarto de tono), 246.9 Hz | 0, 50, 100, 500 c |',
+                    '',
+                ]
+            elif tipo_dc == 'gran_sistema_perfecto':
+                lines += [
+                    '| Tetracordo / Función | Nota griega | Transliteración | Nota moderna | Frecuencia Hz |',
+                    '| --- | --- | --- | --- | --- |',
+                ]
+                for n in dc.get('notas', []):
+                    tet_nombre = (n.get('tetracordo') or 'Sonido base').replace('_', ' ').capitalize()
+                    lines.append(f"| {plain(tet_nombre)} | **{plain(n.get('nombre_griego', ''))}** | {plain(n.get('transliteracion', ''))} | {plain(n.get('nota_moderna', ''))} | {n.get('freq_hz', 0):.1f} Hz |")
+                lines.append('')
+            elif tipo_dc == 'monocordio':
+                lines += [
+                    '| Longitud de cuerda | Proporción acústica | Intervalo consonante | Frecuencia (base Do3 = 130.8 Hz) |',
+                    '| --- | --- | --- | --- |',
+                ]
+                for div in dc.get('divisiones', []):
+                    lines.append(f"| **{div.get('fraccion', '')}** | {div.get('proporcion', '')} | {plain(div.get('intervalo_moderno', ''))} | {div.get('freq_hz', 0):.1f} Hz |")
+                lines.append('')
+            elif tipo_dc == 'escalera_intervalos':
+                lines += [
+                    '| Género | Intervalo 1 (Grave) | Intervalo 2 (Medio) | Intervalo 3 (Agudo) | Ámbito total |',
+                    '| --- | --- | --- | --- | --- |',
+                    '| **Diatónico** | Semitono diatónico (100 c) | Tono entero (200 c) | Tono entero (200 c) | Cuarta justa (500 c) |',
+                    '| **Cromático** | Semitono cromático (100 c) | Semitono diatónico (100 c) | Trihemitono (300 c) | Cuarta justa (500 c) |',
+                    '| **Enarmónico** | Cuarto de tono / Díesis (50 c) | Cuarto de tono / Díesis (50 c) | Ditono mayor (400 c) | Cuarta justa (500 c) |',
+                    '',
+                ]
+            elif tipo_dc == 'linea_temporal':
+                lines += [
+                    '| Siglo / Época | Teórico / Autor | Tratado o contribución principal | Datación |',
+                    '| --- | --- | --- | --- |',
+                ]
+                for hito in dc.get('hitos', []):
+                    aprox = ' *(aprox.)*' if hito.get('aproximado') else ''
+                    lines.append(f"| {plain(hito.get('epoca', ''))} | **{plain(hito.get('autor', ''))}** | {plain(hito.get('obra', ''))} | {plain(hito.get('fechas', ''))}{aprox} |")
+                lines.append('')
+
+
     # --- CHEAT SHEET DE PRÁCTICA ---
     lines += ['## Cheat sheet de práctica', '',
               'Consulta rápida para tener a mano durante el trabajo de hoy.', '']
@@ -739,6 +797,7 @@ def render_student(run: dict[str, Any]) -> str:
         lines += ['| Concepto | Definición |', '| --- | --- |']
         for c in ficha['conceptos']:
             lines.append(f"| **{plain(c.get('termino', ''))}** | {plain(c.get('definicion', ''))} |")
+
     else:
         cheat_items = [
             item
@@ -1188,8 +1247,10 @@ def render_pedagogy(run: dict) -> str:
                 act_t = m_req.get('activity_title') or 'Actividad de aula'
                 ej = res_info.get('ejemplo')
                 if status == 'resuelto_catalogo' and ej and res_info.get('verificado'):
+                    is_th = ej.get('calculado_teoria') or ej.get('fuente') == 'Calculado a partir de la teoría'
+                    tag = '[Calculado a partir de la teoría]' if is_th else '[Verificado]'
                     lines += [
-                        f"- **{plain(work)}** ({plain(comp)}) · *{plain(tech)}* [Verificado]",
+                        f"- **{plain(work)}** ({plain(comp)}) · *{plain(tech)}* {tag}",
                         f"  - Archivo: `{plain(ej.get('archivo', ''))}` · Compases: {plain(ej.get('compases', '1-8'))} · Licencia: {plain(ej.get('licencia', 'Libre'))}",
                     ]
                 else:
@@ -1198,6 +1259,15 @@ def render_pedagogy(run: dict) -> str:
                         f"  - Petición para *{plain(act_t)}*: ejemplo pendiente de añadir o verificar en el catálogo.",
                     ]
             lines.append('')
+
+        didactic_comps = result.get('resolved_didactic_components') or []
+        if didactic_comps:
+            lines += ['', '### Componentes didácticos deterministas incorporados', '']
+            for dc in didactic_comps:
+                tit = dc.get('titulo') or dc.get('tipo')
+                lines += [f"- ✓ **{plain(tit)}** [Calculado a partir de la teoría]"]
+            lines.append('')
+
 
         lines += ['', '**Observaciones didácticas:** ' + plain(replace_source_references(plan.get('observations', ''), by_id)), '']
 

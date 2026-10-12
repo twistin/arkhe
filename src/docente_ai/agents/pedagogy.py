@@ -16,16 +16,18 @@ from docente_ai.teaching.curriculum import show_curriculum
 
 ValidationError = ResponseValidationError
 
-PROMPT_VERSION = 'pedagogy:9'
-SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Fuentes role="programming" son la programación didáctica; las demás son contenido técnico. Lagunas documentales van en coverage y observations; nunca inventes ni cites fuentes ausentes en objetivos, student_summary ni tareas.
+PROMPT_VERSION = 'pedagogy:10'
+SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Fuentes role="programming" son programación didáctica; las demás, contenido técnico. Lagunas documentales van en coverage y observations; nunca inventes ni cites fuentes ausentes.
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
-- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Cada claim vinculado a su requisito. Cronología o autores no documentados se declaran aquí y en observations.
-- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda), student_summary (2 a 4 frases directas al alumno en 2ª persona sin hablar de fuentes ni 'alumnado' en 3ª persona) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
-- plan: objectives (2-5, orientados al aprendizaje musical; sin hablar de fuentes ni autores ausentes), difficulty, activities (2-5), resources (1-5; texto u objetos {recurso,tipo,pendiente}), assessment y observations. Actividades: title, teacher_notes, student_task (2ª persona, tarea práctica activa; sin hablar de fuentes ni verbos docentes), grouping ("individual", "grupo" o "colectivo"), deliverable, solution, minutes (suman duration_minutes), claim_ids (1-based). En teacher_notes y solution, hechos sin respaldo indican "aportación del profesor pendiente". Temporización: si hay teoría nueva, reserva 15-20 min de exposición; no comprimir teoría y transcripción en 10 min.
-- visualizations: 0 a 2 esquemas con type (sequence, relationship o table), title, items ([{"label":"...","detail":"..."}]), caption y evidence.
-- music_requests: 0 a 4 peticiones de ejemplos musicales con id ("MR1"-"MR4"), composer, work, section, voice (o null), technique (o null), activity_title y description (qué ilustra). Prohibido terminantemente escribir código o notación musical en la respuesta (el validador la rechaza).
+- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note.
+- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda), student_summary (1 a 3 párrafos para el grupo, con ejemplo concreto y referencia gráfica, en 2ª persona sin hablar de fuentes ni 'alumnado' en 3ª persona) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
+- plan: objectives (2-5), difficulty, activities (2-5: title, teacher_notes, student_task en 2ª persona, grouping, deliverable, solution, minutes suman duration_minutes, claim_ids), resources (1-5), assessment y observations.
+- visualizations: 0 a 2 esquemas con type, title, items ([{"label":"...","detail":"..."}]), caption y evidence.
+- music_requests: 0 a 4 peticiones con id, composer, work, section, voice, technique, activity_title y description. Prohibido código o notas.
+- didactic_components: 0 a 5 componentes deterministas con tipo ("tetracordos", "gran_sistema_perfecto", "monocordio", "escalera_intervalos", "linea_temporal"), parametros y actividad. Prohibido código SVG o HTML.
 Devuelve solo JSON.'''
+
 
 TEXT = {'type': 'string'}
 STRINGS = {'type': 'array', 'items': TEXT}
@@ -120,6 +122,23 @@ MUSIC_REQUEST_SCHEMA = {
 RESPONSE_SCHEMA['properties']['music_requests'] = {
     'type': 'array',
     'items': MUSIC_REQUEST_SCHEMA,
+}
+
+DIDACTIC_COMPONENT_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'tipo': {
+            'type': 'string',
+            'enum': ['tetracordos', 'gran_sistema_perfecto', 'monocordio', 'escalera_intervalos', 'linea_temporal'],
+        },
+        'parametros': {'type': 'object'},
+        'actividad': {'type': 'string'},
+    },
+    'required': ['tipo'],
+}
+RESPONSE_SCHEMA['properties']['didactic_components'] = {
+    'type': 'array',
+    'items': DIDACTIC_COMPONENT_SCHEMA,
 }
 
 
@@ -301,7 +320,7 @@ def validate(content, evidence, context, *, retry: bool = True):
         fail('La propuesta requiere status, claims y plan.')
     top_level_obs = data.pop('observations', None) or data.pop('reason', None) or data.pop('notes', None)
     for k in list(data.keys()):
-        if k not in {'status', 'claims', 'plan', 'visualizations', 'coverage', 'music_requests'}:
+        if k not in {'status', 'claims', 'plan', 'visualizations', 'coverage', 'music_requests', 'didactic_components'}:
             data.pop(k, None)
     if 'claims' in data:
         data['claims'] = normalize_claims(data['claims'])
@@ -340,14 +359,14 @@ def validate(content, evidence, context, *, retry: bool = True):
     for index, claim in enumerate(data['claims']):
         ss = student_summaries[index] if index < len(student_summaries) else None
         if ss is not None:
-            if not isinstance(ss, str) or not 1 <= len(ss.strip()) <= 1500:
-                fail(f'claims[{index}].student_summary vacío o demasiado largo (máximo 1500 caracteres).')
+            if not isinstance(ss, str) or not 1 <= len(ss.strip()) <= 4500:
+                fail(f'claims[{index}].student_summary vacío o demasiado largo (máximo 4500 caracteres).')
             if any(ord(c) < 32 and c not in '\n\r\t' for c in ss):
                 fail(f'claims[{index}].student_summary contiene caracteres de control no permitidos.')
             if THIRD_PERSON_ALUMNADO.search(ss):
                 fail(
                     f'claims[{index}].student_summary no debe hablar del "alumnado" o de los estudiantes en tercera persona '
-                    'ni incluir instrucciones metodológicas. Explica el concepto directamente al grupo en 2 a 4 frases.'
+                    'ni incluir instrucciones metodológicas. Desarrolla la explicación directamente para el grupo en uno a tres párrafos.'
                 )
             if SOURCE_META_TALK.search(ss):
                 fail(
@@ -700,5 +719,30 @@ def validate(content, evidence, context, *, retry: bool = True):
                 'description': str(mr['description']).strip(),
             })
         data['music_requests'] = valid_requests
+
+    VALID_DIDACTIC_TYPES = {'tetracordos', 'gran_sistema_perfecto', 'monocordio', 'escalera_intervalos', 'linea_temporal'}
+    if 'didactic_components' in data:
+        d_comps = data['didactic_components']
+        if not isinstance(d_comps, list) or len(d_comps) > 6:
+            fail('didactic_components debe ser una lista con un máximo de seis componentes.')
+        valid_comps = []
+        for idx, dc in enumerate(d_comps):
+            if not isinstance(dc, dict):
+                fail(f'didactic_components[{idx}] debe ser un objeto.')
+            t = dc.get('tipo')
+            if not isinstance(t, str) or t.strip().lower() not in VALID_DIDACTIC_TYPES:
+                fail(f"didactic_components[{idx}].tipo inválido: '{t}'. Tipos válidos: {sorted(VALID_DIDACTIC_TYPES)}.")
+            params = dc.get('parametros') or {}
+            if not isinstance(params, dict):
+                fail(f'didactic_components[{idx}].parametros debe ser un objeto.')
+            for val in list(params.values()) + [dc.get('actividad')]:
+                if isinstance(val, str) and any(tag in val.lower() for tag in ('<svg', '<path', '<polygon', '<rect', '<polyline', '<circle')):
+                    fail('Prohibido incluir código SVG en didactic_components; el sistema genera los gráficos deterministamente.')
+            valid_comps.append({
+                'tipo': t.strip().lower(),
+                'parametros': params,
+                'actividad': str(dc['actividad']).strip() if dc.get('actividad') else None,
+            })
+        data['didactic_components'] = valid_comps
 
     return data

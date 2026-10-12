@@ -343,6 +343,39 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
             except Exception as res_err:
                 report(f'Aviso en resolución de partituras: {res_err}')
 
+        if result:
+            d_comps = result.get('didactic_components')
+            top_clean = (str(request.get('original_topic') or request.get('question') or '')).lower()
+            is_greek_theme = any(k in top_clean for k in ('grecia', 'seikilos', 'epitafio', 'tetracordo', 'aristóxeno', 'aristoxeno', 'ptolomeo', 'monocordio', 'sistema perfecto'))
+            if d_comps is None and is_greek_theme:
+                d_comps = [
+                    {'tipo': 'tetracordos'},
+                    {'tipo': 'gran_sistema_perfecto'},
+                    {'tipo': 'monocordio'},
+                    {'tipo': 'escalera_intervalos'},
+                    {'tipo': 'linea_temporal'},
+                ]
+                result['didactic_components'] = d_comps
+
+            if isinstance(d_comps, list) and d_comps:
+                try:
+                    from docente_ai.music.didactic import resolver_componente_didactico
+                    report('Resolviendo componentes didácticos musicales deterministas')
+                    resolved_comps = []
+                    for comp in d_comps:
+                        tipo = comp.get('tipo')
+                        parametros = comp.get('parametros') or {}
+                        try:
+                            res = resolver_componente_didactico(tipo, parametros, evidence=bundle.get('evidence'))
+                            if comp.get('actividad'):
+                                res['actividad'] = comp.get('actividad')
+                            resolved_comps.append(res)
+                        except Exception as comp_err:
+                            report(f'Aviso en componente didáctico {tipo}: {comp_err}')
+                    result['resolved_didactic_components'] = resolved_comps
+                except Exception as did_err:
+                    report(f'Aviso general en resolución de componentes didácticos: {did_err}')
+
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         complete(status='draft' if result['status'] == 'answered' else 'abstained',
                result=result, raw=raw, metrics=metrics, evidence=bundle['evidence'], request=request)
@@ -755,4 +788,74 @@ def search_open_score_repos(
             (dump(result), run_id)
         )
     return get_run(db, run_id)
+
+
+def import_score_musicxml(
+    db: Path,
+    run_id: str,
+    request_id: str,
+    xml_content: str,
+    fuente: str,
+    *,
+    titulo: str | None = None,
+    compositor: str | None = None,
+    rango_compases: str = "1-12",
+    directorio_destino: Path | str | None = None
+) -> dict:
+    """Importa una transcripción MusicXML del usuario en una petición pendiente y la guarda en el catálogo."""
+    from docente_ai.teaching.score_resolver import importar_transcripcion_musicxml
+
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute(
+            'SELECT status, result_json FROM generation_runs WHERE id=?', (run_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        status, result_json = row
+        if not result_json:
+            raise ValueError('El registro no contiene resultado.')
+        result = json.loads(result_json)
+        music_requests = result.get('music_requests', [])
+        resolved_list = result.get('resolved_music_requests', [])
+
+        req = next((r for r in music_requests if r.get('id') == request_id), None)
+        if not req:
+            raise ValueError(f'Petición musical inexistente: {request_id}.')
+
+        resolved_item = next((r for r in resolved_list if r.get('request_id') == request_id), None)
+        if not resolved_item:
+            resolved_item = {
+                'request_id': request_id,
+                'request': req,
+                'status': 'sin_resolver',
+                'candidatos': [],
+                'descartes': [],
+            }
+            resolved_list.append(resolved_item)
+
+        nuevo_ejemplo = importar_transcripcion_musicxml(
+            req,
+            xml_content,
+            fuente=fuente,
+            titulo=titulo,
+            compositor=compositor,
+            rango_compases=rango_compases,
+            directorio_destino=directorio_destino
+        )
+
+        resolved_item['status'] = 'resuelto_catalogo'
+        resolved_item['origen'] = 'catalogo_local'
+        resolved_item['ejemplo'] = nuevo_ejemplo
+        resolved_item['verificado'] = True
+        resolved_item['candidatos'] = []
+
+        result['resolved_music_requests'] = resolved_list
+        connection.execute(
+            'UPDATE generation_runs SET result_json=? WHERE id=?',
+            (dump(result), run_id)
+        )
+    return get_run(db, run_id)
+
 

@@ -502,6 +502,26 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         from docente_ai.generation.service import search_open_score_repos as _search
         return _search(self.db, run_id, request_id)
 
+    def import_score_musicxml(self, run_id: str, request_id: str, data: dict) -> dict:
+        from docente_ai.generation.service import import_score_musicxml as _import_xml
+        xml_content = data.get('musicxml') or data.get('content') or ''
+        fuente = data.get('fuente') or ''
+        titulo = data.get('titulo')
+        compositor = data.get('compositor')
+        compases = data.get('compases') or '1-12'
+        dest = data.get('directorio_destino') or (self.root / 'data/ejemplos')
+        return _import_xml(
+            self.db,
+            run_id,
+            request_id,
+            xml_content,
+            fuente,
+            titulo=titulo,
+            compositor=compositor,
+            rango_compases=compases,
+            directorio_destino=dest
+        )
+
     def delete_source(self, document_id: str) -> dict:
         from docente_ai.library.service import delete_document as _delete_document
         return _delete_document(self.db, document_id)

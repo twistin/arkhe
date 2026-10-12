@@ -347,6 +347,12 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         req_id = request.path_params['req_id']
         return JSONResponse(await run_in_threadpool(ws.search_open_score_repos, run_id, req_id, data))
 
+    async def import_musicxml(request):
+        data = await body(request)
+        run_id = request.path_params['id']
+        req_id = request.path_params['req_id']
+        return JSONResponse(await run_in_threadpool(ws.import_score_musicxml, run_id, req_id, data))
+
     async def record_create(request):
         data = await body(request)
         return JSONResponse(await run_in_threadpool(ws.add_record, data))
@@ -567,6 +573,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/runs/{id}/music_requests/{req_id}/adopt', adopt_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/discard', discard_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/search_open_repos', search_repos, methods=['POST']),
+              Route('/api/runs/{id}/music_requests/{req_id}/import_musicxml', import_musicxml, methods=['POST']),
               Route('/api/records', record_create, methods=['POST']),
               Route('/api/records/{id}', record_get),
               Route('/api/records/{id}/progress', record_progress, methods=['POST']),

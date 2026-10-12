@@ -6,6 +6,7 @@ Orden de resolución:
 3. Repositorios abiertos con consentimiento explícito (JRP, KernScores, CPDL, music21).
 """
 
+import re
 from pathlib import Path
 from typing import Any
 import yaml
@@ -297,3 +298,82 @@ def usar_candidato_como_ejemplo(
 
     yaml_file.write_text(yaml.safe_dump(existentes, allow_unicode=True, sort_keys=False), encoding='utf-8')
     return nuevo_ejemplo
+
+
+def importar_transcripcion_musicxml(
+    request: dict[str, Any],
+    xml_content: str,
+    *,
+    fuente: str,
+    titulo: str | None = None,
+    compositor: str | None = None,
+    rango_compases: str = "1-12",
+    directorio_destino: Path | str | None = None,
+) -> dict[str, Any]:
+    """Importa una transcripción propia en MusicXML asignada a una petición musical,
+    guardándola en el catálogo de ejemplos con la fuente indicada por el usuario y verificado: true.
+    """
+    if not xml_content or not xml_content.strip():
+        raise ValueError("El contenido MusicXML no puede estar vacío.")
+    fuente_limpia = (fuente or "").strip()
+    if not fuente_limpia:
+        raise ValueError("Debe especificarse la fuente de la transcripción (ej. Transcripción propia del profesor).")
+
+    target_dir = Path(directorio_destino) if directorio_destino else EJEMPLOS_DEFAULT_DIR
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    import unicodedata
+    obra_titulo = titulo or request.get('work') or 'Transcripción'
+    comp_nombre = compositor or request.get('composer') or 'Anónimo'
+    norm_txt = unicodedata.normalize('NFKD', f"{comp_nombre}-{obra_titulo}").encode('ascii', 'ignore').decode('ascii')
+    base_slug = re.sub(r'[^a-zA-Z0-9_\-]+', '-', norm_txt).strip('-').lower()
+    if not base_slug:
+        base_slug = "transcripcion"
+    nuevo_id = f"ejemplo-{base_slug}"
+
+    archivo_nombre = f"{nuevo_id}.musicxml"
+    file_path = target_dir / archivo_nombre
+    file_path.write_text(xml_content.strip(), encoding='utf-8')
+
+    # Intentar extraer voces si es posible o definir voz melódica por defecto
+    voces = [{'id': 'P1', 'nombre': 'Melodía / Voz principal'}]
+    try:
+        from docente_ai.teaching.score_parser import parse_musicxml_metadata
+        meta = parse_musicxml_metadata(file_path)
+        if meta and meta.get('voces'):
+            voces = meta['voces']
+    except Exception:
+        pass
+
+    nuevo_ejemplo = {
+        'id': nuevo_id,
+        'titulo': obra_titulo,
+        'compositor': comp_nombre,
+        'obra': obra_titulo,
+        'seccion': request.get('section', ''),
+        'compases': rango_compases,
+        'tecnica': request.get('technique', 'Notación musical histórica'),
+        'voces': voces,
+        'archivo': archivo_nombre,
+        'fuente': fuente_limpia,
+        'licencia': 'Transcripción del profesor / Uso docente con atribución',
+        'edicion': 'Transcripción directa del usuario',
+        'url': '',
+        'verificado': True,
+        'voz_resaltada': request.get('voice', ''),
+        'nota_analisis': request.get('description', 'Transcripción incorporada desde la tarjeta del ejemplo.'),
+    }
+
+    yaml_file = target_dir / 'ejemplos.yaml'
+    existentes = []
+    if yaml_file.is_file():
+        try:
+            existentes = yaml.safe_load(yaml_file.read_text(encoding='utf-8')) or []
+        except Exception:
+            existentes = []
+
+    existentes = [e for e in existentes if e.get('id') != nuevo_id]
+    existentes.append(nuevo_ejemplo)
+    yaml_file.write_text(yaml.safe_dump(existentes, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    return nuevo_ejemplo
+
