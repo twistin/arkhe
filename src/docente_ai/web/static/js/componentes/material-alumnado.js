@@ -18,6 +18,7 @@ import {
 } from './audiciones.js';
 import { renderStudentInfographic } from '../infografias/musica.js';
 import { initScorePreviews } from './partituras.js';
+import { renderDidacticComponent, initDidacticInteractions } from './didacticos/index.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function cleanStudentText(text, isConsigna = false) {
@@ -67,6 +68,24 @@ export function formatStudentResource(item) {
     return rec || null;
   }
   return cleanStudentText(String(item), true);
+}
+
+export function renderDidacticSection(run) {
+  const comps = run.result?.resolved_didactic_components || [];
+  if (!comps.length) return '';
+  return [
+    '    <!-- COMPONENTES DIDÁCTICOS Y MODELOS ACÚSTICOS CALCULADOS -->\n',
+    '    <section class="student-section section-didactic-models">\n',
+    '      <div class="student-section-header">\n',
+    '        <span class="student-section-number">📐</span>\n',
+    '        <div>\n',
+    '          <h2>Modelos gráficos y acústicos calculados</h2>\n',
+    '          <p class="student-section-intro">' +
+    'Componentes interactivos calculados deterministamente a partir de la teoría musical clásica.</p>\n',
+    '        </div>\n      </div>\n      <div class="didactic-models-container">\n',
+    comps.map(dc => renderDidacticComponent(dc)).join(''),
+    '\n      </div>\n    </section>\n\n',
+  ].join('');
 }
 
 export function studentDocumentHTML(run) {
@@ -198,12 +217,14 @@ export function studentDocumentHTML(run) {
       ].join('')
     ),
     `\n    </section>\n\n`,
+    renderDidacticSection(run),
     `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
     `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
     `        <span class="student-section-number">03</span>\n        <div>\n`,
     `          <h2>Conceptos obligatorios para aprender</h2>\n`,
     `          <p class="student-section-intro">Vocabulario técnico y conceptos analíticos indispensables.</p>\n`,
-    `        </div>\n      </div>\n      <div class="concept-grid">\n`,
+    `        </div>\n      </div>\n`,
+    `      <div class="concept-grid">\n`,
     (isFichaVerified && run.ficha?.conceptos?.length) ? (
       run.ficha.conceptos.map(c => [
         `\n        <div class="concept-card">\n          <div class="concept-head">`,
@@ -380,6 +401,7 @@ export async function studentMaterialModal(id) {
   ].join(''));
   dialog.classList.add('student-dialog');
   initScorePreviews();
+  initDidacticInteractions(dialog);
 }
 
 // Acciones y formularios de este módulo; delegación central en main.js.

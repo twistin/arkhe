@@ -192,6 +192,13 @@ HTML_SEGURO = frozenset(
         "unitOptions",
         "sessionOptions",
         "dialogHTML",
+        "renderDidacticSection",
+        "renderDidacticComponent",
+        "renderTetracordos",
+        "renderGranSistemaPerfecto",
+        "renderMonocordio",
+        "renderEscaleraIntervalos",
+        "renderLineaTemporal",
     }
 )
 
@@ -209,6 +216,11 @@ INTERNOS_SEGUROS = {
     "icon": {"paths[name] || paths.document"},
     "header": {"actions"},
     "dialogHTML": {"content"},
+    "renderTetracordos": {"svgContent"},
+    "renderGranSistemaPerfecto": {"svgContent"},
+    "renderMonocordio": {"svgContent"},
+    "renderEscaleraIntervalos": {"svgContent"},
+    "renderLineaTemporal": {"svgContent"},
 }
 
 

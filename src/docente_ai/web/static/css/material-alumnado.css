@@ -576,3 +576,211 @@
 .proposal-listening-card {
   border: 1px solid #cbd5e1;
 }
+
+/* Didactic Models & Acousic Components */
+.section-didactic-models {
+  margin-top: 28px;
+  margin-bottom: 28px;
+}
+.didactic-models-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 14px;
+}
+.didactic-component-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+.didactic-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.didactic-head h4 {
+  margin: 6px 0 4px;
+  font-size: 15px;
+  color: #0f172a;
+}
+.didactic-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: #64748b;
+}
+.didactic-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.didactic-visual-container {
+  overflow-x: auto;
+  padding: 8px 0;
+}
+.didactic-svg-wrapper {
+  min-width: 650px;
+}
+.didactic-svg-wrapper svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Gran Sistema Perfecto Note Strip */
+.gsp-notes-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 10px;
+}
+.gsp-note-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 70px;
+  transition: all 0.15s ease;
+}
+.gsp-note-btn:hover {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  transform: translateY(-2px);
+}
+.gsp-btn-modern {
+  font-weight: 700;
+  font-size: 12px;
+  color: #0f172a;
+}
+.gsp-btn-greek {
+  font-size: 9.5px;
+  color: #475569;
+  white-space: nowrap;
+}
+.gsp-btn-hz {
+  font-size: 9px;
+  color: #0284c7;
+  margin-top: 2px;
+}
+
+/* Monocordio Buttons */
+.monocordio-buttons-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Greek Glossary Block */
+.greek-glossary-block {
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.greek-glossary-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 12px;
+}
+
+/* Tuning Selectors */
+.tuning-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 2px 4px;
+}
+.tuning-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-right: 2px;
+  padding-left: 4px;
+}
+.tuning-btn {
+  border: 0 !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-size: 11px !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tuning-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+.tuning-btn.active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Gran Sistema Perfecto Grid */
+.gsp-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
+.gsp-note-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+.gsp-note-head-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gsp-card-modern {
+  font-weight: 700;
+  font-size: 13px;
+  color: #0f172a;
+}
+.gsp-note-play {
+  padding: 2px 6px !important;
+  min-width: auto !important;
+  height: 24px !important;
+  line-height: 1 !important;
+}
+.gsp-card-greek {
+  font-size: 10.5px;
+  color: #475569;
+  line-height: 1.2;
+}
+.gsp-card-hz {
+  font-size: 10px;
+  color: #0284c7;
+  font-weight: 600;
+  margin-top: 2px;
+}
+

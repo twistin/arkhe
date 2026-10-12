@@ -1,4 +1,4 @@
-import { e, icon, render, toast } from '../ui.js';
+import { e, icon, render, toast, modal, dialog } from '../ui.js';
 import { store } from '../state.js';
 import { api } from '../api.js';
 
@@ -159,11 +159,16 @@ export function renderMusicRequestCard(item, result, run) {
     `      <p class="score-desc">${e(req.description || '')}</p>`,
     `      <small class="score-meta">Técnica: ${e(req.technique || 'General')} · `,
     `Actividad: ${e(req.activity_title || 'Clase')}</small>`,
-    `    </div>`,
-    `    <button class="button small open-repos-btn" data-run-id="${e(run.id)}" `,
+    `    <div class="score-card-actions">`,
+    `      <button class="button small open-repos-btn" data-run-id="${e(run.id)}" `,
     `data-req-id="${e(reqId)}">`,
-    `      ${icon('spark')}Buscar en repositorios abiertos`,
-    `    </button>`,
+    `        ${icon('spark')}Buscar en repositorios abiertos`,
+    `      </button>`,
+    `      <button class="button small ghost import-musicxml-btn" data-run-id="${e(run.id)}" `,
+    `data-req-id="${e(reqId)}" data-work="${e(req.work || '')}" data-composer="${e(req.composer || '')}">`,
+    `        ${icon('upload')}Importar MusicXML`,
+    `      </button>`,
+    `    </div>`,
     `  </div>`,
     candidatesHtml,
     `</div>`,
@@ -638,6 +643,102 @@ async function accionDescargarEjemplosFicha({target}) {
   }
 }
 
+async function accionImportMusicxml({target}) {
+  const btn = target.closest('.import-musicxml-btn');
+  if (!btn) return;
+  const runId = btn.dataset.runId;
+  const reqId = btn.dataset.reqId;
+  const defWork = btn.dataset.work || 'Epitafio de Seikilos';
+  const defComp = btn.dataset.composer || 'Anónimo / Grecia antigua';
+
+  modal('Importar transcripción en MusicXML', [
+    `<form class="import-musicxml-form" data-run-id="${e(runId)}" data-req-id="${e(reqId)}">`,
+    `  <div class="form-group">`,
+    `    <label><strong>Título de la obra / fragmento:</strong></label>`,
+    `    <input type="text" name="titulo" class="input" value="${e(defWork)}" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Compositor / Época:</strong></label>`,
+    `    <input type="text" name="compositor" class="input" value="${e(defComp)}" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Fuente bibliográfica o procedencia (requerido):</strong></label>`,
+    `    <input type="text" name="fuente" class="input" ` +
+    `placeholder="ej. Transcripción propia a partir de la estela de Tralles" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Subir archivo MusicXML (.musicxml o .xml):</strong></label>`,
+    `    <input type="file" name="file" accept=".musicxml,.xml" class="input-file">`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>O pegar directamente código MusicXML:</strong></label>`,
+    `    <textarea name="musicxml" class="textarea" rows="8" ` +
+    `placeholder="<?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?>&#10;<score-partwise..."></textarea>`,
+    `  </div>`,
+    `  <div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end;">`,
+    `    <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
+    `    <button type="submit" class="button primary">${icon('upload')}Guardar en el catálogo e incorporar</button>`,
+    `  </div>`,
+    `</form>`,
+  ].join(''));
+
+  const form = dialog.querySelector('.import-musicxml-form');
+  if (!form) return;
+  const fileInput = form.querySelector('input[type="file"]');
+  const textArea = form.querySelector('textarea[name="musicxml"]');
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        textArea.value = ev.target.result;
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando e importando…';
+    try {
+      const formData = new FormData(form);
+      const xmlContent = (formData.get('musicxml') || '').trim();
+      const fuenteVal = (formData.get('fuente') || '').trim();
+      const titVal = (formData.get('titulo') || '').trim();
+      const compVal = (formData.get('compositor') || '').trim();
+
+      if (!xmlContent) throw new Error('Debes seleccionar un archivo o pegar el código MusicXML.');
+      if (!fuenteVal) throw new Error('Debes indicar la fuente de la transcripción.');
+
+      const updatedRun = await api(
+        `/runs/${encodeURIComponent(runId)}/music_requests/${encodeURIComponent(reqId)}/import_musicxml`,
+        {
+          musicxml: xmlContent,
+          fuente: fuenteVal,
+          titulo: titVal,
+          compositor: compVal,
+        },
+        { method: 'POST' }
+      );
+
+      if (store.currentRun && store.currentRun.id === runId) {
+        store.currentRun = updatedRun;
+      }
+      dialog.close();
+      render();
+      toast('Transcripción MusicXML guardada e importada en el catálogo.');
+    } catch (err) {
+      toast(`Error al importar MusicXML: ${err.message}`, 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `${icon('upload')}Guardar en el catálogo e incorporar`;
+    }
+  });
+}
+
 export const actions = {
   'adopt-score': accionAdoptScore,
   'discard-score': accionDiscardScore,
@@ -645,6 +746,7 @@ export const actions = {
   'play-score-sample': accionPlayScoreSample,
   'toggle-score-mode': accionToggleScoreMode,
   'descargar-ejemplos-ficha': accionDescargarEjemplosFicha,
+  'import-musicxml': accionImportMusicxml,
 };
 
 export const clickBindings = [
@@ -658,4 +760,6 @@ export const clickBindings = [
     matches: target => !!target.closest('.descargar-ejemplos-ficha-btn'),
     action: 'descargar-ejemplos-ficha'
   },
+  { priority: 2, matches: target => !!target.closest('.import-musicxml-btn'), action: 'import-musicxml' },
 ];
+
