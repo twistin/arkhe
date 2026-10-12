@@ -916,8 +916,17 @@ Para dotar al sistema de capacidad de análisis y cálculo musical sin depender 
   - Detección de aumentación rítmica mediante comparación proporcional de duraciones entre melodías (relación 2:1, 3:1, 4:1 o disminución 1:2).
   - Todos los resultados se etiquetan automáticamente como *«calculado a partir de la partitura»*, eximiéndose del requisito de cita documental.
 - **Teoría musical griega y microtonalidad (`music.greek`):**
-  - Generación de tetracordos diatónico, cromático y enarmónico (con cuartos de tono / diéseis) calculando frecuencias exactas en Hz a partir de una nota base o frecuencia.
-  - Reproducción microtonal en cliente mediante Web Audio API con osciladores sinusoidales puros, sin requerir librerías externas ni dependencias nativas.
+  - Generación determinista de tetracordos (diatónico, cromático y enarmónico con cuartos de tono / diéseis) calculando frecuencias exactas en Hz a partir de una nota base (según la división de Aristóxeno).
+  - Partitura MusicXML y renderizado Verovio sin indicación de compás, cabezas de notas sin plica, barras divisorias limitadas a la separación entre géneros y notación del cuarto de tono sostenido mediante el glifo SMuFL Stein (`accidentalQuarterToneSharpStein` / `E282`).
+  - Reproducción microtonal en cliente mediante Web Audio API con osciladores configurados a las frecuencias exactas.
+  - Exportación de audio (WAV) de ejemplos microtonales mediante síntesis determinista PCM lineal de 16 bits a 44.1 kHz (`sintetizar_tetracordos_wav`), preservando con fidelidad matemática los cuartos de tono (~254.18 Hz para el Si con díesis) sin degradación a semitonos temperados.
+
+## Decisión centralizada de respaldo bibliográfico y clasificación en bloque
+
+Para evitar discrepancias entre frontend y backend sobre la validez de las fuentes:
+- **Función unificada `is_bibliographic_origin`:** Centralizada en `generation/render.py`, determina de forma estricta si una evidencia cuenta como respaldo bibliográfico (`bibliografia`, `fuente_primaria`, `material académico de la carrera`). Las fuentes con origen `archivo local` o `sin_clasificar` se consideran no bibliográficas hasta su categorización formal, activando `aviso_fundamentacion` si la propuesta carece de respaldo documental verificado.
+- **Enriquecimiento del run en servidor (`enriquecer_run_respaldo_bibliografico`):** El backend calcula y serializa las etiquetas de procedencia (`etiqueta_origen`, `es_bibliografico`, `synthesis_label`) antes de enviar la respuesta, eliminando recálculos redundantes o heurísticas desalineadas en el cliente web.
+- **Acción masiva en Biblioteca (`POST /api/documents/batch-origin`):** La interfaz web de Biblioteca incorpora selección múltiple mediante casillas de verificación, botón para seleccionar rápidamente todas las fuentes sin clasificar y la acción en bloque «Clasificar como bibliografía» para normalizar lotes de documentos locales en un solo paso.
 - **Renderizado de audio con FluidSynth opcional (`music.fluidsynth`):**
   - Detección dinámica del binario `fluidsynth` en el sistema (`fluidsynth_available`). Si está disponible junto a un SoundFont libre (ej. FluidR3 GM), expone el endpoint `GET /api/ejemplos/{id}/wav` para exportar a WAV. Si no está instalado, la opción no se muestra en la interfaz. No utiliza PyDub ni mido.
 - **Grupo opcional para análisis y DSP (`[project.optional-dependencies] ntam`):**

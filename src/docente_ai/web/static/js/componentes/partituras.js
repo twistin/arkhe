@@ -101,6 +101,7 @@ export function renderMusicRequestCard(item, result, run) {
 
   if (isVerified) {
     const ej = item.ejemplo;
+    const freqsJson = JSON.stringify(ej.frecuencias_hz || []);
     const wavButton = renderWavDownloadButton(ej);
     const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
     const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Ejemplo verificado';

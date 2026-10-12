@@ -99,8 +99,11 @@ bloque en MusicXML, MEI, LilyPond, ABC o Humdrum en la respuesta del LLM. Cada p
 se resuelve automáticamente: si pide conceptos teóricos calculables (tetracordos descendentes
 mi–si en los géneros diatónico, cromático y enarmónico con cuartos de tono, escalas o modos),
 se genera deterministamente mediante `music21` sin consultar repositorios externos, renderizándose
-con Verovio, conmutador al piano roll y reproducción con frecuencias microtonales exactas en
-Web Audio, identificándose con la etiqueta «✓ Calculado a partir de la teoría». Para obras de repertorio,
+con Verovio (título formal «Tetracordo mi–si en los tres géneros», sin indicación de compás, notas sin plica,
+barras divisorias solo entre géneros y glifo SMuFL de cuarto de tono sostenido Stein `accidentalQuarterToneSharpStein`
+en el enarmónico), conmutador al piano roll, reproducción Web Audio con frecuencias exactas, botón de exportación de audio (WAV)
+sintetizado mediante PCM puro preservando la frecuencia microtonal (~254 Hz en el Si con díesis) e identificándose
+con la etiqueta «✓ Calculado a partir de la teoría (según la división de Aristóxeno)». Para obras de repertorio,
 la resolución actúa en cascada: (1) catálogo local `data/ejemplos/`; (2) carpeta de
 partituras del profesor (`Conocimiento/Partituras/`), cuyos archivos MusicXML, MXL, MEI,
 Humdrum (`.krn`) o ABC se indexan automáticamente extrayendo compositor, título, voces,
@@ -126,7 +129,11 @@ la guía docente, el Markdown y el PDF los presentan formalmente («recurso — 
 mientras que el material del alumnado redacta partituras («partitura que te entregará el profesor»),
 grabaciones («grabación que escucharemos en clase») o textos («texto que te entregará el profesor»),
 omitiendo por completo datos numéricos o fechas pendientes. La bibliografía del alumnado se genera de forma estrictamente
-dinámica según las fuentes citadas en la sesión. Los nombres de autor se normalizan tipográficamente
+dinámica según las fuentes citadas en la sesión. La decisión de respaldo bibliográfico se centraliza en el servidor
+(donde las fuentes marcadas como «archivo local» o «sin clasificar» no cuentan como bibliografía hasta su categorización,
+disparando el correspondiente aviso de fundamentación si no hay respaldo formal). La vista Biblioteca permite seleccionar
+documentos individualmente o con el botón «Seleccionar sin clasificar» y reclasificarlos en bloque mediante la acción
+«Clasificar como bibliografía». Los nombres de autor se normalizan tipográficamente
 (Aristóxeno, Hefestión, Ptolomeo, Willi Apel, Ralph T. Daniel, Fuensanta Garrido Domené) en cabeceras, bibliografía
 y citas sin alterar los metadatos de la base de datos, y su autor puede editarse directamente desde la vista Biblioteca.
 Asimismo, la indexación corrige erratas comunes de capas de texto digital de baja calidad o escaneos OCR

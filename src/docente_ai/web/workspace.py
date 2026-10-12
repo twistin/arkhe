@@ -879,12 +879,14 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         from docente_ai.music.lazy import get_music21
         roots: list[Path] = []
         # 1. Catálogo local data/ejemplos/ y config/ejemplos/
-        for p in (self.root / "data/ejemplos", self.root / "config/ejemplos"):
-            roots.append(p.resolve())
+        for p in (self.root / "data/ejemplos", self.root / "config/ejemplos", Path("data/ejemplos"), Path("config/ejemplos")):
+            if p.exists():
+                roots.append(p.resolve())
 
         # 2. Carpeta de partituras del profesor
-        for p in (self.knowledge / "Partituras", self.root / "config/partituras"):
-            roots.append(p.resolve())
+        for p in (self.knowledge / "Partituras", self.root / "config/partituras", Path("config/partituras")):
+            if p.exists():
+                roots.append(p.resolve())
 
         # 3. Caché de JRP y HfM Weimar
         for p in (
@@ -915,13 +917,24 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
         resolved_path: Path | None = None
 
+        # 0. Teoría calculable (ej. tetracordos griegos)
+        if score_id == "teoria-tetracordos-tres-generos" or "tetracordos" in score_id.lower():
+            from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
+            fname = asegurar_archivo_partitura_tres_generos()
+            for base_dir in (self.root / "data/ejemplos", self.root / "config/ejemplos", Path("data/ejemplos"), Path("config/ejemplos")):
+                c = (base_dir / fname).resolve()
+                if c.is_file():
+                    resolved_path = c
+                    break
+
         # 1. Catálogo de ejemplos locales (data/ejemplos/ y config/ejemplos/)
-        from docente_ai.teaching.ejemplos import get_ejemplo
-        ej = get_ejemplo(score_id, directory=self.root / "data/ejemplos") or get_ejemplo(
-            score_id, directory=self.root / "config/ejemplos"
-        )
-        if ej and ej.get("archivo_path"):
-            resolved_path = Path(ej["archivo_path"])
+        if not resolved_path:
+            from docente_ai.teaching.ejemplos import get_ejemplo
+            ej = get_ejemplo(score_id, directory=self.root / "data/ejemplos") or get_ejemplo(
+                score_id, directory=self.root / "config/ejemplos"
+            )
+            if ej and ej.get("archivo_path"):
+                resolved_path = Path(ej["archivo_path"])
 
         # 2. Propuesta específica por run_id si se especificó
         if not resolved_path and run_id:
@@ -931,15 +944,17 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 resolved_reqs = run_data.get("result", {}).get("resolved_music_requests", [])
                 for req in resolved_reqs:
                     for cand in req.get("candidatos", []):
-                        if cand.get("id") == score_id and cand.get("path"):
-                            resolved_path = Path(cand["path"])
+                        if cand.get("id") == score_id and (cand.get("path") or cand.get("archivo")):
+                            resolved_path = Path(cand.get("path") or cand.get("archivo"))
                             break
                     if resolved_path:
                         break
                     cand_ej = req.get("ejemplo")
-                    if cand_ej and cand_ej.get("id") == score_id and cand_ej.get("archivo_path"):
-                        resolved_path = Path(cand_ej["archivo_path"])
-                        break
+                    if cand_ej and cand_ej.get("id") == score_id:
+                        f_cand = cand_ej.get("archivo_path") or cand_ej.get("archivo")
+                        if f_cand:
+                            resolved_path = Path(f_cand)
+                            break
             except Exception:
                 pass
 
