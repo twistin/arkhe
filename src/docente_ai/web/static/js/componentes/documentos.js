@@ -1,6 +1,6 @@
 import { api, request, token } from '../api.js';
 import { store, subjectName } from '../state.js';
-import { toast, e, subjectStyle, formatMarkdown, icon, modal } from '../ui.js';
+import { toast, e, subjectStyle, formatMarkdown, icon, modal, normalizeAuthorsDisplay } from '../ui.js';
 import {
   POLYPHONY_LISTENINGS,
   getRunListenings,
@@ -14,6 +14,20 @@ import { renderEgyptInfographic } from '../infografias/egipto.js';
 import { renderStudentInfographic } from '../infografias/musica.js';
 import { renderMusicRequestsBlock } from './partituras.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
+
+export function formatPedagogyResource(r) {
+  if (!r) return '';
+  if (typeof r === 'string') return e(r);
+  const texto = String(r.recurso || r.texto || '').trim();
+  const tipo = String(r.tipo || '').trim();
+  const pendiente = Boolean(r.pendiente);
+  const partes = [];
+  if (pendiente) partes.push('pendiente');
+  if (tipo) partes.push(tipo);
+  const meta = partes.join(', ');
+  if (texto && meta) return `${e(texto)} — ${e(meta)}`;
+  return e(texto || meta);
+}
 
 export function resultHTML(run) {
   const isPedagogy = !!run.request.pedagogy;
@@ -339,7 +353,7 @@ export function resultHTML(run) {
       [
         `      <h4>Recursos a preparar</h4>\n          <ul class="clean-bullet-list">\n            `
       ].join(''),
-      `${plan.resources.map(r => `<li>${e(r)}</li>`).join('')}`,
+      `${plan.resources.map(r => `<li>${e(formatPedagogyResource(r))}</li>`).join('')}`,
       `\n          </ul>\n        </div>\n        <div class="detail-card">\n          `,
       `<h4>Nivel y dificultad</h4>\n          <p>${e(plan.difficulty)}`,
       `</p>\n        </div>\n`,
@@ -393,7 +407,7 @@ export function resultHTML(run) {
         const src = (run.evidence || []).find(s => s.source_id === ev.source_id);
         if (!src) return '';
         const m = src.metadata || {};
-        const auth = m.authors?.join('; ') || 'Sin autor identificado';
+        const auth = normalizeAuthorsDisplay(m.authors).join('; ') || 'Sin autor identificado';
         const yr = m.year ? ` (${e(m.year)})` : '';
         const loc = locatorLabel(src.locator || {});
         const orig = m.origin || (src.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
@@ -599,7 +613,7 @@ export function bibliographyHTML(run) {
       ].join(''),
       `</span>\n      </div>\n      <blockquote class="bib-quote">«${e(citation.quote)}`,
       `»</blockquote>\n      <div class="bib-footer">\n        <span>`,
-      `${e(m.authors?.join(', ') || 'Sin autor')}${m.year ? ' · ' + e(m.year) : ''} (`,
+      `${e(normalizeAuthorsDisplay(m.authors).join(', ') || 'Sin autor')}${m.year ? ' · ' + e(m.year) : ''} (`,
       `${source.category === 'profesor' ? 'Material propio' : 'Fuente documental'}`,
       [
         `)</span>\n        <button class="button ghost small" data-document="${e(source.document_id)}`

@@ -1168,3 +1168,153 @@ def test_workspace_cleans_stale_runs_on_init(tmp_path):
         assert row[0] == 'failed'
         assert row[1] == 'interrumpido'
     ws.close()
+
+
+def test_render_pedagogy_typed_resources():
+    from docente_ai.generation.render import render_pedagogy, format_teacher_resource
+
+    # Test unitario directo de la función formateadora
+    res_str = format_teacher_resource({
+        'recurso': 'Partitura del Epitafio',
+        'tipo': 'partitura',
+        'pendiente': True,
+    })
+    assert res_str == 'Partitura del Epitafio — pendiente, partitura'
+
+    res_listo = format_teacher_resource({
+        'recurso': 'Grabación de audio',
+        'tipo': 'grabacion',
+        'pendiente': False,
+    })
+    assert res_listo == 'Grabación de audio — grabacion'
+
+    # Test en el contexto completo de render_pedagogy
+    mock_run = {
+        'id': 'run-test-resources',
+        'status': 'draft',
+        'request': {'pedagogy': {'subject': 'historia-musica'}},
+        'evidence': [],
+        'result': {
+            'status': 'draft',
+            'claims': [],
+            'plan': {
+                'objectives': ['Objetivo 1'],
+                'difficulty': 'Iniciación',
+                'activities': [
+                    {
+                        'title': 'Actividad práctica',
+                        'teacher_notes': 'Notas del profesor.',
+                        'student_task': 'Tarea del alumno.',
+                        'grouping': 'individual',
+                        'deliverable': 'Ficha de trabajo',
+                        'solution': 'Solución esperada',
+                        'minutes': 60,
+                        'claim_ids': []
+                    }
+                ],
+                'resources': [
+                    {
+                        'recurso': 'Partitura del Epitafio',
+                        'tipo': 'partitura',
+                        'pendiente': True,
+                    },
+                    'Libro de texto convencional'
+                ],
+                'observations': 'Ninguna',
+            }
+        }
+    }
+
+    md = render_pedagogy(mock_run)
+    assert '[object Object]' not in md
+    assert '- Partitura del Epitafio — pendiente, partitura' in md
+    assert '- Libro de texto convencional' in md
+
+
+def test_normalize_authors_display_and_rendering():
+    from docente_ai.teaching.terms import normalize_author_display, normalize_authors_display
+    from docente_ai.generation.render import render_pedagogy, render_student
+
+    assert normalize_author_display('aristoxeno') == 'Aristóxeno'
+    assert normalize_author_display('hefestion') == 'Hefestión'
+    assert normalize_author_display('ptolomeo') == 'Ptolomeo'
+    assert normalize_author_display('WILLI  APEL') == 'Willi Apel'
+    assert normalize_author_display('RALPH  T.  DANIEL') == 'Ralph T. Daniel'
+    assert normalize_author_display('FUENSANTA GARRIDO DOMENÉ') == 'Fuensanta Garrido Domené'
+
+    # Lista con autores múltiples
+    raw_list = ['aristoxeno', 'hefestion', 'WILLI  APEL']
+    assert normalize_authors_display(raw_list) == ['Aristóxeno', 'Hefestión', 'Willi Apel']
+
+    # Verificación en render_pedagogy y render_student
+    mock_run = {
+        'id': 'run-test-authors',
+        'status': 'draft',
+        'request': {'pedagogy': {'subject': 'historia-musica'}},
+        'evidence': [
+            {
+                'source_id': 'S1',
+                'category': 'documental',
+                'metadata': {
+                    'title': 'Tratado de Harmónica',
+                    'authors': ['aristoxeno'],
+                    'year': None,
+                    'origin': 'bibliografia'
+                },
+                'locator': {'kind': 'pdf_page', 'pdf_page_index': 10}
+            },
+            {
+                'source_id': 'S2',
+                'category': 'documental',
+                'metadata': {
+                    'title': 'Métrica Griega',
+                    'authors': ['hefestion'],
+                    'year': None,
+                    'origin': 'bibliografia'
+                },
+                'locator': {'kind': 'pdf_page', 'pdf_page_index': 20}
+            }
+        ],
+        'result': {
+            'status': 'draft',
+            'claims': [
+                {
+                    'kind': 'summary',
+                    'text': 'El sistema armónico según las fuentes clásicas.',
+                    'evidence': [{'source_id': 'S1', 'quote': 'armonia'}, {'source_id': 'S2', 'quote': 'metrica'}]
+                }
+            ],
+            'plan': {
+                'objectives': ['Comprender teoría griega'],
+                'difficulty': 'Media',
+                'activities': [
+                    {
+                        'title': 'Análisis',
+                        'teacher_notes': 'Pautas.',
+                        'student_task': 'Tarea.',
+                        'grouping': 'individual',
+                        'deliverable': 'Ficha.',
+                        'solution': 'Sol.',
+                        'minutes': 60,
+                        'claim_ids': [1]
+                    }
+                ],
+                'resources': ['Pizarra'],
+                'observations': 'Ninguna'
+            }
+        }
+    }
+
+    pedagogy_md = render_pedagogy(mock_run)
+    student_md = render_student(mock_run)
+
+    # Cabecera y citas deben tener Aristóxeno y Hefestión con tildes y mayúsculas
+    assert 'Aristóxeno' in pedagogy_md
+    assert 'Hefestión' in pedagogy_md
+    assert 'aristoxeno' not in pedagogy_md
+    assert 'hefestion' not in pedagogy_md
+
+    assert 'Aristóxeno' in student_md
+    assert 'aristoxeno' not in student_md
+
+

@@ -422,8 +422,14 @@ def test_corregir_erratas_i_l_en_ingesta_ocr():
     assert susts[0]['original'] == 'lonian'
     assert susts[0]['corregido'] == 'Ionian'
 
+    # 'lastio' -> 'Iastio'
+    corregido, susts = corregir_erratas_i_l('El modo lastio o Lastio en la teoría.')
+    assert 'Iastio' in corregido
+    assert len(susts) == 2
+
     # Preservar mayúsculas/minúsculas y no tocar palabras no afectadas
     corregido, susts = corregir_erratas_i_l('Normal text without typos')
     assert corregido == 'Normal text without typos'
     assert susts == []
+
 

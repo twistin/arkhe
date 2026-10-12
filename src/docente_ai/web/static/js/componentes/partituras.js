@@ -101,29 +101,36 @@ export function renderMusicRequestCard(item, result, run) {
   if (isVerified) {
     const ej = item.ejemplo;
     const wavButton = renderWavDownloadButton(ej);
+    const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
+    const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Ejemplo verificado';
+    const badgeClass = isTheory ? 'badge info' : 'badge success';
+    const fuenteText = isTheory ? 'Calculado a partir de la teoría' : (ej.fuente || 'Catálogo');
+    const freqsJson = JSON.stringify(ej.frecuencias_hz || []);
 
     return [
       `<div class="score-card score-card-verified score-candidate-item" data-candidate-id="${e(ej.id)}">`,
       `  <div class="score-card-head">`,
       `    <div>`,
-      `      <span class="badge success">✓ Ejemplo verificado</span>`,
+      `      <span class="${badgeClass}">${badgeText}</span>`,
       `      <h4>${e(ej.titulo || req.work)} — ${e(ej.compositor || req.composer)}</h4>`,
       `      <small class="score-meta">${e(ej.seccion || req.section || '')} · `,
-      `Compases ${e(ej.compases || '1-8')} · Fuente: ${e(ej.fuente || 'Catálogo')}</small>`,
+      `Compases ${e(ej.compases || '1-3')} · Fuente: ${e(fuenteText)}</small>`,
       `    </div>`,
       `    <div class="candidate-controls">`,
       `      <div class="score-mode-toggle">`,
       `        <button type="button" class="score-mode-btn active" data-mode="svg">🎼 Partitura</button>`,
       `        <button type="button" class="score-mode-btn" data-mode="pianoroll">🎹 Piano roll</button>`,
       `      </div>`,
-      `      <button class="button small ghost play-score-btn" data-candidate="${e(ej.id)}">`,
+      `      <button class="button small ghost play-score-btn" data-candidate="${e(ej.id)}" ` +
+      `data-frequencies="${e(freqsJson)}">`,
       `        ${icon('play')}▶ Reproducir`,
       `      </button>`,
       wavButton ? `      ${wavButton}` : '',
       `    </div>`,
       `  </div>`,
       `  <div class="score-preview-container">`,
-      `    <div class="score-preview-box" data-candidate-id="${e(ej.id)}" data-current-mode="svg" data-voice="tenor">`,
+      `    <div class="score-preview-box" data-candidate-id="${e(ej.id)}" ` +
+      `data-current-mode="svg" data-voice="Tetracordo">`,
       `      <div class="score-loading"><span class="spinner"></span> Renderizando partitura con Verovio…</div>`,
       `    </div>`,
       `  </div>`,
@@ -383,25 +390,53 @@ export function initScorePreviews() {
   });
 }
 
-export function playMicrotoneFrequencies(frequenciesHz, durationPerNote = 0.5) {
+export function playMicrotoneFrequencies(frequenciesHz, durationPerNote = 0.5, targetContainer = null) {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const now = ctx.currentTime;
+    const now = ctx.currentTime + 0.05;
+    const totalDuration = frequenciesHz.length * durationPerNote;
     frequenciesHz.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * durationPerNote);
-      gain.gain.setValueAtTime(0.18, now + idx * durationPerNote);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + (idx + 1) * durationPerNote);
+      osc.type = 'triangle';
+      const startT = now + idx * durationPerNote;
+      osc.frequency.setValueAtTime(freq, startT);
+      gain.gain.setValueAtTime(0.18, startT);
+      gain.gain.exponentialRampToValueAtTime(0.001, startT + durationPerNote);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start(now + idx * durationPerNote);
-      osc.stop(now + (idx + 1) * durationPerNote);
+      osc.start(startT);
+      osc.stop(startT + durationPerNote);
     });
-    toast('Reproduciendo tetracordo griego con frecuencias exactas...');
+
+    const playheads = targetContainer
+      ? targetContainer.querySelectorAll('.pianoroll-playhead')
+      : document.querySelectorAll('.pianoroll-playhead');
+
+    if (playheads.length) {
+      playheads.forEach(ph => ph.style.display = 'inline');
+      const startTime = ctx.currentTime;
+      function animarCursor() {
+        const elapsed = ctx.currentTime - startTime;
+        if (elapsed > totalDuration + 0.1) {
+          playheads.forEach(ph => ph.style.display = 'none');
+          return;
+        }
+        const progress = Math.min(1.0, Math.max(0.0, elapsed / totalDuration));
+        playheads.forEach(ph => {
+          const left = parseFloat(ph.dataset.left || 64);
+          const width = parseFloat(ph.dataset.width || 800);
+          const curX = left + progress * width;
+          ph.setAttribute('x1', curX);
+          ph.setAttribute('x2', curX);
+        });
+        requestAnimationFrame(animarCursor);
+      }
+      requestAnimationFrame(animarCursor);
+    }
+    toast('Reproduciendo tetracordos con frecuencias exactas (Web Audio)…');
   } catch (err) {
     // Si el navegador restringe audio
   }
@@ -535,6 +570,19 @@ async function accionPlayScoreSample({target}) {
   if (!candidateId) {
     toast('No hay identificador de partitura para reproducir.');
     return;
+  }
+
+  const freqsStr = btn.dataset.frequencies;
+  if (freqsStr) {
+    try {
+      const freqs = JSON.parse(freqsStr);
+      if (Array.isArray(freqs) && freqs.length) {
+        playMicrotoneFrequencies(freqs, 0.6, card);
+        return;
+      }
+    } catch (e) {
+      // Continuar con fallback a MIDI
+    }
   }
 
   btn.disabled = true;

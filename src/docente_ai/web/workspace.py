@@ -1036,6 +1036,19 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             except Exception:
                 pass
 
+        # 8. Partitura calculada de teoría musical (tetracordos en los tres géneros)
+        if not resolved_path:
+            if "teoria-tetracordo" in score_id.lower() or "tetracordo" in score_id.lower():
+                try:
+                    from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
+                    fname = asegurar_archivo_partitura_tres_generos()
+                    for cand in (self.root / "data/ejemplos" / fname, self.root / "config/ejemplos" / fname):
+                        if cand.is_file():
+                            resolved_path = cand.resolve()
+                            break
+                except Exception:
+                    pass
+
         if not resolved_path:
             # Si se proporcionó una ruta que existe en el sistema de archivos
             try_direct = (self.root / score_id).resolve()

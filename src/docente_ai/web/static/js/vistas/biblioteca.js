@@ -15,6 +15,7 @@ import {
   statusBadge,
   subjectOptions,
   toast,
+  normalizeAuthorsDisplay,
 } from '../ui.js';
 import { subjectModal } from '../componentes/configuracion.js';
 import { locatorLabel } from '../componentes/documentos.js';
@@ -351,7 +352,7 @@ function filaFuente(d) {
     ].join(''),
     [
       `${
-        e(d.metadata.authors?.join(', ') || (d.category === 'profesor' ? 'Material propio' :
+        e(normalizeAuthorsDisplay(d.metadata.authors).join(', ') || (d.category === 'profesor' ? 'Material propio' :
           'Autor pendiente de indicar'))
       }`
     ].join(''),

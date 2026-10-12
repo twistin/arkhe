@@ -68,12 +68,100 @@ CANONICAL_AUTHORS: dict[str, list[str]] = {
     'Platón': ['Platón', 'Platon', 'platónico', 'Plato'],
     'Aristóteles': ['Aristóteles', 'Aristoteles', 'aristotélico', 'Aristotle'],
     'Aristóxeno': ['Aristóxeno', 'Aristoxeno', 'Aristoxenus'],
+    'Hefestión': ['Hefestión', 'Hefestion', 'Hephaestion'],
     'Ptolomeo': ['Ptolomeo', 'Tolomeo', 'Ptolemy'],
     'Arístides Quintiliano': ['Arístides Quintiliano', 'Aristides Quintiliano', 'Arístides', 'Aristides Quintilianus'],
     'Alipio': ['Alipio', 'Alypius'],
     'San Agustín': ['San Agustín', 'San Agustin', 'Agustín de Hipona', 'Agustin de Hipona', 'Augustine', 'St. Augustine'],
     'Boecio': ['Boecio', 'Boethius'],
 }
+
+# Mapa canónico para visualización de nombres de autor (tildes, mayúsculas correctas)
+KNOWN_AUTHORS_MAP: dict[str, str] = {
+    'aristoxeno': 'Aristóxeno',
+    'aristoxenus': 'Aristóxeno',
+    'hefestion': 'Hefestión',
+    'hephaestion': 'Hefestión',
+    'ptolomeo': 'Ptolomeo',
+    'tolomeo': 'Ptolomeo',
+    'ptolemy': 'Ptolomeo',
+    'willi apel': 'Willi Apel',
+    'ralph t. daniel': 'Ralph T. Daniel',
+    'ralph t daniel': 'Ralph T. Daniel',
+    'fuensanta garrido domene': 'Fuensanta Garrido Domené',
+    'fuensanta garrido domené': 'Fuensanta Garrido Domené',
+    'aristides quintiliano': 'Arístides Quintiliano',
+    'aristides quintilianus': 'Arístides Quintiliano',
+    'boecio': 'Boecio',
+    'boethius': 'Boecio',
+    'alipio': 'Alipio',
+    'alypius': 'Alipio',
+    'san agustin': 'San Agustín',
+    'san agustín': 'San Agustín',
+    'agustin': 'San Agustín',
+    'gustave reese': 'Gustave Reese',
+    'j. peter burkholder': 'J. Peter Burkholder',
+    'claude v. palisca': 'Claude V. Palisca',
+    'andrew barker': 'Andrew Barker',
+    'pitagoras': 'Pitágoras',
+    'filolao': 'Filolao',
+    'arquitas': 'Arquitas',
+    'platon': 'Platón',
+    'aristoteles': 'Aristóteles',
+}
+
+
+def normalize_author_display(name: str) -> str:
+    """Normaliza la visualización de un nombre de autor (mayúsculas iniciales, tildes conocidas, sin dobles espacios).
+
+    No modifica los metadatos originales en base de datos.
+    """
+    if not name:
+        return ''
+    import unicodedata
+    cleaned = ' '.join(name.split())
+    lowered = cleaned.lower()
+    lowered_sin_tildes = ''.join(c for c in unicodedata.normalize('NFD', lowered) if unicodedata.category(c) != 'Mn')
+
+    if lowered in KNOWN_AUTHORS_MAP:
+        return KNOWN_AUTHORS_MAP[lowered]
+    if lowered_sin_tildes in KNOWN_AUTHORS_MAP:
+        return KNOWN_AUTHORS_MAP[lowered_sin_tildes]
+
+    # Para nombres como 'WILLI APEL, RALPH T. DANIEL'
+    if ',' in cleaned and any(p.strip().lower() in KNOWN_AUTHORS_MAP for p in cleaned.split(',')):
+        sub_parts = [normalize_author_display(p.strip()) for p in cleaned.split(',')]
+        return ', '.join(sub_parts)
+
+    # Si está todo en mayúsculas o todo en minúsculas, aplicar capitalización respetando iniciales
+    if cleaned.isupper() or cleaned.islower():
+        words = cleaned.split(' ')
+        capitalized = []
+        for w in words:
+            if len(w) == 2 and w[1] == '.':
+                capitalized.append(w.upper())
+            elif w.lower() in ('de', 'del', 'da', 'di', 'von', 'van', 'y'):
+                capitalized.append(w.lower())
+            else:
+                capitalized.append(w.capitalize())
+        return ' '.join(capitalized)
+
+    return cleaned
+
+
+def normalize_authors_display(authors: list[str] | None) -> list[str]:
+    """Normaliza una lista de autores para visualización."""
+    if not authors:
+        return []
+    res = []
+    for a in authors:
+        if not a:
+            continue
+        norm = normalize_author_display(str(a))
+        if norm and norm not in res:
+            res.append(norm)
+    return res
+
 
 
 def find_canonical_authors_in_text(text: str) -> set[str]:

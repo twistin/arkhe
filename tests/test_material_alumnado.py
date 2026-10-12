@@ -207,10 +207,10 @@ def test_recursos_estructurados_pendientes_redaccion_segun_tipo_y_omision_de_dat
     assert "1475" not in student_md
     assert "fecha del manuscrito" not in student_md
 
-    # 4. Dato pendiente y grabación pendiente aparecen en la guía docente
-    assert "1475 (fecha del manuscrito) (dato) [Aportación del profesor pendiente]" in pedagogy_md
-    assert "Missa L'homme armé (grabacion) [Aportación del profesor pendiente]" in pedagogy_md
-    assert "Partitura del Kyrie (partitura) [Aportación del profesor pendiente]" in pedagogy_md
+    # 4. Dato pendiente y grabación pendiente aparecen en la guía docente con su tipo
+    assert "1475 (fecha del manuscrito) — pendiente, dato" in pedagogy_md
+    assert "Missa L'homme armé — pendiente, grabacion" in pedagogy_md
+    assert "Partitura del Kyrie — pendiente, partitura" in pedagogy_md
 
     # 5. Sin sustitución por regex de texto libre de 'pendiente de aportar por el profesor'
     from docente_ai.generation.render import clean_student_text

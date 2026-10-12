@@ -138,3 +138,73 @@ def generar_tetracordos(
             },
         },
     }
+
+
+def generar_partitura_tres_generos_musicxml() -> str:
+    """Genera deterministamente con music21 el MusicXML del tetracordo descendente mi–si en los tres géneros:
+    diatónico, cromático y enarmónico (con cuartos de tono / diéseis).
+    """
+    from docente_ai.music import get_music21
+    m21 = get_music21()
+
+    score = m21.stream.Score()
+    part = m21.stream.Part()
+    part.id = "Tetracordos"
+
+    part.append(m21.clef.TrebleClef())
+    part.append(m21.meter.TimeSignature('4/4'))
+
+    # Compás 1: Diatónico (E4, D4, C4, B3)
+    m1 = m21.stream.Measure(number=1)
+    m1.append(m21.expressions.TextExpression('1. Diatónico'))
+    n1 = m21.note.Note('E4', quarterLength=1)
+    n2 = m21.note.Note('D4', quarterLength=1)
+    n3 = m21.note.Note('C4', quarterLength=1)
+    n4 = m21.note.Note('B3', quarterLength=1)
+    m1.append([n1, n2, n3, n4])
+    part.append(m1)
+
+    # Compás 2: Cromático (E4, C#4, C4, B3)
+    m2 = m21.stream.Measure(number=2)
+    m2.append(m21.expressions.TextExpression('2. Cromático'))
+    n5 = m21.note.Note('E4', quarterLength=1)
+    n6 = m21.note.Note('C#4', quarterLength=1)
+    n7 = m21.note.Note('C4', quarterLength=1)
+    n7.pitch.accidental = m21.pitch.Accidental('natural')
+    n8 = m21.note.Note('B3', quarterLength=1)
+    m2.append([n5, n6, n7, n8])
+    part.append(m2)
+
+    # Compás 3: Enarmónico con cuartos de tono (E4, C4, B3+half-sharp, B3)
+    m3 = m21.stream.Measure(number=3)
+    m3.append(m21.expressions.TextExpression('3. Enarmónico (cuartos de tono)'))
+    n9 = m21.note.Note('E4', quarterLength=1)
+    n10 = m21.note.Note('C4', quarterLength=1)
+    n10.pitch.accidental = m21.pitch.Accidental('natural')
+    n11 = m21.note.Note('B3', quarterLength=1)
+    n11.pitch.accidental = m21.pitch.Accidental('half-sharp')
+    n12 = m21.note.Note('B3', quarterLength=1)
+    n12.pitch.accidental = m21.pitch.Accidental('natural')
+    m3.append([n9, n10, n11, n12])
+    part.append(m3)
+
+    score.append(part)
+    xml_bytes = m21.musicxml.m21ToXml.GeneralObjectExporter().parse(score)
+    return xml_bytes.decode('utf-8')
+
+
+def asegurar_archivo_partitura_tres_generos() -> str:
+    """Asegura que el archivo MusicXML del tetracordo exista en config/ejemplos y data/ejemplos."""
+    from pathlib import Path
+    xml_content = generar_partitura_tres_generos_musicxml()
+    filename = "teoria_tetracordos_tres_generos.musicxml"
+
+    rutas = [
+        Path("config/ejemplos") / filename,
+        Path("data/ejemplos") / filename,
+    ]
+    for r in rutas:
+        r.parent.mkdir(parents=True, exist_ok=True)
+        r.write_text(xml_content, encoding="utf-8")
+    return filename
+

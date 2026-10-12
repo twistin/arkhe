@@ -5,6 +5,7 @@ import re
 from typing import Any
 
 from docente_ai.rag.service import NO_EVIDENCE, citation
+from docente_ai.teaching.terms import normalize_author_display, normalize_authors_display
 
 
 def plain(value):
@@ -84,7 +85,9 @@ def format_claim_sources(claim: dict, by_id: dict) -> list[str]:
         if not src:
             continue
         meta = src.get('metadata') or {}
-        authors = '; '.join(meta.get('authors') or []) if meta.get('authors') else 'Sin autor identificado'
+        raw_authors = meta.get('authors') or []
+        authors_list = normalize_authors_display(raw_authors)
+        authors = '; '.join(authors_list) if authors_list else 'Sin autor identificado'
         title = meta.get('title') or 'Sin título'
         year = str(meta.get('year')) if meta.get('year') is not None else 's. f.'
         loc_str = format_locator(src.get('locator') or {})
@@ -108,8 +111,8 @@ def format_source_brief_citation(src: dict) -> str:
     meta = src.get('metadata') or {}
     authors = meta.get('authors') or []
     if authors:
-        primary = authors[0].split(',')[0].strip()
-        author = primary.title() if (primary.isupper() or primary.islower()) else primary
+        primary = normalize_author_display(authors[0].split(',')[0].strip())
+        author = primary
     else:
         author = 'Fuente'
 
@@ -231,16 +234,22 @@ def format_student_resource(item: str | dict, by_id: dict | None = None) -> str 
 
 
 def format_teacher_resource(item: str | dict) -> str:
-    """Formatea un recurso para la guía docente, preservando tipos y etiquetas de pendiente."""
+    """Formatea un recurso para la guía docente, mostrando los recursos tipados con su texto y su tipo."""
     if isinstance(item, str):
         return plain(item)
     if isinstance(item, dict):
-        rec = plain(str(item.get('recurso') or '').strip())
+        rec = plain(str(item.get('recurso') or item.get('texto') or '').strip())
         tipo = plain(str(item.get('tipo') or '').strip())
         pendiente = bool(item.get('pendiente'))
-        suffix = ' [Aportación del profesor pendiente]' if pendiente else ''
-        tipo_str = f" ({tipo})" if tipo else ''
-        return f"{rec}{tipo_str}{suffix}"
+        partes = []
+        if pendiente:
+            partes.append('pendiente')
+        if tipo:
+            partes.append(tipo)
+        meta = ', '.join(partes)
+        if rec and meta:
+            return f"{rec} — {meta}"
+        return rec or meta
     return plain(str(item))
 
 
@@ -614,8 +623,9 @@ def render_student(run: dict[str, Any]) -> str:
         if 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
             continue
         for a in (meta.get('authors') or []):
-            if a and a not in cited_authors:
-                cited_authors.append(a)
+            norm_a = normalize_author_display(a)
+            if norm_a and norm_a not in cited_authors:
+                cited_authors.append(norm_a)
     if cited_authors:
         if len(cited_authors) == 1:
             auth_str = cited_authors[0]
@@ -808,13 +818,14 @@ def render_student(run: dict[str, Any]) -> str:
         stitle = str(meta.get('title') or '')
         if not stitle or 'Fuente de evaluación:' in stitle or 'prueba' in stitle.lower():
             continue
-        authors = tuple(meta.get('authors') or [])
-        primary_author = authors[0].lower().strip() if authors else None
+        raw_authors = list(meta.get('authors') or [])
+        norm_authors = tuple(normalize_authors_display(raw_authors))
+        primary_author = norm_authors[0].lower().strip() if norm_authors else None
         if primary_author and primary_author in seen_authors:
             continue
         if primary_author:
             seen_authors.add(primary_author)
-        student_sources.append((stitle, authors, meta.get('year')))
+        student_sources.append((stitle, norm_authors, meta.get('year')))
 
     if student_sources:
         lines += ['', '## Fuentes de consulta', '']

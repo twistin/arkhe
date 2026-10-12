@@ -96,7 +96,12 @@ Para la ilustración analítica de obras y técnicas, las propuestas pueden soli
 ejemplos mediante `music_requests` (obra, compositor, sección, técnica y actividad).
 El modelo nunca genera notación musical directa; un validador estricto rechaza cualquier
 bloque en MusicXML, MEI, LilyPond, ABC o Humdrum en la respuesta del LLM. Cada petición
-se resuelve automáticamente en cascada: (1) catálogo local `data/ejemplos/`; (2) carpeta de
+se resuelve automáticamente: si pide conceptos teóricos calculables (tetracordos descendentes
+mi–si en los géneros diatónico, cromático y enarmónico con cuartos de tono, escalas o modos),
+se genera deterministamente mediante `music21` sin consultar repositorios externos, renderizándose
+con Verovio, conmutador al piano roll y reproducción con frecuencias microtonales exactas en
+Web Audio, identificándose con la etiqueta «✓ Calculado a partir de la teoría». Para obras de repertorio,
+la resolución actúa en cascada: (1) catálogo local `data/ejemplos/`; (2) carpeta de
 partituras del profesor (`Conocimiento/Partituras/`), cuyos archivos MusicXML, MXL, MEI,
 Humdrum (`.krn`) o ABC se indexan automáticamente extrayendo compositor, título, voces,
 compases, claves y mensuración; y (3) repositorios abiertos (Josquin Research Project,
@@ -111,17 +116,21 @@ ejemplos con verificación confirmada (`verificado: true`), impidiendo que apare
 pentagramas o notas inventadas a mano en HTML o CSS.
 
 Los esquemas especializados, infografías complejas y baterías de ejercicios fijos
-se organizan en fichas modulares (`config/fichas/` y `data/fichas/`) con control de
-verificación (`verificado: false` inicial). Mientras no cuenten con revisión y verificación
-del profesor, estos contenidos se exhiben únicamente en la guía docente con avisos de
-revisión; el material del alumnado queda rigurosamente libre de cualquier contenido no
-verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
-internas o estados pendientes. Los recursos pendientes se estructuran por tipo:
-el material del alumnado redacta partituras («partitura que te entregará el profesor»),
+se organizan en fichas modulares (`config/fichas/` y `data/fichas/`, con prioridad para
+las ediciones locales del docente en `data/fichas/`) con control de verificación (`verificado: false` inicial).
+Mientras no cuenten con revisión y verificación del profesor, estos contenidos se exhiben
+únicamente en la guía docente con avisos de revisión; el material del alumnado queda rigurosamente libre
+de cualquier contenido no verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
+internas o estados pendientes. Los recursos a preparar se estructuran por tipo:
+la guía docente, el Markdown y el PDF los presentan formalmente («recurso — pendiente, tipo»),
+mientras que el material del alumnado redacta partituras («partitura que te entregará el profesor»),
 grabaciones («grabación que escucharemos en clase») o textos («texto que te entregará el profesor»),
-mientras que los datos pendientes (fechas, cifras) nunca se muestran al alumnado y quedan
-exclusivamente en la guía docente. La bibliografía del alumnado se genera de forma estrictamente
-dinámica según las fuentes citadas en la sesión.
+omitiendo por completo datos numéricos o fechas pendientes. La bibliografía del alumnado se genera de forma estrictamente
+dinámica según las fuentes citadas en la sesión. Los nombres de autor se normalizan tipográficamente
+(Aristóxeno, Hefestión, Ptolomeo, Willi Apel, Ralph T. Daniel, Fuensanta Garrido Domené) en cabeceras, bibliografía
+y citas sin alterar los metadatos de la base de datos, y su autor puede editarse directamente desde la vista Biblioteca.
+Asimismo, la indexación corrige erratas comunes de capas de texto digital de baja calidad o escaneos OCR
+(como «lastian» por «Iastian» o «lonian» por «Ionian»), preservando en todo caso el texto original en el localizador del fragmento.
 
 **Ajustes** permite editar asignaturas y grupos y elegir modelos ya instalados en
 Ollama. No descarga modelos. Un cambio de embeddings requiere preparar las fuentes

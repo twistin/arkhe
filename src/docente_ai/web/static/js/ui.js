@@ -203,3 +203,72 @@ export function navigate(route) {
     detail: route
   }));
 }
+
+const KNOWN_AUTHORS_MAP = {
+  'aristoxeno': 'Aristóxeno',
+  'aristoxenus': 'Aristóxeno',
+  'hefestion': 'Hefestión',
+  'hephaestion': 'Hefestión',
+  'ptolomeo': 'Ptolomeo',
+  'tolomeo': 'Ptolomeo',
+  'ptolemy': 'Ptolomeo',
+  'willi apel': 'Willi Apel',
+  'ralph t. daniel': 'Ralph T. Daniel',
+  'ralph t daniel': 'Ralph T. Daniel',
+  'fuensanta garrido domene': 'Fuensanta Garrido Domené',
+  'fuensanta garrido domené': 'Fuensanta Garrido Domené',
+  'aristides quintiliano': 'Arístides Quintiliano',
+  'aristides quintilianus': 'Arístides Quintiliano',
+  'boecio': 'Boecio',
+  'boethius': 'Boecio',
+  'alipio': 'Alipio',
+  'alypius': 'Alipio',
+  'san agustin': 'San Agustín',
+  'san agustín': 'San Agustín',
+  'agustin': 'San Agustín',
+  'gustave reese': 'Gustave Reese',
+  'j. peter burkholder': 'J. Peter Burkholder',
+  'claude v. palisca': 'Claude V. Palisca',
+  'andrew barker': 'Andrew Barker',
+  'pitagoras': 'Pitágoras',
+  'filolao': 'Filolao',
+  'arquitas': 'Arquitas',
+  'platon': 'Platón',
+  'aristoteles': 'Aristóteles',
+};
+
+export function normalizeAuthorDisplay(name) {
+  if (!name) return '';
+  const cleaned = String(name).trim().replace(/\s+/g, ' ');
+  const lowered = cleaned.toLowerCase();
+  const loweredClean = lowered.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (KNOWN_AUTHORS_MAP[lowered]) return KNOWN_AUTHORS_MAP[lowered];
+  if (KNOWN_AUTHORS_MAP[loweredClean]) return KNOWN_AUTHORS_MAP[loweredClean];
+
+  if (cleaned.includes(',') && cleaned.split(',').some(p => KNOWN_AUTHORS_MAP[p.trim().toLowerCase()])) {
+    return cleaned.split(',').map(p => normalizeAuthorDisplay(p.trim())).join(', ');
+  }
+
+  if (cleaned === cleaned.toUpperCase() || cleaned === cleaned.toLowerCase()) {
+    return cleaned.split(' ').map(w => {
+      if (w.length === 2 && w.endsWith('.')) return w.toUpperCase();
+      const lw = w.toLowerCase();
+      if (['de', 'del', 'da', 'di', 'von', 'van', 'y'].includes(lw)) return lw;
+      return lw.charAt(0).toUpperCase() + lw.slice(1);
+    }).join(' ');
+  }
+  return cleaned;
+}
+
+export function normalizeAuthorsDisplay(authors) {
+  if (!authors || !Array.isArray(authors)) return [];
+  const res = [];
+  for (const a of authors) {
+    if (!a) continue;
+    const norm = normalizeAuthorDisplay(a);
+    if (norm && !res.includes(norm)) res.push(norm);
+  }
+  return res;
+}
+

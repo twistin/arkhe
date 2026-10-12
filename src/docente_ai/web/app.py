@@ -240,13 +240,17 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
     async def metadata(request):
         data = await body(request)
         subject = data.get('subject')
-        if not isinstance(subject, str) or not subject:
-            raise ValueError('Elige una materia.')
-        values = {'title': data.get('title'), 'authors': data.get('authors', [])}
-        values['year'] = data.get('year')
+        subjects = [subject] if (isinstance(subject, str) and subject) else None
+        values = {}
+        if 'title' in data and data['title']:
+            values['title'] = data['title']
+        if 'authors' in data:
+            values['authors'] = data['authors']
+        if 'year' in data:
+            values['year'] = data['year']
         if 'origin' in data and data['origin']:
             values['origin'] = data['origin']
-        return JSONResponse(await run_in_threadpool(update_document, ws.db, request.path_params['id'], values=values, subjects=[subject]))
+        return JSONResponse(await run_in_threadpool(update_document, ws.db, request.path_params['id'], values=values, subjects=subjects))
 
     async def generation(request):
         data = await body(request)

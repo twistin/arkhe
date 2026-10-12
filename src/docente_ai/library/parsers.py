@@ -12,14 +12,17 @@ from docx.text.paragraph import Paragraph
 
 from docente_ai.library import ocr
 
-# Erratas de OCR habituales por confusión entre 'I' mayúscula y 'l' minúscula
-# en fuentes con serifa. Se corrige durante la ingesta conservando el original.
+# Erratas de OCR o tipográficas habituales por confusión entre 'I' mayúscula y 'l' minúscula
+# en fuentes con serifa o capas de texto PDF defectuosas. Se corrige durante la extracción conservando el original.
 # Clave: patrón con límites de palabra; valor: corrección canónica (inglés, idioma
 # original). No se traduce al castellano porque las citas se extraen del texto
 # almacenado y deben coincidir literalmente.
 _OCR_GREEK_CORRECTIONS: list[tuple] = [
-    (re.compile(r'\blastian\b'), 'Iastian'),  # I/l: tono iastio de Alipio
-    (re.compile(r'\blonian\b'), 'Ionian'),    # I/l: armonía jónica
+    (re.compile(r'\b[Ll]astian\b'), 'Iastian'),  # I/l: tono iastio de Alipio
+    (re.compile(r'\b[Ll]onians\b'), 'Ionians'),  # I/l: jonios
+    (re.compile(r'\b[Ll]onian\b'), 'Ionian'),    # I/l: armonía jónica
+    (re.compile(r'\b[Ll]astio\b'), 'Iastio'),    # I/l: modo iastio
+    (re.compile(r'\b[Ll]astios\b'), 'Iastios'),  # I/l: modos iastios
 ]
 
 
@@ -217,11 +220,16 @@ def extract_pdf(content: bytes) -> tuple[Extraction, list[int]]:
                 result.warnings.append(f'Página {number} del archivo PDF sin texto o con texto muy escaso (menos de 20 caracteres alfanuméricos).')
             if not text.strip():
                 continue
-            result.segments.append({'text': text, 'locator': {
+            texto_corregido, sustituciones = corregir_erratas_i_l(text)
+            loc = {
                 'kind': 'pdf_page', 'pdf_page_index': number,
                 'page_label': labels[number - 1], 'printed_page': None,
-                'char_start': 0, 'char_end': len(text),
-            }})
+                'char_start': 0, 'char_end': len(texto_corregido),
+            }
+            if sustituciones:
+                loc['texto_ocr_original'] = text
+                loc['ocr_correcciones_i_l'] = sustituciones
+            result.segments.append({'text': texto_corregido, 'locator': loc})
         if not result.segments:
             result.error = 'PDF sin texto extraíble; vacío, escaneado o ilegible.'
     except Exception as exc:

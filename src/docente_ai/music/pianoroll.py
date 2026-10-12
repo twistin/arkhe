@@ -53,7 +53,7 @@ def extraer_datos_notas(score) -> tuple[list[dict[str, Any]], list[dict[str, Any
     # Determinar si alguna voz es explícitamente Tenor
     num_parts = len(parts)
     for idx, p in enumerate(parts):
-        nombre_voz = p.partName or getattr(p, "id", None) or f"Voz {idx + 1}"
+        nombre_voz = str(p.partName or getattr(p, "id", None) or f"Voz {idx + 1}")
         es_tenor = (
             "tenor" in nombre_voz.lower()
             or (num_parts == 4 and idx == 2)  # En polifonía clásica a 4 voces, la 3ª suele ser el Tenor

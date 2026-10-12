@@ -1,7 +1,10 @@
 import { request, token, api } from '../api.js';
 import { switchEgyptTab, renderEgyptInfographic } from '../infografias/egipto.js';
 import { store } from '../state.js';
-import { render, toast, dialog, e, formatMarkdown, icon, modal } from '../ui.js';
+import {
+  render, toast, dialog, e, formatMarkdown, icon, modal,
+  normalizeAuthorDisplay, normalizeAuthorsDisplay
+} from '../ui.js';
 import {
   POLYPHONY_LISTENINGS,
   getRunListenings,
@@ -88,7 +91,8 @@ export function studentDocumentHTML(run) {
   const citedAuthors = [];
   for (const s of sources) {
     for (const a of (s?.authors || [])) {
-      if (a && !citedAuthors.includes(a)) citedAuthors.push(a);
+      const norm = normalizeAuthorDisplay(a);
+      if (norm && !citedAuthors.includes(norm)) citedAuthors.push(norm);
     }
   }
   let authorsSubtitle = '';
@@ -140,7 +144,7 @@ export function studentDocumentHTML(run) {
       let sourceBadge = '';
       if (ev0) {
         const src = (run.evidence || []).find(it => it.source_id === ev0.source_id);
-        const author = src?.metadata?.authors?.[0]?.split(',')[0]?.trim();
+        const author = normalizeAuthorDisplay(src?.metadata?.authors?.[0]?.split(',')[0]?.trim());
         const pIdx = src?.locator?.pdf_page_index;
         const loc = pIdx ? ('pág. ' + String(pIdx)) : '';
         const badgeLabel = author ? (loc ? (author + ', ' + loc) : author) : '';
@@ -286,7 +290,7 @@ export function studentDocumentHTML(run) {
     studentSources.map(meta => [
       `\n        <div class="source-pill-card">\n          <span class="source-pill-icon">📖</span>\n`,
       `          <div>\n            <strong>${e(meta.title || 'Fuente documental')}</strong>\n`,
-      `            <small>${e(meta.authors?.join(', ') || 'Biblioteca Arkhé')}`,
+      `            <small>${e(normalizeAuthorsDisplay(meta.authors).join(', ') || 'Biblioteca Arkhé')}`,
       `${meta.year ? ` · ${e(meta.year)}` : ''}</small>\n          </div>\n        </div>\n`
     ].join('')).join(''),
     `\n      </div>\n    </section>\n  </article>`

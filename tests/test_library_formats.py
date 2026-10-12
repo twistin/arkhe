@@ -310,12 +310,14 @@ def test_corregir_erratas_i_l_en_ocr_y_preservacion(fake_ocr):
     finally:
         monkeypatch.undo()
 
-    # 4. Segmento no OCR (PDF con texto digital o documento de texto) no se modifica
-    digital_text = 'A digital text with lastian and lonian untouched if not processed by OCR.'
+    # 4. En PDFs con capa de texto digital, también se aplica la corrección conservando el original
+    digital_text = 'A digital text with lastian and lonian in PDF layer.'
     digital_pdf = pdf_bytes(digital_text)
     resultado_digital = extract(digital_pdf, '.pdf')
     seg_digital = resultado_digital.segments[0]
     assert not seg_digital['locator'].get('ocr_document')
-    assert seg_digital['text'] == digital_text
-    assert 'texto_ocr_original' not in seg_digital['locator']
+    assert 'Iastian' in seg_digital['text']
+    assert 'Ionian' in seg_digital['text']
+    assert seg_digital['locator']['texto_ocr_original'] == digital_text
+    assert len(seg_digital['locator']['ocr_correcciones_i_l']) == 2
 

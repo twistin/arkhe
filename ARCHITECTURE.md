@@ -945,6 +945,19 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
 - **Normalización ortotipográfica y versionado de títulos:** `docente_ai.teaching.terms` corrige acentuación habitual (*Polifonía*, *Teoría*, *Música*, *Armonía*...) y espacios anómalos previos a signos de puntuación sin alterar nombres propios. La migración de esquema 10 recalcula dinámicamente los títulos en base de datos para todas las propuestas que no cuenten con edición manual explícita.
 - **Aislamiento riguroso del banco de evaluación:** `scripts/run_eval.py` opera obligatoriamente sobre una réplica temporal de la base de datos en un directorio aislado (`tmp_path`), garantizando que ninguna ejecución de benchmark o evaluación automatizada contamine `data/docente.sqlite3`.
 - **Saneamiento automático de ejecuciones interrumpidas (`cleanup_stale_runs`):** Al arrancar la aplicación (tanto al instanciar `Workspace` como durante el ciclo de vida ASGI de `create_app`), cualquier ejecución que haya permanecido en estado `running` durante más de 30 minutos se transiciona automáticamente a `failed` con el motivo `interrumpido` y fecha de finalización registrada, evitando bloqueos o estados pendientes residuales.
+- **Teoría musical calculable y reproducción microtonal (`music.greek`, `teaching.score_resolver`):**
+  - Detección determinista de peticiones teóricas (`es_peticion_teoria_calculable`): cuando el plan docente requiere tetracordos, géneros (diatónico, cromático, enarmónico con diesis/cuartos de tono), escalas o modos griegos, el sistema resuelve la petición sin consultar repositorios externos.
+  - Generación de partitura MusicXML determinista con `music21` (`generar_partitura_tres_generos_musicxml`) que codifica el tetracordo descendente mi–si en compás 1 (Diatónico: Mi-Re-Do-Si), compás 2 (Cromático: Mi-Do#-Do-Si) y compás 3 (Enarmónico: Mi-Do-Si+diesis-Si).
+  - Previsualización dual en servidor mediante `verovio` (partitura tradicional) y Piano Roll SVG adaptado (`render_pianoroll_svg`).
+  - Reproducción microtonal sintetizada en cliente mediante Web Audio API con frecuencias exactas calculadas en Hz (329.63, 293.66, 261.63, 246.94, 277.18, 254.18), sincronizando el cursor del piano roll y marcada inequívocamente con el distintivo *«✓ Calculado a partir de la teoría»*.
+- **Normalización y edición de autores de fuentes (`teaching.terms`, `library`):**
+  - Filtro ortotipográfico de autores (`normalize_author_display`, `KNOWN_AUTHORS_MAP`): estandariza mayúsculas y acentuación canónica (*Aristóxeno, Hefestión, Ptolomeo, Willi Apel, Ralph T. Daniel, Fuensanta Garrido Domené*) en cabeceras de material del alumnado, citas y bibliografía sin alterar los metadatos almacenados en la base de datos.
+  - El endpoint `POST /api/documents/{id}/metadata` permite actualizar interactivamente el autor y título de cualquier documento desde la interfaz de Biblioteca.
+- **Corrección de capas de texto digital de baja calidad (`library.parsers: corregir_erratas_i_l`):**
+  - Detección y corrección sistemática de confusiones habituales de escaneo/OCR entre 'I' mayúscula y 'l' minúscula (tales como *lastian* -> *Iastian*, *lonian* -> *Ionian*, *lastio* -> *Iastio*) tanto en documentos OCR escaneados como en PDFs con capa digital directa.
+  - Preservación estricta del texto original en el localizador del fragmento (`texto_ocr_original` y `ocr_correcciones_i_l`), garantizando trazabilidad y auditoría completa de los pasajes documentales.
+- **Presentación unificada de recursos tipados:**
+  - `format_teacher_resource` y `formatPedagogyResource` aseguran que los recursos estructurados se rendericen como `"recurso — pendiente, tipo"` (p. ej. *«Partitura del Epitafio — pendiente, partitura»*) en la vista web, PDF y Markdown de la guía docente, eliminando cadenas crudas u objetos no serializados.
 
 
 
