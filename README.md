@@ -87,6 +87,9 @@ formulario propone por defecto la próxima sesión prevista del grupo, ofrece un
 las clases venideras o la opción «Sin fecha», y permite elegir cualquier día (mostrando un
 aviso informativo si no hay sesión programada sin bloquear nunca la preparación de la clase).
 Las propuestas de contratos anteriores conservan compatibilidad hacia atrás.
+Si una ejecución se interrumpe o queda en curso de forma anómala, al reiniciar la aplicación
+cualquier propuesta en estado «En curso» con más de 30 minutos de antigüedad se marca
+automáticamente como fallida con el motivo «interrumpido».
 La revisión pedagógica sigue siendo del profesor.
 
 Para la ilustración analítica de obras y técnicas, las propuestas pueden solicitar

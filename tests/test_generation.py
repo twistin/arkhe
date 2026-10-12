@@ -1094,3 +1094,77 @@ def test_quotations_abbreviations_no_split():
     assert 'Pitágoras (c. 530 a. C.) investigó' in p1
     assert 'estableciendo la octava' in p1
     assert p1.startswith('Pitágoras (c. 530 a. C.) investigó')
+
+
+def test_cleanup_stale_runs_marks_failed_interrumpido(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    from docente_ai.generation.service import cleanup_stale_runs, get_run
+    from docente_ai.storage import connect, migrate
+    import sqlite3
+    import json
+
+    db = tmp_path / 'stale_test.sqlite3'
+    with connect(db) as conn:
+        migrate(conn)
+
+    now_dt = datetime.now(timezone.utc)
+    old_time = (now_dt - timedelta(minutes=45)).isoformat()
+    recent_time = (now_dt - timedelta(minutes=10)).isoformat()
+
+    run_old = 'run-stale-old'
+    run_recent = 'run-stale-recent'
+
+    req = {'topic': 'Prueba stale', 'question': 'Prueba stale'}
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            'INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version) VALUES (?, ?, ?, ?, ?)',
+            (run_old, old_time, 'running', json.dumps(req), '1.0')
+        )
+        conn.execute(
+            'INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version) VALUES (?, ?, ?, ?, ?)',
+            (run_recent, recent_time, 'running', json.dumps(req), '1.0')
+        )
+
+    cleaned = cleanup_stale_runs(db, max_age_seconds=1800)
+    assert cleaned == [run_old]
+
+    old_data = get_run(db, run_old)
+    assert old_data['status'] == 'failed'
+    assert old_data['error'] == 'interrumpido'
+    assert old_data['finished_at'] is not None
+
+    recent_data = get_run(db, run_recent)
+    assert recent_data['status'] == 'running'
+    assert recent_data['error'] is None
+
+
+def test_workspace_cleans_stale_runs_on_init(tmp_path):
+    from datetime import datetime, timezone, timedelta
+    from docente_ai.config import load
+    from docente_ai.storage import connect, import_config, migrate
+    from docente_ai.web.workspace import Workspace
+    from test_generation import EXAMPLE
+    import sqlite3
+    import json
+
+    db = tmp_path / 'data/docente.sqlite3'
+    import_config(db, load(EXAMPLE))
+
+    now_dt = datetime.now(timezone.utc)
+    old_time = (now_dt - timedelta(hours=2)).isoformat()
+    run_id = 'run-abandoned-proposal'
+
+    req = {'topic': 'Propuesta abandonada', 'question': 'Propuesta abandonada'}
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            'INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version) VALUES (?, ?, ?, ?, ?)',
+            (run_id, old_time, 'running', json.dumps(req), '1.0')
+        )
+
+    # Al inicializar Workspace (arranque de la app), debe sanear el run automáticamente
+    ws = Workspace(tmp_path)
+    with sqlite3.connect(db) as conn:
+        row = conn.execute('SELECT status, error FROM generation_runs WHERE id = ?', (run_id,)).fetchone()
+        assert row[0] == 'failed'
+        assert row[1] == 'interrumpido'
+    ws.close()

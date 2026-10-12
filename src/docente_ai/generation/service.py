@@ -465,6 +465,37 @@ def update_run_subject(db: Path, run_id: str, subject: str) -> dict:
     return get_run(db, run_id)
 
 
+def cleanup_stale_runs(db: Path, max_age_seconds: int = 1800) -> list[str]:
+    """Pasa a 'failed' con motivo 'interrumpido' los runs en 'running' con más de max_age_seconds."""
+    from datetime import datetime, timezone
+    current_time = datetime.now(timezone.utc)
+    stale_ids = []
+    with closing(connect(db)) as connection, connection:
+        if connection.execute('PRAGMA user_version').fetchone()[0] < 4:
+            return []
+        connection.execute('BEGIN IMMEDIATE')
+        cursor = connection.execute('SELECT id, created_at FROM generation_runs WHERE status = ?', ('running',))
+        for row in cursor.fetchall():
+            run_id = row[0]
+            created_raw = row[1]
+            try:
+                created_dt = datetime.fromisoformat(created_raw)
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                age = (current_time - created_dt).total_seconds()
+            except Exception:
+                age = max_age_seconds + 1
+            if age >= max_age_seconds:
+                stale_ids.append(run_id)
+
+        for run_id in stale_ids:
+            connection.execute(
+                'UPDATE generation_runs SET status = ?, finished_at = ?, error = ? WHERE id = ?',
+                ('failed', now(), 'interrumpido', run_id),
+            )
+    return stale_ids
+
+
 
 def run_stats(db: Path, limit=100):
     """Resumen acotado sin recuperar preguntas, fuentes ni respuestas crudas."""

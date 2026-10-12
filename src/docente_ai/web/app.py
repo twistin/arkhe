@@ -91,6 +91,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
 
     @asynccontextmanager
     async def lifespan(app):
+        await run_in_threadpool(ws.cleanup_stale_runs)
         yield
         await run_in_threadpool(ws.close)
 

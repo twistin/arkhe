@@ -632,5 +632,42 @@ def test_asignar_materia_propuesta(web):
     assert (res_clear.json().get('request') or {}).get('subject') is None
 
 
+def test_app_lifespan_cleans_stale_runs(tmp_path):
+    """Comprueba que al arrancar la app ASGI cualquier run en running de más de 30m pasa a failed."""
+    from datetime import datetime, timezone, timedelta
+    from starlette.testclient import TestClient
+    from docente_ai.config import load
+    from docente_ai.storage import import_config
+    from docente_ai.web.app import create_app
+    from test_generation import EXAMPLE
+    import sqlite3
+    import json
+
+    db = tmp_path / 'data/docente.sqlite3'
+    import_config(db, load(EXAMPLE))
+
+    now_dt = datetime.now(timezone.utc)
+    old_time = (now_dt - timedelta(minutes=40)).isoformat()
+    run_id = 'run-lifespan-stale'
+    req = {'topic': 'Prueba lifespan', 'question': 'Prueba lifespan'}
+
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            'INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version) VALUES (?, ?, ?, ?, ?)',
+            (run_id, old_time, 'running', json.dumps(req), '1.0')
+        )
+
+    # Iniciar la app con TestClient ejecuta el lifespan (startup)
+    app = create_app(tmp_path, port=8765)
+    with TestClient(app, base_url='http://127.0.0.1:8765'):
+        pass
+
+    with sqlite3.connect(db) as conn:
+        row = conn.execute('SELECT status, error FROM generation_runs WHERE id = ?', (run_id,)).fetchone()
+        assert row[0] == 'failed'
+        assert row[1] == 'interrumpido'
+
+
+
 
 

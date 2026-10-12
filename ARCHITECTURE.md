@@ -944,6 +944,7 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
 - **Asignación y edición de materias en propuestas:** Los endpoints `POST /api/runs/{id}/subject` y `POST /api/runs/{id}/title` permiten actualizar interactivamente la materia y el título desde la cabecera del visor de propuestas, sincronizando la persistencia en `generation_runs` y actualizando en tiempo real la clasificación visual en la interfaz.
 - **Normalización ortotipográfica y versionado de títulos:** `docente_ai.teaching.terms` corrige acentuación habitual (*Polifonía*, *Teoría*, *Música*, *Armonía*...) y espacios anómalos previos a signos de puntuación sin alterar nombres propios. La migración de esquema 10 recalcula dinámicamente los títulos en base de datos para todas las propuestas que no cuenten con edición manual explícita.
 - **Aislamiento riguroso del banco de evaluación:** `scripts/run_eval.py` opera obligatoriamente sobre una réplica temporal de la base de datos en un directorio aislado (`tmp_path`), garantizando que ninguna ejecución de benchmark o evaluación automatizada contamine `data/docente.sqlite3`.
+- **Saneamiento automático de ejecuciones interrumpidas (`cleanup_stale_runs`):** Al arrancar la aplicación (tanto al instanciar `Workspace` como durante el ciclo de vida ASGI de `create_app`), cualquier ejecución que haya permanecido en estado `running` durante más de 30 minutos se transiciona automáticamente a `failed` con el motivo `interrumpido` y fecha de finalización registrada, evitando bloqueos o estados pendientes residuales.
 
 
 

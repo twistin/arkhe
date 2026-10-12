@@ -26,8 +26,10 @@ import yaml
 from docente_ai.agents.pedagogy import context_for
 from docente_ai.config import SCHEMAS, load
 from docente_ai.llm.generation import OllamaGenerator
-from docente_ai.generation.service import ask, edit_run as _edit_run, get_run as _get_run, list_runs, run_stats, review_run as _review_run
-from docente_ai.generation.render import render, render_sources, render_student
+from docente_ai.generation.service import (
+    ask, cleanup_stale_runs as _cleanup_stale_runs, edit_run as _edit_run,
+    get_run as _get_run, list_runs, run_stats, review_run as _review_run,
+)
 from docente_ai.generation.settings import load_settings as generation_settings
 from docente_ai.secrets import set_secret, delete_secret, secret_configured
 from docente_ai.llm.presets import PRESETS
@@ -89,7 +91,11 @@ class Workspace:
             import_config(self.db, data)
         with closing(connect(self.db)) as connection, connection:
             migrate(connection)
+        self.cleanup_stale_runs()
         self.ensure_folders()
+
+    def cleanup_stale_runs(self, max_age_seconds: int = 1800):
+        return _cleanup_stale_runs(self.db, max_age_seconds)
 
     def close(self):
         self.pool.shutdown(wait=True)
