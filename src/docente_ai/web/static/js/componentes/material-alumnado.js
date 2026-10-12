@@ -70,9 +70,11 @@ export function formatStudentResource(item) {
   return cleanStudentText(String(item), true);
 }
 
-export function renderDidacticSection(run) {
+export function renderDidacticSection(run, options = {}) {
   const comps = run.result?.resolved_didactic_components || [];
   if (!comps.length) return '';
+  const filtered = comps.filter(dc => !(options.skipTimeline && dc.tipo === 'linea_temporal'));
+  if (!filtered.length) return '';
   return [
     '    <!-- COMPONENTES DIDÁCTICOS Y MODELOS ACÚSTICOS CALCULADOS -->\n',
     '    <section class="student-section section-didactic-models">\n',
@@ -83,7 +85,7 @@ export function renderDidacticSection(run) {
     '          <p class="student-section-intro">' +
     'Componentes interactivos calculados deterministamente a partir de la teoría musical clásica.</p>\n',
     '        </div>\n      </div>\n      <div class="didactic-models-container">\n',
-    comps.map(dc => renderDidacticComponent(dc)).join(''),
+    filtered.map(dc => renderDidacticComponent(dc)).join(''),
     '\n      </div>\n    </section>\n\n',
   ].join('');
 }
@@ -105,12 +107,17 @@ export function studentDocumentHTML(run) {
   const listenings = isPolyphony ? POLYPHONY_LISTENINGS : getRunListenings(run);
   const isFichaVerified = Boolean(run.ficha?.verificado === true);
   const timelineComp = (run.result?.resolved_didactic_components || []).find(c => c.tipo === 'linea_temporal');
+  let timelineRendered = false;
   const section2Title = isPolyphony ? 'MODELOS Y ANÁLISIS DE TEXTURAS' : 'ESQUEMA CONCEPTUAL Y ESTRUCTURAS';
   const hasFichaConceptos = Boolean(run.ficha?.conceptos?.length);
-  const resolvedScores = (run.result?.resolved_music_requests || []).filter(item =>
-    item.status === 'resuelto_catalogo' && item.ejemplo &&
-    (item.verificado || item.origen === 'calculado_teoria' || item.ejemplo.calculado_teoria)
-  );
+  const resolvedScores = (run.result?.resolved_music_requests || []).filter(item => {
+    if (item.status !== 'resuelto_catalogo' || !item.ejemplo) return false;
+    const ej = item.ejemplo;
+    const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría' ||
+      item.origen === 'calculado_teoria';
+    const hasUiVerification = Boolean(ej.verificado_por && ej.verificado_en);
+    return isTheory || (Boolean(item.verificado) && hasUiVerification);
+  });
   let elapsed = 0;
 
   // Extraer autores citados realmente
@@ -205,6 +212,7 @@ export function studentDocumentHTML(run) {
             /cronolog|tiempo|hist[oó]ric|siglo/i.test(v.title || '') ||
             (v.items || []).some(it => /a\.\s*c\.|d\.\s*c\.|siglo|\b\d{3,4}\b/i.test(it.label || ''));
           if (isChronological && timelineComp) {
+            timelineRendered = true;
             return renderDidacticComponent(timelineComp);
           }
           return [
@@ -232,7 +240,7 @@ export function studentDocumentHTML(run) {
       ].join('')
     ),
     `\n    </section>\n\n`,
-    renderDidacticSection(run),
+    renderDidacticSection(run, { skipTimeline: timelineRendered }),
     hasFichaConceptos ? [
       `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
       `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
@@ -271,62 +279,83 @@ export function studentDocumentHTML(run) {
     `          <p class="student-section-intro">Secuencia de actividades prácticas y análisis desarrolladas `,
     `en la sesión de clase.</p>\n        </div>\n      </div>\n\n`,
     `      <div class="assignment-grid">\n`,
-    (plan.activities || []).map((activity, index) => {
-      const mins = Number(activity.minutes) || 0;
-      const start = elapsed;
-      elapsed += mins;
-      const taskText = cleanStudentText(activity.student_task || activity.instructions || '', true);
-      const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
+    (() => {
+      const renderedScoreKeys = new Set();
+      return (plan.activities || []).map((activity, index) => {
+        const mins = Number(activity.minutes) || 0;
+        const start = elapsed;
+        elapsed += mins;
+        const taskText = cleanStudentText(activity.student_task || activity.instructions || '', true);
+        const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
 
-      const actScores = resolvedScores.filter(m => {
-        if (m.request?.activity_title && m.request.activity_title === activity.title) return true;
-        if (m.request_id && activity.music_request_id === m.request_id) return true;
-        const obra = m.ejemplo?.obra || m.request?.work || '';
-        if (obra && activity.title && activity.title.toLowerCase().includes(obra.toLowerCase())) return true;
-        if (resolvedScores.length === 1 && (
-          activity.title?.toLowerCase().includes('notacion') ||
-          activity.title?.toLowerCase().includes('seikilos')
-        )) return true;
-        return false;
-      });
+        const actScores = resolvedScores.filter(m => {
+          const key = m.ejemplo?.id || m.request_id || m.request?.work || '';
+          if (key && renderedScoreKeys.has(key)) return false;
+          let match = false;
+          if (m.request?.activity_title && m.request.activity_title === activity.title) {
+            match = true;
+          } else if (m.request_id && activity.music_request_id === m.request_id) {
+            match = true;
+          } else {
+            const obra = m.ejemplo?.obra || m.request?.work || '';
+            if (obra && activity.title && activity.title.toLowerCase().includes(obra.toLowerCase())) {
+              match = true;
+            } else if (resolvedScores.length === 1 && (
+              activity.title?.toLowerCase().includes('notacion') ||
+              activity.title?.toLowerCase().includes('seikilos')
+            )) {
+              match = true;
+            }
+          }
+          if (match) {
+            if (key) renderedScoreKeys.add(key);
+            return true;
+          }
+          return false;
+        });
 
-      const scoreBoxesHtml = actScores.map(m => {
-        const ej = m.ejemplo;
-        const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
-        const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Partitura verificada';
+        const scoreBoxesHtml = actScores.map(m => {
+          const ej = m.ejemplo;
+          const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
+          const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Partitura verificada';
+          const obraStr = ej.obra || m.request?.work || 'Obra musical';
+          const secStr = ej.seccion || m.request?.section || '';
+          const scoreTitle = obraStr + (secStr ? ' · ' + secStr : '');
+          const compStr = ej.compositor || m.request?.composer || 'Anónimo';
+          return [
+            `\n          <div class="student-score-box score-card-verified score-candidate-item" ` +
+            `data-candidate-id="${e(ej.id)}" data-run-id="${e(run.id)}">\n`,
+            `            <div class="score-card-head">\n              <div>\n`,
+            `                <span class="badge info">${badgeText}</span>\n`,
+            `                <h4>${e(scoreTitle)} — ${e(compStr)}</h4>\n`,
+            `                <small class="score-meta">Compases ${e(ej.compases || '1-3')} · ` +
+            `Fuente: ${e(ej.fuente || 'Catálogo')}</small>\n`,
+            `              </div>\n            </div>\n`,
+            `            <div class="score-preview-container">\n`,
+            `              <div class="score-preview-box" data-candidate-id="${e(ej.id)}" ` +
+            `data-run-id="${e(run.id)}" data-current-mode="svg">\n`,
+            `                <div class="score-loading"><span class="spinner"></span> ` +
+            `Renderizando partitura con Verovio…</div>\n`,
+            `              </div>\n            </div>\n`,
+            `          </div>\n`
+          ].join('');
+        }).join('');
+
         return [
-          `\n          <div class="student-score-box score-card-verified score-candidate-item" ` +
-          `data-candidate-id="${e(ej.id)}" data-run-id="${e(run.id)}">\n`,
-          `            <div class="score-card-head">\n              <div>\n`,
-          `                <span class="badge info">${badgeText}</span>\n`,
-          `                <h4>${e(ej.titulo || m.request?.work)} — ${e(ej.compositor || m.request?.composer)}</h4>\n`,
-          `                <small class="score-meta">Compases ${e(ej.compases || '1-3')} · ` +
-          `Fuente: ${e(ej.fuente || 'Catálogo')}</small>\n`,
-          `              </div>\n            </div>\n`,
-          `            <div class="score-preview-container">\n`,
-          `              <div class="score-preview-box" data-candidate-id="${e(ej.id)}" ` +
-          `data-run-id="${e(run.id)}" data-current-mode="svg">\n`,
-          `                <div class="score-loading"><span class="spinner"></span> ` +
-          `Renderizando partitura con Verovio…</div>\n`,
-          `              </div>\n            </div>\n`,
-          `          </div>\n`
+          `\n        <div class="assignment-card">\n          <div class="assign-head">\n`,
+          `            <span class="assign-tag">${start}–${elapsed} min</span>\n`,
+          `            <strong>${e(index + 1)}. ${e(activity.title)}${groupTag}</strong>\n`,
+          `          </div>\n`,
+          taskText ? `          <p class="activity-task"><strong>Tarea:</strong> ${e(taskText)}</p>\n` : '',
+          activity.deliverable ? [
+            `          <p class="activity-deliverable"><strong>Entregable:</strong> `,
+            `${e(cleanStudentText(activity.deliverable, true))}</p>\n`
+          ].join('') : '',
+          scoreBoxesHtml,
+          `        </div>\n`
         ].join('');
       }).join('');
-
-      return [
-        `\n        <div class="assignment-card">\n          <div class="assign-head">\n`,
-        `            <span class="assign-tag">${start}–${elapsed} min</span>\n`,
-        `            <strong>${e(index + 1)}. ${e(activity.title)}${groupTag}</strong>\n`,
-        `          </div>\n`,
-        taskText ? `          <p class="activity-task"><strong>Tarea:</strong> ${e(taskText)}</p>\n` : '',
-        activity.deliverable ? [
-          `          <p class="activity-deliverable"><strong>Entregable:</strong> `,
-          `${e(cleanStudentText(activity.deliverable, true))}</p>\n`
-        ].join('') : '',
-        scoreBoxesHtml,
-        `        </div>\n`
-      ].join('');
-    }).join(''),
+    })(),
     (isFichaVerified && run.ficha?.tareas_adicionales_casa?.length) ? [
       `\n      <div class="homework-tasks-block">\n`,
       `        <h3 class="homework-title">🏠 Tareas adicionales para casa</h3>\n`,

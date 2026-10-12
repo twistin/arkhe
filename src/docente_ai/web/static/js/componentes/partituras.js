@@ -97,7 +97,10 @@ export function renderWavDownloadButton(ej) {
 export function renderMusicRequestCard(item, result, run) {
   const req = item.request || (result.music_requests || []).find(r => r.id === item.request_id) || {};
   const isResolved = item.status === 'resuelto_catalogo' && item.ejemplo;
-  const isVerified = isResolved && !!item.verificado;
+  const ej = item.ejemplo;
+  const isTheory = ej?.calculado_teoria || ej?.fuente === 'Calculado a partir de la teoría';
+  const hasUiVerification = !!ej?.verificado_por && !!ej?.verificado_en;
+  const isVerified = isResolved && !!item.verificado && (isTheory || hasUiVerification);
 
   if (isVerified) {
     const ej = item.ejemplo;
@@ -727,6 +730,7 @@ async function accionImportMusicxml({target}) {
           titulo: titVal,
           compositor: compVal,
           verificado: verificadoVal,
+          verificado_por: 'profesor',
         },
         { method: 'POST' }
       );

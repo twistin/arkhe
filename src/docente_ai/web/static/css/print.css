@@ -437,6 +437,7 @@
   /* Modelos didácticos, partituras y gráficos deterministas en impresión */
   .section-didactic-models,
   .didactic-models-container,
+  .didactic-component-card,
   .didactic-model-card,
   .student-score-box,
   .score-card,
@@ -462,5 +463,14 @@
     height: auto !important;
     display: block !important;
     visibility: visible !important;
+  }
+
+  /* Ocultar elementos interactivos y cuadrícula de accesibilidad de notas en impresión */
+  .gsp-notes-grid,
+  .no-print,
+  .sr-only-print,
+  .tuning-selector,
+  .didactic-controls {
+    display: none !important;
   }
 }

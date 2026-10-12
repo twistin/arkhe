@@ -145,6 +145,8 @@ def test_resolucion_desde_catalogo_local(tmp_path):
         "tecnica": "cantus_firmus",
         "archivo": "dufay.musicxml",
         "verificado": True,
+        "verificado_por": "profesor",
+        "verificado_en": "2026-10-12T10:00:00Z",
         "fuente": "CPDL",
         "licencia": "Dominio público"
     }]
@@ -163,6 +165,39 @@ def test_resolucion_desde_catalogo_local(tmp_path):
     assert resultado["status"] == "resuelto_catalogo"
     assert resultado["verificado"] is True
     assert resultado["ejemplo"]["id"] == "ej-dufay-cf"
+
+
+def test_resolucion_ignora_como_no_verificado_sin_verificado_por_o_en(tmp_path):
+    """Regla dura: un ejemplo en catálogo con verificado: True pero sin verificado_por
+    o verificado_en se trata como no verificado."""
+    import yaml
+    cat_dir = tmp_path / "ejemplos"
+    cat_dir.mkdir()
+    catalogo = [{
+        "id": "ej-invalido",
+        "titulo": "Missa Se la face ay pale",
+        "compositor": "Guillaume Du Fay",
+        "obra": "Missa Se la face ay pale",
+        "seccion": "Gloria",
+        "compases": "1-8",
+        "tecnica": "cantus_firmus",
+        "archivo": "dufay.musicxml",
+        "verificado": True,
+        # Falta verificado_por y verificado_en
+        "fuente": "CPDL",
+    }]
+    (cat_dir / "ejemplos.yaml").write_text(yaml.safe_dump(catalogo), encoding="utf-8")
+
+    req = {
+        "id": "MR1",
+        "work": "Missa Se la face ay pale",
+        "composer": "Guillaume Du Fay",
+        "section": "Gloria",
+        "technique": "cantus_firmus",
+    }
+    resultado = resolver_peticion_musical(req, directorio_ejemplos=cat_dir)
+    assert resultado["status"] == "resuelto_catalogo"
+    assert resultado["verificado"] is False
 
 
 def test_resolucion_desde_carpeta_profesor(tmp_path):
@@ -673,12 +708,16 @@ def test_importar_musicxml_seikilos_con_fuente_y_verificado(tmp_path):
     )
 
     assert ejemplo["verificado"] is True
+    assert ejemplo.get("verificado_por") == "profesor"
+    assert ejemplo.get("verificado_en")
     assert ejemplo["fuente"] == "Transcripción del profesor según NAWM 1, Burkholder"
     assert ejemplo["obra"] == "Epitafio de Seikilos"
 
 
 def test_lyrics_segunda_linea_notacion_griega_sobre_las_notas(tmp_path):
-    """Si el MusicXML incluye una segunda línea de lyrics, se posiciona sobre las notas en el SVG."""
+    """Si el MusicXML incluye una segunda línea de lyrics (notación griega),
+    se normaliza a direction placement='above' y Verovio la ubica nativamente
+    sin transformadas manuales de translate."""
     from docente_ai.web.workspace import Workspace
     ws = Workspace(root=tmp_path)
 
@@ -699,8 +738,72 @@ def test_lyrics_segunda_linea_notacion_griega_sobre_las_notas(tmp_path):
 
     svg = ws.render_score_svg(str(xml_path), start_measure=1, end_measure=1)
     assert '<svg' in svg
-    assert 'greek-notation-verse' in svg
-    assert 'translate(0, -1650)' in svg
+    assert 'class="dir"' in svg
+    assert 'Ϲ' in svg
+    assert 'translate(0, -1650)' not in svg
+
+
+def test_notacion_griega_multisistema_1_y_3_sistemas(tmp_path):
+    """Comprueba que la notación griega situada encima de las notas
+    se posicione de forma nativa sin transformadas fijas tanto en un sistema
+    como en múltiples sistemas (ej. 3 sistemas)."""
+    import verovio
+    from docente_ai.web.workspace import normalizar_musicxml_notacion_griega
+
+    # Generamos un MusicXML con 6 compases y notación griega en cada uno
+    medidas_xml = []
+    simbolos = ['Ϲ', 'Ż', 'Κ', 'Ϲ', 'Ż', 'Κ']
+    for i in range(1, 7):
+        medidas_xml.append(f"""
+        <measure number="{i}">
+          {'<attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>' if i == 1 else ''}
+          <note>
+            <pitch><step>A</step><octave>4</octave></pitch>
+            <duration>1</duration>
+            <type>whole</type>
+            <lyric number="1"><text>Palabra{i}</text></lyric>
+            <lyric number="2"><text>{simbolos[i-1]}</text></lyric>
+          </note>
+        </measure>""")
+
+    xml_multisistema = f"""<?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list><score-part id="P1"><part-name>Voz</part-name></score-part></part-list>
+      <part id="P1">
+        {''.join(medidas_xml)}
+      </part>
+    </score-partwise>"""
+
+    normalized = normalizar_musicxml_notacion_griega(xml_multisistema)
+    assert '<direction placement="above">' in normalized
+
+    data_dir = Path(verovio.__file__).parent / "data"
+
+    # Caso A: 1 sistema (ancho suficiente)
+    tk1 = verovio.toolkit(False)
+    if data_dir.is_dir():
+        tk1.setResourcePath(str(data_dir))
+    tk1.setOptions({'pageWidth': 5000, 'pageHeight': 800, 'adjustPageHeight': 1, 'breaks': 'auto', 'scale': 35})
+    tk1.loadData(normalized)
+    svg1 = tk1.renderToSVG(1)
+    assert svg1.count('class="system"') == 1
+    assert 'class="dir"' in svg1
+    assert 'translate(0, -1650)' not in svg1
+    for s in set(simbolos):
+        assert s in svg1
+
+    # Caso B: 3 sistemas (ancho estrecho que reparte en al menos 3 sistemas)
+    tk3 = verovio.toolkit(False)
+    if data_dir.is_dir():
+        tk3.setResourcePath(str(data_dir))
+    tk3.setOptions({'pageWidth': 650, 'pageHeight': 3000, 'adjustPageHeight': 1, 'breaks': 'auto', 'scale': 35})
+    tk3.loadData(normalized)
+    svg3 = tk3.renderToSVG(1)
+    assert svg3.count('class="system"') >= 3
+    assert 'class="dir"' in svg3
+    assert 'translate(0, -1650)' not in svg3
+    for s in set(simbolos):
+        assert s in svg3
 
 
 

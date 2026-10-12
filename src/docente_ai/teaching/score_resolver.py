@@ -179,13 +179,18 @@ def resolver_peticion_musical(
     ejemplos_locales = load_all_ejemplos(directorio_ejemplos)
     for ej in ejemplos_locales:
         if ej.get('id') not in descartes_set and _coincide_ejemplo(request, ej):
+            es_verificado = (
+                bool(ej.get('verificado', False))
+                and bool(str(ej.get('verificado_por') or '').strip())
+                and bool(str(ej.get('verificado_en') or '').strip())
+            )
             return {
                 'request_id': req_id,
                 'request': dict(request),
                 'status': 'resuelto_catalogo',
                 'origen': 'catalogo_local',
                 'ejemplo': dict(ej),
-                'verificado': bool(ej.get('verificado', False)),
+                'verificado': es_verificado,
                 'candidatos': [],
             }
 
@@ -281,9 +286,15 @@ def usar_candidato_como_ejemplo(
     *,
     rango_compases: str = "1-8",
     voz_resaltar: str | None = None,
-    directorio_destino: Path | str | None = None
+    directorio_destino: Path | str | None = None,
+    verificado_por: str = "profesor",
+    verificado_en: str | None = None,
 ) -> dict[str, Any]:
     """Guarda un candidato en data/ejemplos/ con verificado: true y los metadatos elegidos."""
+    from datetime import datetime, timezone
+    v_en = verificado_en or datetime.now(timezone.utc).isoformat()
+    v_por = str(verificado_por or 'profesor').strip() or 'profesor'
+
     target_dir = Path(directorio_destino) if directorio_destino else EJEMPLOS_DEFAULT_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -320,6 +331,8 @@ def usar_candidato_como_ejemplo(
         'edicion': candidato.get('edicion', ''),
         'url': candidato.get('url', ''),
         'verificado': True,
+        'verificado_por': v_por,
+        'verificado_en': v_en,
         'voz_resaltada': voz_resaltar or request.get('voice', ''),
         'nota_analisis': request.get('description', ''),
     }
@@ -347,6 +360,8 @@ def importar_transcripcion_musicxml(
     titulo: str | None = None,
     compositor: str | None = None,
     verificado: bool = True,
+    verificado_por: str | None = None,
+    verificado_en: str | None = None,
     rango_compases: str = "1-12",
     directorio_destino: Path | str | None = None,
 ) -> dict[str, Any]:
@@ -358,6 +373,10 @@ def importar_transcripcion_musicxml(
     fuente_limpia = (fuente or "").strip()
     if not fuente_limpia:
         raise ValueError("Debe especificarse la fuente de la transcripción (ej. Transcripción propia del profesor).")
+
+    from datetime import datetime, timezone
+    v_en = verificado_en or (datetime.now(timezone.utc).isoformat() if verificado else None)
+    v_por = str(verificado_por or 'profesor').strip() if verificado else None
 
     target_dir = Path(directorio_destino) if directorio_destino else EJEMPLOS_DEFAULT_DIR
     target_dir.mkdir(parents=True, exist_ok=True)
@@ -403,6 +422,9 @@ def importar_transcripcion_musicxml(
         'voz_resaltada': request.get('voice', ''),
         'nota_analisis': request.get('description', 'Transcripción incorporada desde la tarjeta del ejemplo.'),
     }
+    if verificado and v_por and v_en:
+        nuevo_ejemplo['verificado_por'] = v_por
+        nuevo_ejemplo['verificado_en'] = v_en
 
     yaml_file = target_dir / 'ejemplos.yaml'
     existentes = []

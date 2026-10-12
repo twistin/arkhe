@@ -390,7 +390,13 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                         parametros = comp.get('parametros') or {}
                         origen = comp.get('origen', 'regla_tema')
                         try:
-                            res = resolver_componente_didactico(tipo, parametros, evidence=bundle.get('evidence'))
+                            res = resolver_componente_didactico(
+                                tipo,
+                                parametros,
+                                evidence=bundle.get('evidence'),
+                                claims=result.get('claims'),
+                                visualizaciones=result.get('visualizations'),
+                            )
                             res['origen'] = origen
                             if comp.get('actividad'):
                                 res['actividad'] = comp.get('actividad')
@@ -671,7 +677,9 @@ def adopt_score_candidate(
     *,
     rango_compases: str = "1-8",
     voz_resaltar: str | None = None,
-    directorio_destino: Path | str | None = None
+    directorio_destino: Path | str | None = None,
+    verificado_por: str = "profesor",
+    verificado_en: str | None = None,
 ) -> dict:
     """Adopta un candidato de partitura y lo guarda en data/ejemplos/ con verificado: true."""
     from docente_ai.teaching.score_resolver import usar_candidato_como_ejemplo
@@ -707,13 +715,19 @@ def adopt_score_candidate(
             candidato,
             rango_compases=rango_compases,
             voz_resaltar=voz_resaltar,
-            directorio_destino=directorio_destino
+            directorio_destino=directorio_destino,
+            verificado_por=verificado_por,
+            verificado_en=verificado_en,
         )
 
+        es_ver = bool(nuevo_ejemplo.get('verificado')) and bool(nuevo_ejemplo.get('verificado_por')) and bool(nuevo_ejemplo.get('verificado_en'))
         resolved_item['status'] = 'resuelto_catalogo'
         resolved_item['origen'] = 'catalogo_local'
         resolved_item['ejemplo'] = nuevo_ejemplo
-        resolved_item['verificado'] = True
+        resolved_item['verificado'] = es_ver
+        if es_ver:
+            resolved_item['verificado_por'] = nuevo_ejemplo.get('verificado_por')
+            resolved_item['verificado_en'] = nuevo_ejemplo.get('verificado_en')
         resolved_item['candidatos'] = []
 
         result['resolved_music_requests'] = resolved_list
@@ -753,6 +767,7 @@ def discard_score_candidate(
         descartes = resolved_item.setdefault('descartes', [])
         if candidate_id not in descartes:
             descartes.append(candidate_id)
+
         if not candidatos and resolved_item.get('status') == 'candidatos_pendientes':
             resolved_item['status'] = 'sin_resolver'
 
@@ -825,6 +840,8 @@ def import_score_musicxml(
     titulo: str | None = None,
     compositor: str | None = None,
     verificado: bool = True,
+    verificado_por: str = "profesor",
+    verificado_en: str | None = None,
     rango_compases: str = "1-12",
     directorio_destino: Path | str | None = None
 ) -> dict:
@@ -868,14 +885,20 @@ def import_score_musicxml(
             titulo=titulo,
             compositor=compositor,
             verificado=verificado,
+            verificado_por=verificado_por,
+            verificado_en=verificado_en,
             rango_compases=rango_compases,
             directorio_destino=directorio_destino
         )
 
+        es_ver = bool(nuevo_ejemplo.get('verificado')) and bool(nuevo_ejemplo.get('verificado_por')) and bool(nuevo_ejemplo.get('verificado_en'))
         resolved_item['status'] = 'resuelto_catalogo'
         resolved_item['origen'] = 'catalogo_local'
         resolved_item['ejemplo'] = nuevo_ejemplo
-        resolved_item['verificado'] = nuevo_ejemplo.get('verificado', True)
+        resolved_item['verificado'] = es_ver
+        if es_ver:
+            resolved_item['verificado_por'] = nuevo_ejemplo.get('verificado_por')
+            resolved_item['verificado_en'] = nuevo_ejemplo.get('verificado_en')
         resolved_item['candidatos'] = []
 
         result['resolved_music_requests'] = resolved_list

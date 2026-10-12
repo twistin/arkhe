@@ -667,9 +667,12 @@ FIGURAS_HISTORICAS_GRIEGAS = {
 def construir_hitos_linea_temporal(
     evidence: list[dict[str, Any]] | None = None,
     autores_solicitados: list[str] | None = None,
+    claims: list[dict[str, Any]] | None = None,
+    visualizaciones: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """Construye dinámicamente los hitos de la línea temporal a partir de las fuentes
-    citadas de la propuesta. Si un autor solicitado no tiene fuente en la biblioteca,
+    citadas de la propuesta y de los autores nombrados en claims y visualizaciones.
+    Si un autor solicitado o citado no tiene fuente en la biblioteca,
     se marca explícitamente como 'sin_fuente' para la guía docente."""
     hitos: list[dict[str, Any]] = []
     autores_en_fuentes: dict[str, dict[str, Any]] = {}
@@ -680,27 +683,31 @@ def construir_hitos_linea_temporal(
             res = res.replace(orig, dest)
         return res
 
+    def _detectar_key(texto: str) -> str | None:
+        t_norm = _normalizar(texto)
+        if 'plat' in t_norm: return 'platon'
+        if 'aristot' in t_norm: return 'aristoteles'
+        if 'aristox' in t_norm: return 'aristoxeno'
+        if 'pitag' in t_norm: return 'pitagoras'
+        if 'ptol' in t_norm: return 'ptolomeo'
+        if 'seikil' in t_norm or 'epitaf' in t_norm: return 'seikilos'
+        if 'euclid' in t_norm: return 'euclides'
+        if 'boec' in t_norm or 'boeth' in t_norm: return 'boecio'
+        if 'alipi' in t_norm: return 'alipio'
+        if 'agust' in t_norm: return 'agustin'
+        return None
+
     # 1. Extraer autores y obras de las fuentes efectivamente citadas
     for ev in (evidence or []):
         meta = ev.get('metadata') or {}
         titulo_doc = meta.get('title') or ev.get('source_title') or ''
         for autor_raw in (meta.get('authors') or []):
             autor_clean = str(autor_raw).strip()
-            # Reconocer clave canónica
-            key = None
-            autor_norm = _normalizar(autor_clean)
-            if 'plat' in autor_norm: key = 'platon'
-            elif 'aristot' in autor_norm: key = 'aristoteles'
-            elif 'aristox' in autor_norm: key = 'aristoxeno'
-            elif 'pitag' in autor_norm: key = 'pitagoras'
-            elif 'ptol' in autor_norm: key = 'ptolomeo'
-            elif 'seikil' in autor_norm or 'epitaf' in autor_norm: key = 'seikilos'
-            elif 'euclid' in autor_norm: key = 'euclides'
-            elif 'boec' in autor_norm or 'boeth' in autor_norm: key = 'boecio'
-            elif 'alipi' in autor_norm: key = 'alipio'
-            elif 'agust' in autor_norm: key = 'agustin'
+            key = _detectar_key(autor_clean)
+            if not key and titulo_doc:
+                key = _detectar_key(titulo_doc)
 
-            if key and key not in autores_en_fuentes:
+            if key and key not in autores_en_fuentes and key in FIGURAS_HISTORICAS_GRIEGAS:
                 canon = FIGURAS_HISTORICAS_GRIEGAS[key]
                 autores_en_fuentes[key] = {
                     'key': key,
@@ -717,15 +724,29 @@ def construir_hitos_linea_temporal(
     for item in autores_en_fuentes.values():
         hitos.append(item)
 
-    # 2. Si se solicitaron autores específicos en parámetros
-    for aut_sol in (autores_solicitados or []):
-        aut_norm = _normalizar(aut_sol)
-        key = None
+    # 2. Extraer autores nombrados en claims y visualizaciones
+    autores_mencionados: set[str] = set()
+    for cl in (claims or []):
+        t = cl.get('text', '') + ' ' + cl.get('student_summary', '')
         for k in FIGURAS_HISTORICAS_GRIEGAS:
-            if k in aut_norm:
-                key = k
-                break
-        if key and key not in autores_en_fuentes:
+            if k in _normalizar(t):
+                autores_mencionados.add(k)
+    for vz in (visualizaciones or []):
+        t = vz.get('title', '') + ' ' + vz.get('caption', '')
+        for it in (vz.get('items') or []):
+            t += ' ' + str(it.get('label', '')) + ' ' + str(it.get('detail', ''))
+        for k in FIGURAS_HISTORICAS_GRIEGAS:
+            if k in _normalizar(t):
+                autores_mencionados.add(k)
+
+    # 3. Autores solicitados explícitamente en parámetros
+    for aut_sol in (autores_solicitados or []):
+        key = _detectar_key(str(aut_sol))
+        if key:
+            autores_mencionados.add(key)
+
+    for key in autores_mencionados:
+        if key not in autores_en_fuentes and key in FIGURAS_HISTORICAS_GRIEGAS:
             canon = FIGURAS_HISTORICAS_GRIEGAS[key]
             hitos.append({
                 'key': key,
@@ -738,7 +759,7 @@ def construir_hitos_linea_temporal(
                 'sin_fuente': True,
             })
 
-    # Si no había fuentes citadas específicas (ej. test aislado), poblar con las figuras de Grecia relevantes
+    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con las figuras de Grecia relevantes
     if not hitos:
         for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'seikilos', 'ptolomeo', 'boecio'):
             canon = FIGURAS_HISTORICAS_GRIEGAS[k]
@@ -1003,6 +1024,8 @@ def resolver_componente_didactico(
     tipo: str,
     parametros: dict[str, Any] | None = None,
     evidence: list[dict[str, Any]] | None = None,
+    claims: list[dict[str, Any]] | None = None,
+    visualizaciones: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Resuelve deterministamente un componente didáctico musical devolviendo sus
     datos estructurados, frecuencias sonoras y código SVG listo para renderizado.
@@ -1097,7 +1120,12 @@ def resolver_componente_didactico(
 
     elif tipo in ('linea_temporal', 'cronologia', 'timeline'):
         autores = parametros.get('autores')
-        hitos = construir_hitos_linea_temporal(evidence, autores)
+        hitos = construir_hitos_linea_temporal(
+            evidence=evidence,
+            autores_solicitados=autores,
+            claims=claims,
+            visualizaciones=visualizaciones,
+        )
         svg_docente = generar_svg_linea_temporal(hitos, para_alumnado=False)
         svg_alumnado = generar_svg_linea_temporal(hitos, para_alumnado=True)
         return {

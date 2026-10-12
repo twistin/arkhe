@@ -74,6 +74,55 @@ def slug(name):
     return re.sub('[^a-z0-9]+', '-', result).strip('-')[:65] or 'materia'
 
 
+def normalizar_musicxml_notacion_griega(xml_content: str) -> str:
+    """Si el MusicXML incluye notación griega como <lyric number="2">, la transforma
+    en <direction placement="above"><direction-type><words>...</words></direction-type></direction>
+    para que Verovio la ubique nativamente sobre las notas en cualquier sistema sin transformadas manuales."""
+    if not xml_content or '<lyric' not in xml_content:
+        return xml_content
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_content)
+    except Exception:
+        return xml_content
+
+    modificado = False
+    for part in root.findall('part'):
+        for measure in part.findall('measure'):
+            children = list(measure)
+            new_children = []
+            for child in children:
+                if child.tag == 'note':
+                    l2 = None
+                    for lyr in child.findall('lyric'):
+                        if lyr.get('number') == '2':
+                            l2 = lyr
+                            break
+                    if l2 is not None:
+                        txt_node = l2.find('text')
+                        greek_char = txt_node.text.strip() if txt_node is not None and txt_node.text else ''
+                        child.remove(l2)
+                        if greek_char:
+                            dir_el = ET.Element('direction', {'placement': 'above'})
+                            dt_el = ET.SubElement(dir_el, 'direction-type')
+                            w_el = ET.SubElement(dt_el, 'words', {
+                                'font-weight': 'bold',
+                                'font-family': 'sans-serif',
+                                'color': '#1e3a8a'
+                            })
+                            w_el.text = greek_char
+                            new_children.append(dir_el)
+                            modificado = True
+                new_children.append(child)
+            if modificado:
+                measure.clear()
+                measure.extend(new_children)
+
+    if modificado:
+        return ET.tostring(root, encoding='utf-8').decode('utf-8')
+    return xml_content
+
+
 class Workspace:
     def __init__(self, root, *, embedder_factory=OllamaEmbedder, ask_function=ask):
         self.root = Path(root).resolve()
@@ -486,12 +535,19 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         return _delete_run(self.db, run_id)
 
     def adopt_score_candidate(self, run_id: str, request_id: str, data: dict) -> dict:
+        from datetime import datetime, timezone
         from docente_ai.generation.service import adopt_score_candidate as _adopt
         rango = data.get('compases') or '1-8'
         voz = data.get('voz')
         cand_id = data.get('candidate_id')
         dest = data.get('directorio_destino')
-        return _adopt(self.db, run_id, request_id, cand_id, rango_compases=rango, voz_resaltar=voz, directorio_destino=dest)
+        v_por = data.get('verificado_por') or 'profesor'
+        v_en = data.get('verificado_en') or datetime.now(timezone.utc).isoformat()
+        return _adopt(
+            self.db, run_id, request_id, cand_id,
+            rango_compases=rango, voz_resaltar=voz, directorio_destino=dest,
+            verificado_por=v_por, verificado_en=v_en
+        )
 
     def discard_score_candidate(self, run_id: str, request_id: str, data: dict) -> dict:
         from docente_ai.generation.service import discard_score_candidate as _discard
@@ -503,6 +559,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         return _search(self.db, run_id, request_id)
 
     def import_score_musicxml(self, run_id: str, request_id: str, data: dict) -> dict:
+        from datetime import datetime, timezone
         from docente_ai.generation.service import import_score_musicxml as _import_xml
         xml_content = data.get('musicxml') or data.get('content') or ''
         fuente = data.get('fuente') or ''
@@ -511,6 +568,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         compases = data.get('compases') or '1-12'
         dest = data.get('directorio_destino') or (self.root / 'data/ejemplos')
         verificado = data.get('verificado', True)
+        v_por = data.get('verificado_por') or 'profesor'
+        v_en = data.get('verificado_en') or (datetime.now(timezone.utc).isoformat() if verificado else None)
         return _import_xml(
             self.db,
             run_id,
@@ -520,6 +579,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             titulo=titulo,
             compositor=compositor,
             verificado=verificado,
+            verificado_por=v_por,
+            verificado_en=v_en,
             rango_compases=compases,
             directorio_destino=dest
         )
@@ -1200,6 +1261,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 xml_content = re.sub(r"<metronome>[\s\S]*?</metronome>", "", xml_content)
                 xml_content = re.sub(r'<sound[^>]*tempo="[^"]*"[^>]*/>', "", xml_content)
 
+                xml_content = normalizar_musicxml_notacion_griega(xml_content)
+
             tk.loadData(xml_content)
 
         if tk.getPageCount() < 1:
@@ -1290,37 +1353,23 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             else:
                 svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + css, svg, count=1)
 
-        # Si la partitura incluye una segunda línea de lyrics (notación musical griega histórica),
-        # posicionarla sobre las notas con estilo destacado
-        try:
-            mei_lyrics = tk.getMEI()
-            v2_ids = set(re.findall(r'<verse[^>]+xml:id="([^"]+)"[^>]+n="2"', mei_lyrics))
-            if not v2_ids:
-                v2_ids = set(re.findall(r'<verse[^>]+n="2"[^>]+xml:id="([^"]+)"', mei_lyrics))
-            if v2_ids:
-                for vid in v2_ids:
-                    svg = re.sub(
-                        r'id="' + re.escape(vid) + r'"\s+class="verse"',
-                        r'id="' + vid + r'" class="verse greek-notation-verse" transform="translate(0, -1650)"',
-                        svg
-                    )
-                greek_lyrics_css = (
-                    '<style type="text/css">\n'
-                    '  g.verse.greek-notation-verse text {\n'
-                    '    font-family: var(--sans, sans-serif) !important;\n'
-                    '    font-weight: 700 !important;\n'
-                    '    fill: #1e3a8a !important;\n'
-                    '  }\n'
-                    '</style>\n'
-                )
-                if "</desc>" in svg:
-                    svg = svg.replace("</desc>", "</desc>\n" + greek_lyrics_css)
-                elif "<defs>" in svg:
-                    svg = svg.replace("<defs>", greek_lyrics_css + "<defs>")
-                else:
-                    svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + greek_lyrics_css, svg, count=1)
-        except Exception:
-            pass
+        # Si la partitura incluye indicaciones direction sobre las notas (como notación griega histórica),
+        # aplicar estilo tipográfico destacado nativo sin translate fijo
+        greek_dir_css = (
+            '<style type="text/css">\n'
+            '  g.dir text, g.dir tspan {\n'
+            '    font-family: var(--sans, sans-serif) !important;\n'
+            '    font-weight: 700 !important;\n'
+            '    fill: #1e3a8a !important;\n'
+            '  }\n'
+            '</style>\n'
+        )
+        if "</desc>" in svg:
+            svg = svg.replace("</desc>", "</desc>\n" + greek_dir_css)
+        elif "<defs>" in svg:
+            svg = svg.replace("<defs>", greek_dir_css + "<defs>")
+        else:
+            svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + greek_dir_css, svg, count=1)
 
         return svg
 

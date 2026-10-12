@@ -36,7 +36,7 @@ export function renderGranSistemaPerfecto(data) {
     `  <div class="didactic-visual-container">`,
     svgContent ? `    <div class="didactic-svg-wrapper">${svgContent}</div>` : '',
     `  </div>`,
-    `  <div class="gsp-notes-grid">`,
+    `  <div class="gsp-notes-grid no-print">`,
     (data?.notas || []).map((n, i) => {
       const fPit = Number(n.freq_pitagorica || freqsPit[i] || 110);
       const fTemp = Number(n.freq_temperada || freqsTemp[i] || 110);

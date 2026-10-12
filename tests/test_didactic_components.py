@@ -227,6 +227,32 @@ def test_linea_temporal_dinamica_y_fuentes():
     assert '[sin fuente en la biblioteca]' not in svg_alum
 
 
+def test_linea_temporal_extrae_autores_de_claims_y_visualizaciones():
+    """Comprueba que la línea temporal incluya todos los autores citados en claims y visualizaciones,
+    y los ordene cronológicamente."""
+    claims = [
+        {'text': 'Aristóxeno de Tarento expone la división empírica del tetracordo.'},
+        {'text': 'Boecio transmite la teoría pitagórica a Occidente en De institutione musica.'},
+    ]
+    visualizaciones = [
+        {
+            'title': 'Tratadistas clave',
+            'items': [
+                {'label': 'Ptolomeo', 'detail': 'Armónicos'},
+            ]
+        }
+    ]
+    hitos = construir_hitos_linea_temporal(claims=claims, visualizaciones=visualizaciones)
+    autores = [h['autor'] for h in hitos]
+    assert any('Aristóxeno' in a for a in autores)
+    assert any('Ptolomeo' in a for a in autores)
+    assert any('Boecio' in a for a in autores)
+
+    # Comprueba orden cronológico estricto
+    anos = [h['ano_numerico'] for h in hitos]
+    assert anos == sorted(anos)
+
+
 def test_glosario_griego_en_ficha_no_verificada():
     """Comprueba que el glosario griego resida en config/fichas/glosario_griego.yaml con verificado: false,
     y que mientras no esté verificada solo aparezca en la guía docente y nunca en el material del alumnado."""
