@@ -79,6 +79,56 @@ def escanear_partituras_locales(directorio: Path | str | None = None) -> list[di
     return candidatos
 
 
+def pide_obra_concreta(request: dict[str, Any]) -> bool:
+    """Determina si una petición busca una obra musical concreta (ej. Epitafio de Seikilos)
+    en vez de teoría musical genérica (ej. tetracordos o escalas)."""
+    work = (request.get('work') or '').strip().lower()
+    composer = (request.get('composer') or '').strip().lower()
+    titulos_genericos = {
+        '', 'tetracordo', 'tetracordos', 'tetracordo descendente mi–si', 'tetracordo descendente mi-si',
+        'teoria', 'teoría', 'teoria musical', 'teoría musical', 'teoria musical griega',
+        'teoría musical griega', 'generos', 'géneros', 'tres generos', 'tres géneros',
+        'sistema perfecto', 'gran sistema perfecto', 'escala', 'escalas', 'monocordio',
+        'intervalos', 'acústica', 'acustica', 'ejemplo musical', 'transcripcion', 'transcripción'
+    }
+    if work and work not in titulos_genericos and not work.startswith('tetracordo') and not work.startswith('teoría'):
+        return True
+    compositores_genericos = {
+        '', 'anónimo', 'anonimo', 'desconocido', 'teoria', 'teoría', 'teoría musical',
+        'teoria musical griega', 'teoría musical griega', 'teoría griega'
+    }
+    if composer and composer not in compositores_genericos and not composer.startswith('teoría'):
+        return True
+    return False
+
+
+def crear_ejemplo_teoria_tetracordos() -> dict[str, Any]:
+    """Genera el ejemplo de catálogo de los tres géneros de tetracordos sin heredar datos de peticiones."""
+    from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
+    archivo = asegurar_archivo_partitura_tres_generos()
+    return {
+        'id': 'teoria-tetracordos-tres-generos',
+        'titulo': 'Tetracordo descendente mi–si en los tres géneros (diatónico, cromático y enarmónico)',
+        'compositor': 'Teoría musical griega (según la división de Aristóxeno)',
+        'obra': 'Tetracordo descendente mi–si',
+        'seccion': '',
+        'compases': '1-3',
+        'tecnica': 'Tetracordos (diatónico, cromático, enarmónico con cuartos de tono)',
+        'voces': [{'id': 'Tetracordos', 'nombre': 'Tetracordo'}],
+        'archivo': archivo,
+        'fuente': 'Calculado a partir de la teoría',
+        'licencia': 'Dominio público (teoría musical)',
+        'calculado_teoria': True,
+        'verificado': True,
+        'frecuencias_hz': [
+            329.63, 293.66, 261.63, 246.94,  # Diatónico (E4, D4, C4, B3)
+            329.63, 277.18, 261.63, 246.94,  # Cromático (E4, C#4, C4, B3)
+            329.63, 261.63, 254.18, 246.94,  # Enarmónico (E4, C4, B3+diesis, B3)
+        ],
+        'nota_analisis': 'Generado deterministamente a partir de la teoría con music21; frecuencias exactas para afinación Web Audio.',
+    }
+
+
 def es_peticion_teoria_calculable(request: dict[str, Any]) -> bool:
     """Detecta si una petición musical pide tetracordos, géneros, escalas o modos calculables."""
     textos = [
@@ -110,34 +160,14 @@ def resolver_peticion_musical(
     """Resuelve una petición musical individual según el orden estricto de resolución."""
     req_id = request.get('id', 'MR1')
     descartes_set = set(descartes or [])
+    es_concreta = pide_obra_concreta(request)
 
-    # 0. Peticiones de teoría musical calculables (tetracordos, géneros, escalas o modos)
-    if es_peticion_teoria_calculable(request):
-        from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
-        archivo = asegurar_archivo_partitura_tres_generos()
-        ejemplo_teoria = {
-            'id': 'teoria-tetracordos-tres-generos',
-            'titulo': 'Tetracordo descendente mi–si en los tres géneros (diatónico, cromático y enarmónico)',
-            'compositor': 'Teoría musical griega (según la división de Aristóxeno)',
-            'obra': request.get('work') or 'Tetracordo descendente mi–si',
-            'seccion': '',
-            'compases': '1-3',
-            'tecnica': 'Tetracordos (diatónico, cromático, enarmónico con cuartos de tono)',
-            'voces': [{'id': 'Tetracordos', 'nombre': 'Tetracordo'}],
-            'archivo': archivo,
-            'fuente': 'Calculado a partir de la teoría',
-            'licencia': 'Dominio público (teoría musical)',
-            'calculado_teoria': True,
-            'verificado': True,
-            'frecuencias_hz': [
-                329.63, 293.66, 261.63, 246.94,  # Diatónico (E4, D4, C4, B3)
-                329.63, 277.18, 261.63, 246.94,  # Cromático (E4, C#4, C4, B3)
-                329.63, 261.63, 254.18, 246.94,  # Enarmónico (E4, C4, B3+diesis, B3)
-            ],
-            'nota_analisis': 'Generado deterministamente a partir de la teoría con music21; frecuencias exactas para afinación Web Audio.',
-        }
+    # 0. Si NO pide una obra concreta y es teoría calculable, resolver con teoría
+    if not es_concreta and es_peticion_teoria_calculable(request):
+        ejemplo_teoria = crear_ejemplo_teoria_tetracordos()
         return {
             'request_id': req_id,
+            'request': dict(request),
             'status': 'resuelto_catalogo',
             'origen': 'calculado_teoria',
             'ejemplo': ejemplo_teoria,
@@ -151,9 +181,10 @@ def resolver_peticion_musical(
         if ej.get('id') not in descartes_set and _coincide_ejemplo(request, ej):
             return {
                 'request_id': req_id,
+                'request': dict(request),
                 'status': 'resuelto_catalogo',
                 'origen': 'catalogo_local',
-                'ejemplo': ej,
+                'ejemplo': dict(ej),
                 'verificado': bool(ej.get('verificado', False)),
                 'candidatos': [],
             }
@@ -175,6 +206,7 @@ def resolver_peticion_musical(
     if candidatos_locales:
         return {
             'request_id': req_id,
+            'request': dict(request),
             'status': 'candidatos_pendientes',
             'origen': 'partituras_profesor',
             'ejemplo': None,
@@ -191,6 +223,7 @@ def resolver_peticion_musical(
         if candidatos_filtrados:
             return {
                 'request_id': req_id,
+                'request': dict(request),
                 'status': 'candidatos_pendientes',
                 'origen': 'repositorios_abiertos',
                 'ejemplo': None,
@@ -198,15 +231,21 @@ def resolver_peticion_musical(
                 'candidatos': candidatos_filtrados[:3],
             }
 
-    # Sin resolver
-    return {
+    # 4. Sin resolver
+    motivo = "obra concreta no disponible" if es_concreta else "sin ejemplo disponible"
+    resultado: dict[str, Any] = {
         'request_id': req_id,
+        'request': dict(request),
         'status': 'sin_resolver',
+        'motivo': motivo,
         'origen': None,
         'ejemplo': None,
         'verificado': False,
         'candidatos': [],
     }
+    if es_peticion_teoria_calculable(request):
+        resultado['sugerencia_teorica'] = crear_ejemplo_teoria_tetracordos()
+    return resultado
 
 
 def resolver_todas_las_peticiones(
@@ -307,11 +346,12 @@ def importar_transcripcion_musicxml(
     fuente: str,
     titulo: str | None = None,
     compositor: str | None = None,
+    verificado: bool = True,
     rango_compases: str = "1-12",
     directorio_destino: Path | str | None = None,
 ) -> dict[str, Any]:
     """Importa una transcripción propia en MusicXML asignada a una petición musical,
-    guardándola en el catálogo de ejemplos con la fuente indicada por el usuario y verificado: true.
+    guardándola en el catálogo de ejemplos con la fuente indicada por el usuario y el estado verificado elegido.
     """
     if not xml_content or not xml_content.strip():
         raise ValueError("El contenido MusicXML no puede estar vacío.")
@@ -359,7 +399,7 @@ def importar_transcripcion_musicxml(
         'licencia': 'Transcripción del profesor / Uso docente con atribución',
         'edicion': 'Transcripción directa del usuario',
         'url': '',
-        'verificado': True,
+        'verificado': bool(verificado),
         'voz_resaltada': request.get('voice', ''),
         'nota_analisis': request.get('description', 'Transcripción incorporada desde la tarjeta del ejemplo.'),
     }

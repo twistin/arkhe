@@ -610,5 +610,98 @@ def test_tetracordos_griego_partitura_sin_compas_sin_plicas_y_con_cuarto_de_tono
     assert len(compases) == 3
 
 
+def test_obra_concreta_no_hereda_ni_es_usurpada_por_teoria(tmp_path):
+    """Una obra concreta como Seikilos nunca se resuelve falsamente con teoría genérica ni muta la teoría."""
+    peticion_seikilos = {
+        "id": "MR3",
+        "composer": "Seikilos",
+        "work": "Epitafio de Seikilos",
+        "section": "Melodía completa",
+        "technique": "Género diatónico con notación alfabética griega",
+        "description": "Análisis del modo y notación del Epitafio de Seikilos",
+        "activity_title": "Análisis de la estela de Seikilos",
+    }
+
+    # Sin catálogo con el Epitafio, debe quedar sin_resolver con motivo claro
+    res = resolver_peticion_musical(peticion_seikilos, directorio_ejemplos=tmp_path)
+    assert res["status"] == "sin_resolver"
+    assert res["motivo"] == "obra concreta no disponible"
+    assert res["ejemplo"] is None
+
+    # Si contiene conceptos de teoría, la sugerencia teórica tiene su propio título y obra
+    sug = res.get("sugerencia_teorica")
+    assert sug is not None
+    assert sug["obra"] == "Tetracordo descendente mi–si"
+    assert sug["obra"] != "Epitafio de Seikilos"
+    assert "Teoría musical griega" in sug["compositor"]
+
+
+def test_importar_musicxml_seikilos_con_fuente_y_verificado(tmp_path):
+    """Importar MusicXML permite guardar con fuente del profesor y verificado: true."""
+    from docente_ai.teaching.score_resolver import importar_transcripcion_musicxml
+
+    req = {
+        "id": "MR3",
+        "work": "Epitafio de Seikilos",
+        "composer": "Seikilos",
+        "section": "",
+        "technique": "Notación griega",
+        "description": "Transcripción del Epitafio",
+    }
+    xml_data = """<?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list><score-part id="P1"><part-name>Melodia</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+          <note><pitch><step>A</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+            <lyric number="1"><text>Ὅσον</text></lyric>
+            <lyric number="2"><text>Ϲ</text></lyric>
+          </note>
+        </measure>
+      </part>
+    </score-partwise>"""
+
+    ejemplo = importar_transcripcion_musicxml(
+        req,
+        xml_data,
+        fuente="Transcripción del profesor según NAWM 1, Burkholder",
+        titulo="Epitafio de Seikilos",
+        compositor="Seikilos",
+        verificado=True,
+        directorio_destino=tmp_path
+    )
+
+    assert ejemplo["verificado"] is True
+    assert ejemplo["fuente"] == "Transcripción del profesor según NAWM 1, Burkholder"
+    assert ejemplo["obra"] == "Epitafio de Seikilos"
+
+
+def test_lyrics_segunda_linea_notacion_griega_sobre_las_notas(tmp_path):
+    """Si el MusicXML incluye una segunda línea de lyrics, se posiciona sobre las notas en el SVG."""
+    from docente_ai.web.workspace import Workspace
+    ws = Workspace(root=tmp_path)
+
+    xml_path = tmp_path / "seikilos_lyrics.musicxml"
+    xml_path.write_text("""<?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list><score-part id="P1"><part-name>Voz</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+            <lyric number="1"><text>Ὅσον</text></lyric>
+            <lyric number="2"><text>Ϲ</text></lyric>
+          </note>
+        </measure>
+      </part>
+    </score-partwise>""", encoding="utf-8")
+
+    svg = ws.render_score_svg(str(xml_path), start_measure=1, end_measure=1)
+    assert '<svg' in svg
+    assert 'greek-notation-verse' in svg
+    assert 'translate(0, -1650)' in svg
+
+
 
 

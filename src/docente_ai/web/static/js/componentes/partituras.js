@@ -331,8 +331,8 @@ export function playMidiBase64(midiBase64, targetContainer = null) {
 export async function loadScoreContent(box, mode = 'svg') {
   const card = box.closest('.score-candidate-item, .score-card, .cantus-firmus-box-wrapper');
   const candidateId = box.dataset.candidateId || card?.dataset.candidateId || box.dataset.id;
-  if (!candidateId) return;
-  const runId = card?.querySelector('.adopt-score-btn')?.dataset.runId;
+  const runId = box.dataset.runId || card?.dataset.runId ||
+    card?.querySelector('.adopt-score-btn')?.dataset.runId;
   const startInp = card?.querySelector('.score-start-input');
   const endInp = card?.querySelector('.score-end-input');
   const start = startInp ? parseInt(startInp.value, 10) || 1 : 1;
@@ -384,18 +384,19 @@ export function initScorePreviews() {
   boxes.forEach(box => {
     box.dataset.rendered = 'true';
     const initialMode = box.dataset.currentMode || 'svg';
-    loadScoreContent(box, initialMode);
+    box._renderPromise = loadScoreContent(box, initialMode);
     const card = box.closest('.score-candidate-item, .score-card, .cantus-firmus-box-wrapper');
     if (card) {
       const inputs = card.querySelectorAll('.score-start-input, .score-end-input');
       inputs.forEach(inp => {
         inp.addEventListener('change', () => {
           const curMode = box.dataset.currentMode || 'svg';
-          loadScoreContent(box, curMode);
+          box._renderPromise = loadScoreContent(box, curMode);
         });
       });
     }
   });
+  return Promise.all(Array.from(boxes).map(b => b._renderPromise || Promise.resolve()));
 }
 
 export function playMicrotoneFrequencies(frequenciesHz, durationPerNote = 0.5, targetContainer = null) {
@@ -661,25 +662,29 @@ async function accionImportMusicxml({target}) {
     `    <label><strong>Compositor / Época:</strong></label>`,
     `    <input type="text" name="compositor" class="input" value="${e(defComp)}" required>`,
     `  </div>`,
-    `  <div class="form-group">`,
-    `    <label><strong>Fuente bibliográfica o procedencia (requerido):</strong></label>`,
-    `    <input type="text" name="fuente" class="input" ` +
-    `placeholder="ej. Transcripción propia a partir de la estela de Tralles" required>`,
-    `  </div>`,
-    `  <div class="form-group">`,
-    `    <label><strong>Subir archivo MusicXML (.musicxml o .xml):</strong></label>`,
-    `    <input type="file" name="file" accept=".musicxml,.xml" class="input-file">`,
-    `  </div>`,
-    `  <div class="form-group">`,
-    `    <label><strong>O pegar directamente código MusicXML:</strong></label>`,
-    `    <textarea name="musicxml" class="textarea" rows="8" ` +
+    `<div class="form-group">`,
+    `  <label><strong>Fuente bibliográfica o procedencia (requerido):</strong></label>`,
+    `  <input type="text" name="fuente" class="input" ` +
+    `placeholder="ej. Transcripción del profesor según NAWM 1, Burkholder" required>`,
+    `</div>`,
+    `<div class="form-group">`,
+    `  <label><input type="checkbox" name="verificado" checked> ` +
+    `<strong>Marcar como verificado por el profesor</strong></label>`,
+    `</div>`,
+    `<div class="form-group">`,
+    `  <label><strong>Subir archivo MusicXML (.musicxml o .xml):</strong></label>`,
+    `  <input type="file" name="file" accept=".musicxml,.xml" class="input-file">`,
+    `</div>`,
+    `<div class="form-group">`,
+    `  <label><strong>O pegar directamente código MusicXML:</strong></label>`,
+    `  <textarea name="musicxml" class="textarea" rows="8" ` +
     `placeholder="<?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?>&#10;<score-partwise..."></textarea>`,
-    `  </div>`,
-    `  <div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end;">`,
-    `    <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
-    `    <button type="submit" class="button primary">${icon('upload')}Guardar en el catálogo e incorporar</button>`,
-    `  </div>`,
-    `</form>`,
+    `</div>`,
+    `<div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end;">`,
+    `  <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
+    `  <button type="submit" class="button primary">${icon('upload')}Guardar en el catálogo e incorporar</button>`,
+    `</div>`,
+  `</form>`,
   ].join(''));
 
   const form = dialog.querySelector('.import-musicxml-form');
@@ -709,6 +714,7 @@ async function accionImportMusicxml({target}) {
       const fuenteVal = (formData.get('fuente') || '').trim();
       const titVal = (formData.get('titulo') || '').trim();
       const compVal = (formData.get('compositor') || '').trim();
+      const verificadoVal = form.querySelector('input[name="verificado"]')?.checked !== false;
 
       if (!xmlContent) throw new Error('Debes seleccionar un archivo o pegar el código MusicXML.');
       if (!fuenteVal) throw new Error('Debes indicar la fuente de la transcripción.');
@@ -720,6 +726,7 @@ async function accionImportMusicxml({target}) {
           fuente: fuenteVal,
           titulo: titVal,
           compositor: compVal,
+          verificado: verificadoVal,
         },
         { method: 'POST' }
       );

@@ -510,6 +510,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         compositor = data.get('compositor')
         compases = data.get('compases') or '1-12'
         dest = data.get('directorio_destino') or (self.root / 'data/ejemplos')
+        verificado = data.get('verificado', True)
         return _import_xml(
             self.db,
             run_id,
@@ -518,6 +519,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             fuente,
             titulo=titulo,
             compositor=compositor,
+            verificado=verificado,
             rango_compases=compases,
             directorio_destino=dest
         )
@@ -955,6 +957,15 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             )
             if ej and ej.get("archivo_path"):
                 resolved_path = Path(ej["archivo_path"])
+            else:
+                for base_dir in (self.root / "data/ejemplos", self.root / "config/ejemplos"):
+                    for ext in (".musicxml", ".xml", ".mei"):
+                        cand_file = (base_dir / f"{score_id}{ext}").resolve()
+                        if cand_file.is_file():
+                            resolved_path = cand_file
+                            break
+                    if resolved_path:
+                        break
 
         # 2. Propuesta específica por run_id si se especificó
         if not resolved_path and run_id:
@@ -1278,6 +1289,38 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 svg = svg.replace("<defs>", css + "<defs>")
             else:
                 svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + css, svg, count=1)
+
+        # Si la partitura incluye una segunda línea de lyrics (notación musical griega histórica),
+        # posicionarla sobre las notas con estilo destacado
+        try:
+            mei_lyrics = tk.getMEI()
+            v2_ids = set(re.findall(r'<verse[^>]+xml:id="([^"]+)"[^>]+n="2"', mei_lyrics))
+            if not v2_ids:
+                v2_ids = set(re.findall(r'<verse[^>]+n="2"[^>]+xml:id="([^"]+)"', mei_lyrics))
+            if v2_ids:
+                for vid in v2_ids:
+                    svg = re.sub(
+                        r'id="' + re.escape(vid) + r'"\s+class="verse"',
+                        r'id="' + vid + r'" class="verse greek-notation-verse" transform="translate(0, -1650)"',
+                        svg
+                    )
+                greek_lyrics_css = (
+                    '<style type="text/css">\n'
+                    '  g.verse.greek-notation-verse text {\n'
+                    '    font-family: var(--sans, sans-serif) !important;\n'
+                    '    font-weight: 700 !important;\n'
+                    '    fill: #1e3a8a !important;\n'
+                    '  }\n'
+                    '</style>\n'
+                )
+                if "</desc>" in svg:
+                    svg = svg.replace("</desc>", "</desc>\n" + greek_lyrics_css)
+                elif "<defs>" in svg:
+                    svg = svg.replace("<defs>", greek_lyrics_css + "<defs>")
+                else:
+                    svg = re.sub(r"(<svg[^>]*>)", r"\1\n" + greek_lyrics_css, svg, count=1)
+        except Exception:
+            pass
 
         return svg
 
