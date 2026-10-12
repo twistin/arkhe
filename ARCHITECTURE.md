@@ -968,5 +968,26 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
 - **Presentación unificada de recursos tipados:**
   - `format_teacher_resource` y `formatPedagogyResource` aseguran que los recursos estructurados se rendericen como `"recurso — pendiente, tipo"` (p. ej. *«Partitura del Epitafio — pendiente, partitura»*) en la vista web, PDF y Markdown de la guía docente, eliminando cadenas crudas u objetos no serializados.
 
+## Componentes didácticos deterministas y desarrollo de contenidos del alumnado
+
+Para enriquecer el material del estudiante con gráficos rigurosos sin depender de alucinaciones del LLM, separando estrictamente lo calculado (teoría de proporciones y alturas acústicas) de lo factual (autores, fechas, obras y definiciones):
+- **Generación determinista en servidor (`music.didactic`):**
+  - El código Python calcula y renderiza directamente en SVG vectorial matemático 5 componentes didácticos fundamentales:
+    1. `tetracordos`: división mi–si en los géneros diatónico, cromático y enarmónico (cuartos de tono), con glifo microtonal exacto y conmutación entre afinación pitagórica y temperada (12-TET).
+    2. `gran_sistema_perfecto`: diagrama de alturas (sin falso pentagrama) de 15 notas desde Proslambanómenos (La2) hasta Nete hyperbolaion (La4), con subtítulo canónico (*dos pares de tetracordos conjuntos separados por una disyunción, más el proslambanómenos; synemmenon como tetracordo conjunto alternativo*), corchetes estructurales de tetracordos y disyunción 9:8, 15 tarjetas interactivas completas con afinación pitagórica y temperada, y reproducción secuencial.
+    3. `monocordio`: cuerda acústica dividida en razones exactas 1/2 (octava, *diplásion* 2:1), 2/3 (quinta, *hemiólion* 3:2) y 3/4 (cuarta, *epítriton* 4:3 a 293,33 Hz exactos), con selector de afinación y síntesis Web Audio.
+    4. `escalera_intervalos`: comparación proporcional en cents de los tres géneros a escala exacta y visualización del pyknon.
+    5. `linea_temporal`: eje cronológico proporcional de siglos (a. C. / d. C.) construido dinámicamente con los autores y fechas de las fuentes documentales de la propuesta (Platón, Aristóteles, Aristóxeno, etc.), con distribución anticolisión escalonada en 4 niveles para evitar todo solapamiento. Si un autor solicitado no cuenta con fuente en la biblioteca, se marca explícitamente como `[sin fuente en la biblioteca]` en la guía docente y se omite en el material del estudiante.
+  - El modelo de lenguaje únicamente puede solicitar su inclusión mediante el campo estructurado `didactic_components: [{tipo, parametros, actividad}]`. El validador rechaza cualquier intento de devolver SVG, HTML o pentagramas desde el LLM.
+- **Insignia «✓ Calculado a partir de la teoría» reservada a lo matemático:**
+  - Solo los componentes derivados de proporciones o estructura de alturas (`tetracordos`, `gran_sistema_perfecto`, `monocordio`, `escalera_intervalos`) llevan la insignia `calculado_teoria: true`. La línea temporal es factual (`calculado_teoria: false`) y se rotula como «Eje histórico y fuentes».
+- **Glosario factual mediante fichas no verificadas (`config/fichas/glosario_griego.yaml`):**
+  - Los términos técnicos (*phthongos, diastema, systema, díesis, ditono, sinaphe, diazeuxis, proslambanómenos, mese*) se gestionan mediante una ficha temática con `verificado: false`. Mientras no sea verificada por el docente, sus conceptos se muestran exclusivamente en la guía docente (`render_pedagogy`) para su revisión y nunca se publican en el material del alumnado.
+- **Desarrollo analítico de contenidos:**
+  - La propiedad `student_summary` se amplía de un esquema sintético a una explicación desarrollada de uno a tres párrafos, conectada con el gráfico didáctico correspondiente y el nivel del grupo.
+- **Importación de transcripciones MusicXML (`teaching.score_resolver: importar_transcripcion_musicxml`):**
+  - La tarjeta de «Ejemplo pendiente» permite al profesor importar transcripciones en MusicXML (mediante subida de archivo `.musicxml`/`.xml` o texto pegado directo), asignando la fuente bibliográfica personalizada. El backend guarda la partitura en `data/ejemplos/` y la registra en `ejemplos.yaml`, incorporándola de inmediato a la propuesta como ejemplo verificado.
+
+
 
 

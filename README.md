@@ -114,9 +114,37 @@ a archivos MusicXML (.xml, excluyendo .sv) bajo «licencia no especificada: uso 
 no pudiendo exportarse fuera del material de clase y priorizándose el JRP ante duplicados del repertorio renacentista.
 En la guía docente, cada petición no resuelta ofrece una tarjeta «Ejemplo pendiente»
 con previsualización, selector de rango de compases y opciones para «Usar» (incorporándolo
-al catálogo verificado) o «Descartar». En el material del alumnado solo se incluyen
-ejemplos con verificación confirmada (`verificado: true`), impidiendo que aparezcan
-pentagramas o notas inventadas a mano en HTML o CSS.
+al catálogo verificado), «Descartar» o «Importar MusicXML» (que permite subir o pegar una transcripción
+propia, por ejemplo del Epitafio de Seikilos, y guardarla en el catálogo local `data/ejemplos/`
+con la fuente bibliográfica indicada por el profesor). En el material del alumnado solo se incluyen
+partituras de repositorio o fichero con verificación confirmada (`verificado: true`),
+impidiendo que aparezcan pentagramas o notas inventadas a mano en HTML o CSS.
+
+Para la explicación de conceptos abstractos, el sistema incorpora **componentes didácticos deterministas**
+(`src/docente_ai/music/didactic.py` y `componentes/didacticos/`), calculados y dibujados en SVG exclusivamente
+por código a partir de la teoría musical clásica (nunca por el modelo), separando estrictamente lo calculado
+de lo factual:
+- **Tetracordos:** división mi–si en los géneros diatónico, cromático y enarmónico (con cuartos de tono, glifo microtonal exacto,
+  selector de afinación pitagórica/temperada y reproducción Web Audio).
+- **Gran Sistema Perfecto:** diagrama de alturas de 15 notas (desde Proslambanómenos La2 hasta Nete hyperbolaion La4), con
+  subtítulo canónico (*dos pares de tetracordos conjuntos separados por una disyunción, más el proslambanómenos; synemmenon como
+  tetracordo conjunto alternativo*), corchetes estructurales, 15 tarjetas con frecuencias duales (pitagórica y temperada)
+  y reproducción secuencial o individual.
+- **Monocordio pitagórico:** cuerda física dividida en razones exactas 1/2 (octava, *diplásion* 2:1), 2/3 (quinta, *hemiólion* 3:2)
+  y 3/4 (cuarta, *epítriton* 4:3, a 293,33 Hz exactos), con selector de afinación y audición de frecuencias exactas.
+- **Escalera de intervalos:** comparativa gráfica proporcional en cents de los tres géneros a escala matemática y visualización del pyknon.
+- **Línea temporal:** eje cronológico factual de siglos reales (a. C. / d. C.) sin solapamientos tipográficos, construido dinámicamente
+  a partir de los autores y fuentes documentales de la propuesta (Platón, Aristóteles, Aristóxeno, etc.). Si un autor solicitado
+  carece de fuente autorizada en biblioteca, se marca como `[sin fuente en la biblioteca]` en la guía docente y se excluye
+  del material del alumnado.
+
+Solo los componentes basados en proporciones o estructura llevan el distintivo «✓ Calculado a partir de la teoría».
+Las definiciones conceptuales factuales se articulan mediante fichas temáticas: el **glosario de términos griegos**
+reside en `config/fichas/glosario_griego.yaml` con `verificado: false`, mostrándose únicamente en la guía docente
+para revisión del profesor y publicándose al alumnado solo tras su validación explícita.
+Asimismo, el material del estudiante ofrece explicaciones teóricas desarrolladas (uno a tres párrafos por concepto)
+adecuadas al nivel del grupo, con referencias a los modelos visuales interactivos.
+
 
 Los esquemas especializados, infografías complejas y baterías de ejercicios fijos
 se organizan en fichas modulares (`config/fichas/` y `data/fichas/`, con prioridad para
