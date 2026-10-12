@@ -380,14 +380,70 @@ def test_context_for_without_session_date_has_no_session(corpus):
     assert ctx['session'] is None
 
 
-def test_context_for_with_session_date_no_session_raises(corpus):
-    """Si no hay sesión en esa fecha, debe lanzar ValueError descriptivo."""
+def test_context_for_with_session_date_no_session_unlinked(corpus):
+    """Si no hay sesión en esa fecha (ej. un domingo), la propuesta se guarda sin vincular a una sesión."""
     from datetime import date
     db = corpus[0]
     # Un domingo sin sesiones previstas en el curso 2026-2027
     sunday = date(2026, 9, 6)
-    with pytest.raises(ValueError, match='sesiones previstas'):
-        context_for(db, 'historia-3gp', 30, session_date=sunday)
+    ctx = context_for(db, 'historia-3gp', 30, session_date=sunday)
+    assert ctx['session'] is not None
+    assert ctx['session']['date'] == sunday.isoformat()
+    assert ctx['session']['sequence_number'] is None
+    assert ctx['session']['unlinked'] is True
+    assert 'no hay sesión' in ctx['session']['warning']
+
+
+def test_crear_propuesta_domingo_sin_fecha_y_fecha_sin_clase(corpus):
+    """Crea propuestas en los 3 casos: un domingo, sin fecha y en fecha sin clase; las 3 deben crearse."""
+    from datetime import date
+    from docente_ai.generation.service import ask
+    from test_generation import FakeEmbedder, FakeGenerator
+
+    from dataclasses import replace
+    db, _, rag, settings = corpus
+    settings = replace(settings, num_ctx=16384)
+
+    # 1. Domingo (2026-09-06)
+
+    sunday = date(2026, 9, 6)
+    ctx_sunday = context_for(db, 'historia-3gp', 30, session_date=sunday)
+    res_sunday = ask(
+        db, rag, settings, 'La música en Grecia',
+        subject='historia-i',
+        pedagogy_context=ctx_sunday,
+        embedder_factory=FakeEmbedder,
+        generator_factory=lambda s: FakeGenerator(s, response=proposal()),
+    )
+    assert res_sunday['status'] in ('draft', 'answered')
+    assert res_sunday['result']['plan'] is not None
+
+    # 2. Sin fecha (session_date=None)
+    ctx_nofech = context_for(db, 'historia-3gp', 30, session_date=None)
+    res_nofech = ask(
+        db, rag, settings, 'La música en Grecia',
+        subject='historia-i',
+        pedagogy_context=ctx_nofech,
+        embedder_factory=FakeEmbedder,
+        generator_factory=lambda s: FakeGenerator(s, response=proposal()),
+    )
+    assert res_nofech['status'] in ('draft', 'answered')
+    assert res_nofech['result']['plan'] is not None
+
+    # 3. Fecha entre semana pero sin clase del grupo (ej. miércoles 2026-09-09)
+    wednesday = date(2026, 9, 9)
+    ctx_wed = context_for(db, 'historia-3gp', 30, session_date=wednesday)
+    res_wed = ask(
+        db, rag, settings, 'La música en Grecia',
+        subject='historia-i',
+        pedagogy_context=ctx_wed,
+        embedder_factory=FakeEmbedder,
+        generator_factory=lambda s: FakeGenerator(s, response=proposal()),
+    )
+    assert res_wed['status'] in ('draft', 'answered')
+    assert res_wed['result']['plan'] is not None
+
+
 
 
 def test_pedagogy_abstention_with_observations(corpus):

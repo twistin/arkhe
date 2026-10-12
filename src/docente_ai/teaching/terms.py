@@ -90,18 +90,61 @@ def find_canonical_authors_in_text(text: str) -> set[str]:
 
 
 
+# Palabras comunes docentes y musicológicas que requieren tilde habitual
+COMMON_ACCENTS: dict[str, str] = {
+    'polifonia': 'polifonía',
+    'teoria': 'teoría',
+    'musica': 'música',
+    'armonia': 'armonía',
+    'notacion': 'notación',
+    'audicion': 'audición',
+    'composicion': 'composición',
+    'edicion': 'edición',
+    'representacion': 'representación',
+    'grafica': 'gráfica',
+    'generos': 'géneros',
+    'ritmica': 'rítmica',
+    'melodica': 'melódica',
+    'practica': 'práctica',
+}
+
+
+def _match_case(matched_text: str, replacement: str) -> str:
+    """Conserva mayúsculas completas o iniciales al sustituir."""
+    if matched_text.isupper():
+        return replacement.upper()
+    if matched_text and matched_text[0].isupper():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement.lower()
+
+
 def normalize_topic(text: str) -> str:
     """Corrige erratas evidentes en nombres o términos musicológicos conocidos,
-
-    preservando la estructura del texto.
+    acentos habituales y espacios antes de signos de puntuación,
+    preservando la estructura del texto y sin tocar nombres propios.
     """
     if not text or not isinstance(text, str):
         return text or ''
 
     result = text
-    # Sustitución de frases completas y términos con límites de palabra
+
+    # 1. Corrección de espacios antes de signos de puntuación
+    result = re.sub(r'\s+([,.:;!?\)\]])', r'\1', result)
+    result = re.sub(r'([¿¡\(\[])\s+', r'\1', result)
+    result = re.sub(r'([,;:])([A-Za-zÀ-ÿ0-9])', r'\1 \2', result)
+
+    # 2. Sustitución de frases completas y términos musicológicos con límites de palabra
     for typo, correction in sorted(MUSICOLOGICAL_TERMS.items(), key=lambda x: -len(x[0])):
         pattern = re.compile(r'\b' + re.escape(typo) + r'\b', re.IGNORECASE)
         result = pattern.sub(correction, result)
 
+    # 3. Corrección de acentos habituales (Polifonía, Teoría, Música, etc.) respetando mayúsculas
+    for word_no_accent, word_with_accent in COMMON_ACCENTS.items():
+        pattern = re.compile(r'\b' + re.escape(word_no_accent) + r'\b', re.IGNORECASE)
+        result = pattern.sub(lambda m: _match_case(m.group(0), word_with_accent), result)
+
+    # 4. Normalizar espacios múltiples
+    result = re.sub(r'[ \t]+', ' ', result).strip()
+
     return result
+

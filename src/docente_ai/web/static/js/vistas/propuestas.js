@@ -1,7 +1,7 @@
 import { api } from '../api.js';
 import { ensureRemoteConsent } from '../componentes/consentimiento.js';
 import { queue, refresh } from '../componentes/trabajos.js';
-import { dialog, render, toast, dateLabel, e, subjectStyle, header, icon, modal, option, primary } from '../ui.js';
+import { $, dialog, render, toast, dateLabel, e, subjectStyle, header, icon, modal, option, primary } from '../ui.js';
 import { resultHTML } from '../componentes/documentos.js';
 import { draft, store, subjectName } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
@@ -34,6 +34,99 @@ export function proposals() {
       ].join(''));
 }
 
+export function proximasSesionesGrupo(groupId, fromDate = null, limit = 8) {
+
+  const config = store.state?.config;
+  if (!config) return [];
+  const group = (config.groups || []).find(g => g.id === groupId);
+  if (!group) return [];
+  const year = (config.academic_years || []).find(y => y.id === group.academic_year_id);
+  const rules = (config.schedule_rules || []).filter(r => r.group_id === groupId);
+  if (!rules.length || !year) return [];
+
+  const startRef = fromDate ? new Date(fromDate + 'T00:00:00') : new Date();
+  startRef.setHours(0, 0, 0, 0);
+
+  const exceptions = new Map();
+  (config.calendar_exceptions || []).forEach(e => {
+    exceptions.set(`${e.schedule_rule_id}:${e.date}`, e);
+  });
+
+  const yearStart = new Date(year.start_date + 'T00:00:00');
+  const yearEnd = new Date(year.end_date + 'T23:59:59');
+
+  const upcoming = [];
+  for (let i = 0; i < 90 && upcoming.length < limit; i++) {
+    const current = new Date(startRef.getTime() + i * 86400000);
+    if (current < yearStart || current > yearEnd) continue;
+    const isoDate = current.toISOString().slice(0, 10);
+    const isoDay = current.getDay() === 0 ? 7 : current.getDay();
+
+    for (const rule of rules) {
+      if (rule.weekday !== isoDay) continue;
+      const validFrom = new Date(rule.valid_from + 'T00:00:00');
+      const validTo = new Date(rule.valid_to + 'T23:59:59');
+      if (current < validFrom || current > validTo) continue;
+
+      const exc = exceptions.get(`${rule.id}:${isoDate}`);
+      if (exc?.cancelled) continue;
+
+      const startTime = exc?.start_time || rule.start_time;
+      const duration = exc?.duration_minutes || rule.duration_minutes;
+      const f = new Intl.DateTimeFormat('es', { weekday: 'long', day: 'numeric', month: 'long' }).format(current);
+      const cap = f.charAt(0).toUpperCase() + f.slice(1);
+      upcoming.push({
+        date: isoDate,
+        label: `${cap} · ${startTime} (${duration} min)`,
+        duration: duration
+      });
+      if (upcoming.length >= limit) break;
+    }
+  }
+  return upcoming;
+}
+
+export function grupoTieneClaseEnFecha(groupId, dateStr) {
+  if (!dateStr || dateStr === '__custom__') return false;
+  const config = store.state?.config;
+  if (!config) return false;
+  const group = (config.groups || []).find(g => g.id === groupId);
+  if (!group) return false;
+  const rules = (config.schedule_rules || []).filter(r => r.group_id === groupId);
+  if (!rules.length) return false;
+  const current = new Date(dateStr + 'T12:00:00');
+  const isoDay = current.getDay() === 0 ? 7 : current.getDay();
+  const exceptions = new Map();
+  (config.calendar_exceptions || []).forEach(e => {
+    exceptions.set(`${e.schedule_rule_id}:${e.date}`, e);
+  });
+  for (const rule of rules) {
+    if (rule.weekday !== isoDay) continue;
+    const validFrom = new Date(rule.valid_from + 'T00:00:00');
+    const validTo = new Date(rule.valid_to + 'T23:59:59');
+    if (current < validFrom || current > validTo) continue;
+    const exc = exceptions.get(`${rule.id}:${dateStr}`);
+    if (exc?.cancelled) continue;
+    return true;
+  }
+  return false;
+}
+
+export function sessionOptions(groupId, selectedDate = '') {
+  const upcoming = proximasSesionesGrupo(groupId);
+  const isCustom = selectedDate && selectedDate !== '' && !upcoming.some(s => s.date === selectedDate);
+  const options = [];
+  upcoming.forEach((s, idx) => {
+    const isSel = s.date === selectedDate || (!selectedDate && idx === 0);
+    const label = `${e(s.label)}${idx === 0 ? ' (próxima clase)' : ''}`;
+    options.push(`<option value="${e(s.date)}" ${isSel ? 'selected' : ''}>${label}</option>`);
+  });
+  const sinFechaSel = selectedDate === '' && upcoming.length ? '' : (!upcoming.length ? 'selected' : '');
+  options.push(`<option value="" ${sinFechaSel}>Sin fecha (no vincular a una sesión)</option>`);
+  options.push(`<option value="__custom__" ${isCustom ? 'selected' : ''}>Elegir otra fecha...</option>`);
+  return options.join('');
+}
+
 export function proposalModal(session = null) {
   if (!store.state.config.groups.length) {
     modal('Primero, tu grupo', [
@@ -46,7 +139,12 @@ export function proposalModal(session = null) {
   }
   const group = session?.group_id || draft('proposal-form', 'group', store.state.config.groups[0].id);
   const duration = session?.duration_minutes || draft('proposal-form', 'duration', '60');
-  const sessionDate = session ? store.state.agenda.date : draft('proposal-form', 'session_date', '');
+  const upcoming = proximasSesionesGrupo(group);
+  const defaultDate = upcoming[0]?.date || '';
+  const draftDate = draft('proposal-form', 'session_date');
+  const sessionDate = session ? store.state.agenda.date : (draftDate !== undefined ? draftDate : defaultDate);
+  const isCustom = sessionDate && !upcoming.some(s => s.date === sessionDate);
+
   modal('Preparar una propuesta', [
     `<p>Un punto de partida con objetivos, actividades y tiempos. Tú tendrás la `,
     `última palabra.</p><form data-form="proposal" id="proposal-form"><div `,
@@ -57,13 +155,17 @@ export function proposalModal(session = null) {
         store.state.config.groups.map(g => option(g.id, `${g.name} · ${subjectName(g.subject_id)}`, group)).join('')
       }`
     ].join(''),
-    `</select></div><div class="field"><label class="label" for="proposal-date">Fecha `,
-    `de la clase · opcional</label><input class="input" id="proposal-date" `,
-    `type="date" name="session_date" value="${e(sessionDate)}`,
-    `"></div><div class="field"><label class="label" for="proposal-duration">`,
-    `Duración</label><input class="input" id="proposal-duration" type="number" `,
-    `name="duration" min="5" max="240" required value="${e(duration)}`,
-    `"></div></div><div class="field"><label class="label" for="proposal-topic">Tema `,
+    `</select></div><div class="field"><label class="label" for="proposal-session-select">Fecha `,
+    `de la clase · opcional</label><select class="select input" id="proposal-session-select" name="session_select">`,
+    `${sessionOptions(group, sessionDate)}`,
+    `</select><input class="input" id="proposal-date" `,
+    `type="date" name="session_date" value="${e(sessionDate)}" `,
+    `style="${isCustom ? 'margin-top:0.4rem;' : 'display:none; margin-top:0.4rem;'}">`,
+    `<div id="proposal-date-warning" class="field-hint" `,
+    `style="color:#d97706; margin-top:0.4rem; display:none;"></div></div><div class="field">`,
+    `<label class="label" for="proposal-duration">Duración</label><input class="input" id="proposal-duration" `,
+    `type="number" name="duration" min="5" max="240" required value="${e(duration)}"></div></div>`,
+    `<div class="field"><label class="label" for="proposal-topic">Tema `,
     `de la sesión</label><input class="input" id="proposal-topic" name="question" `,
     `maxlength="4000" required placeholder="¿Qué quieres trabajar?" value="`,
     `${e(draft('proposal-form','question'))}`,
@@ -84,6 +186,7 @@ export function proposalModal(session = null) {
     `Preparar propuesta</button></div></form>`
   ].join(''));
 }
+
 
 export function expandProposalModal(run) {
   if (!run) return;
@@ -235,8 +338,11 @@ async function accionNewProposal() {
 
 async function formularioProposal({data}) {
   if (!await ensureRemoteConsent('pedagogy')) return;
+  const rawSel = data.session_select;
+  const finalDate = rawSel === '__custom__' ? (data.session_date || '') : (rawSel || '');
   await queue('/generate', {
     ...data,
+    session_date: finalDate || null,
     mode: 'pedagogy',
     duration: Number(data.duration)
   });
@@ -280,12 +386,72 @@ export const clickBindings = [
   {priority: 23, matches: target => target.dataset.prepareSession, action: 'prepare-session'},
 ];
 
+function checkDateWarning(groupId, dateStr) {
+  const warningEl = document.getElementById('proposal-date-warning');
+  if (!warningEl) return;
+  if (!dateStr || dateStr === '__custom__') {
+    warningEl.style.display = 'none';
+    warningEl.textContent = '';
+    return;
+  }
+  const group = (store.state?.config?.groups || []).find(g => g.id === groupId);
+  const groupName = group?.name || 'el grupo';
+  if (!grupoTieneClaseEnFecha(groupId, dateStr)) {
+    warningEl.textContent = `Ese día no hay sesión de ${groupName} en el calendario; ` +
+      `la propuesta se guardará sin vincular a una sesión.`;
+    warningEl.style.display = 'block';
+  } else {
+    warningEl.style.display = 'none';
+    warningEl.textContent = '';
+  }
+}
+
 export const events = {
   'change': {
     '#proposal-group': event => {
-      $('#proposal-unit').innerHTML = unitOptions(event.target.value);
+      const gid = event.target.value;
+      const unitEl = document.getElementById('proposal-unit');
+      if (unitEl) unitEl.innerHTML = unitOptions(gid);
       if (store.drafts['proposal-form']) store.drafts['proposal-form'].unit = '';
-
+      const select = document.getElementById('proposal-session-select');
+      if (select) {
+        select.innerHTML = sessionOptions(gid);
+        const firstVal = select.value;
+        const dateInput = document.getElementById('proposal-date');
+        if (dateInput) {
+          dateInput.value = firstVal === '__custom__' ? '' : firstVal;
+          dateInput.style.display = firstVal === '__custom__' ? 'block' : 'none';
+        }
+        checkDateWarning(gid, firstVal);
+      }
+    },
+    '#proposal-session-select': event => {
+      const val = event.target.value;
+      const dateInput = document.getElementById('proposal-date');
+      const gid = document.getElementById('proposal-group')?.value;
+      if (val === '__custom__') {
+        if (dateInput) {
+          dateInput.style.display = 'block';
+          checkDateWarning(gid, dateInput.value);
+        }
+      } else {
+        if (dateInput) {
+          dateInput.value = val;
+          dateInput.style.display = 'none';
+        }
+        checkDateWarning(gid, val);
+      }
+    },
+    '#proposal-date': event => {
+      const gid = document.getElementById('proposal-group')?.value;
+      checkDateWarning(gid, event.target.value);
+    },
+  },
+  'input': {
+    '#proposal-date': event => {
+      const gid = document.getElementById('proposal-group')?.value;
+      checkDateWarning(gid, event.target.value);
     },
   },
 };
+

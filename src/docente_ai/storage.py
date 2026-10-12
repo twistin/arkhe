@@ -9,7 +9,8 @@ import sqlite3
 
 from docente_ai.config import RELATIONS, SCHEMAS, validate
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
+
 
 
 
@@ -133,6 +134,26 @@ def migrate(connection: sqlite3.Connection) -> None:
         connection.execute('PRAGMA user_version = 9')
         connection.commit()
         version = 9
+    if version == 9:
+        from docente_ai.teaching.terms import normalize_topic
+        cursor = connection.execute('SELECT id, request_json, display_title, original_topic FROM generation_runs')
+        for run_id, request_raw, current_disp, current_orig in cursor.fetchall():
+            req = json.loads(request_raw) if request_raw else {}
+            if req.get('manual_title'):
+                continue
+            original = current_orig or req.get('original_topic') or req.get('question') or ''
+            norm = normalize_topic(original)
+            display = (norm[:1].upper() + norm[1:]) if norm else original
+            req['original_topic'] = original
+            req['display_title'] = display
+            connection.execute(
+                'UPDATE generation_runs SET display_title = ?, original_topic = ?, request_json = ? WHERE id = ?',
+                (display, original, json.dumps(req, ensure_ascii=False), run_id),
+            )
+        connection.execute('PRAGMA user_version = 10')
+        connection.commit()
+        version = 10
+
 
 
 def import_config(path: Path, raw: dict, *, replace: bool = False) -> dict:

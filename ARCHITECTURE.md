@@ -938,5 +938,12 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
   - La bibliografía y cabeceras de autor se generan dinámicamente de forma exclusiva a partir de las fuentes efectivamente citadas en las evidencias del plan, deduplicando por autor y eliminando entradas fijas no utilizadas.
   - Unificación de audiciones en un único bloque y redacción estructurada de recursos pendientes: el modelo devuelve `{ recurso, tipo: partitura | grabacion | texto | imagen | dato, pendiente: true }`. El material del alumnado los redacta según el tipo («partitura que te entregará el profesor», «grabación que escucharemos en clase», «texto que te entregará el profesor», «imagen que proyectará el profesor»); los recursos de tipo «dato» pendientes (fechas, cifras) nunca se muestran al alumnado y quedan restringidos a la guía docente.
 
+## Creación flexible de propuestas y gestión de calendario (`docente_ai.agents.pedagogy`)
+
+- **Desacoplamiento de calendario y sesiones:** `context_for` no bloquea la generación cuando la fecha elegida carece de sesión programada en el horario del grupo. Devuelve un contexto con sesión desvinculada (`unlinked: True`) y advertencia pedagógica clara, permitiendo preparar clases en días festivos, domingos o sin fecha fija.
+- **Asignación y edición de materias en propuestas:** Los endpoints `POST /api/runs/{id}/subject` y `POST /api/runs/{id}/title` permiten actualizar interactivamente la materia y el título desde la cabecera del visor de propuestas, sincronizando la persistencia en `generation_runs` y actualizando en tiempo real la clasificación visual en la interfaz.
+- **Normalización ortotipográfica y versionado de títulos:** `docente_ai.teaching.terms` corrige acentuación habitual (*Polifonía*, *Teoría*, *Música*, *Armonía*...) y espacios anómalos previos a signos de puntuación sin alterar nombres propios. La migración de esquema 10 recalcula dinámicamente los títulos en base de datos para todas las propuestas que no cuenten con edición manual explícita.
+- **Aislamiento riguroso del banco de evaluación:** `scripts/run_eval.py` opera obligatoriamente sobre una réplica temporal de la base de datos en un directorio aislado (`tmp_path`), garantizando que ninguna ejecución de benchmark o evaluación automatizada contamine `data/docente.sqlite3`.
+
 
 

@@ -262,9 +262,11 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                     request = json.loads(row[0])
                     raw_q = request.get('original_topic') or request.get('question', '')
                     disp_q = request.get('display_title')
-                if not disp_q:
+                is_manual = bool(request.get('manual_title'))
+                if not is_manual or not disp_q:
                     norm_q = normalize_topic(raw_q)
                     disp_q = (norm_q[:1].upper() + norm_q[1:]) if norm_q else raw_q
+
                 item.update(title=disp_q, display_title=disp_q, original_topic=raw_q, raw_title=raw_q, subject=request.get('subject'), kind='proposal' if 'pedagogy' in request else 'answer')
         try:
             gen_cfg = generation_settings(self.root / 'config/generation.yaml')
@@ -455,7 +457,13 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         result = _update_run_title(self.db, run_id, title)
         return {k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
 
+    def update_run_subject(self, run_id: str, subject: str) -> dict:
+        from docente_ai.generation.service import update_run_subject as _update_run_subject
+        result = _update_run_subject(self.db, run_id, subject)
+        return {k: result[k] for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
+
     def delete_run(self, run_id: str) -> dict:
+
         from docente_ai.generation.service import delete_run as _delete_run
         return _delete_run(self.db, run_id)
 

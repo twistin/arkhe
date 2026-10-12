@@ -95,8 +95,17 @@ export async function monitor() {
     if (completed.length) {
       await refresh();
       for (const job of completed) {
-        if (job.status === 'failed') toast(job.error, true);
-        else if (job.status === 'cancelled') toast('Consulta cancelada.');
+        if (job.status === 'failed') {
+          let err = job.error || '';
+          if (err.includes('no tiene sesiones previstas')) {
+            toast('No tienes clases este día en el calendario.');
+          } else if (/traceback|file |line \d+|sqlite|exception/i.test(err)) {
+            toast('No se pudo completar la operación. Inténtalo de nuevo o revisa tus fuentes.', true);
+          } else {
+            toast(err || 'Operación no completada.', true);
+          }
+        } else if (job.status === 'cancelled') toast('Consulta cancelada.');
+
         else if (job.result?.run_id) {
           const result = store.state.runs.find(r => r.id === job.result.run_id),
             destination = result?.kind === 'proposal' ? 'propuestas' : 'asistente';

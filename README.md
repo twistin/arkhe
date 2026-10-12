@@ -78,10 +78,14 @@ y el plan incorpora un campo de evaluación formativa (`assessment`). El renderi
 garantiza que el material del alumnado nunca contenga notas internas ni soluciones
 del profesor, ni menciones a erratas o carencias en las fuentes. El título se normaliza
 al generar y se almacena en `display_title` (conservando el original en `original_topic`),
+corrigiendo acentos habituales (Polifonía, Teoría, Música...) y puntuación,
 utilizándose en la lista de propuestas, cabeceras, Parte 2, nombres de archivos exportados
 y diario docente. En la guía docente se preserva el tema original como auditoría. Además,
-el título puede editarse manualmente desde la interfaz, teniendo dicha edición prioridad
-permanente sobre cualquier normalización automática posterior.
+tanto el título como la materia asociada pueden editarse directamente desde la propuesta
+haciendo clic sobre sus etiquetas en la cabecera. La fecha de la clase es opcional: el
+formulario propone por defecto la próxima sesión prevista del grupo, ofrece un selector con
+las clases venideras o la opción «Sin fecha», y permite elegir cualquier día (mostrando un
+aviso informativo si no hay sesión programada sin bloquear nunca la preparación de la clase).
 Las propuestas de contratos anteriores conservan compatibilidad hacia atrás.
 La revisión pedagógica sigue siendo del profesor.
 

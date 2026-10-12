@@ -146,20 +146,30 @@ def context_for(db, group_id, duration, *, unit_id=None, criteria='', session_da
     if session_date is not None:
         from docente_ai.teaching.calendar import sessions as calendar_sessions
         day_sessions = calendar_sessions(config, session_date, session_date, group_id)
-        if not day_sessions:
-            raise ValueError(
-                f'El grupo {group_id} no tiene sesiones previstas el {session_date.isoformat()}.'
+        if day_sessions:
+            session = day_sessions[0]
+            academic_year = next(y for y in config['academic_years'] if y['id'] == group['academic_year_id'])
+            course_sessions = calendar_sessions(
+                config, date.fromisoformat(academic_year['start_date']),
+                session_date, group_id,
             )
-        session = day_sessions[0]
-        academic_year = next(y for y in config['academic_years'] if y['id'] == group['academic_year_id'])
-        course_sessions = calendar_sessions(
-            config, date.fromisoformat(academic_year['start_date']),
-            session_date, group_id,
-        )
-        sequence_number = next(i for i, item in enumerate(course_sessions, 1) if item['id'] == session['id'])
-        session = {'id': session['id'], 'date': session_date.isoformat(),
-                   'start': session['start'], 'duration_minutes': session['duration_minutes'],
-                   'room': session['room'], 'sequence_number': sequence_number}
+            sequence_number = next(i for i, item in enumerate(course_sessions, 1) if item['id'] == session['id'])
+            session = {'id': session['id'], 'date': session_date.isoformat(),
+                       'start': session['start'], 'duration_minutes': session['duration_minutes'],
+                       'room': session['room'], 'sequence_number': sequence_number}
+        else:
+            group_name = group.get('name') or group_id
+            session = {
+                'id': None,
+                'date': session_date.isoformat(),
+                'start': None,
+                'duration_minutes': None,
+                'room': None,
+                'sequence_number': None,
+                'unlinked': True,
+                'warning': f'Ese día no hay sesión de {group_name} en el calendario; la propuesta se guardará sin vincular a una sesión',
+            }
+
     from docente_ai.record.service import recent_experience
     prior = recent_experience(db, group_id, limit=3)
     return {'group': group, 'unit': unit, 'duration_minutes': duration,

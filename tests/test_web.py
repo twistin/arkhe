@@ -598,3 +598,39 @@ def test_endpoints_ejemplos_musicales(web):
     ejemplos = res.json()
     assert isinstance(ejemplos, list)
 
+
+def test_asignar_materia_propuesta(web):
+    """Comprueba que se puede asignar o cambiar la materia de una propuesta existente."""
+    import json
+    import uuid
+
+    import sqlite3
+
+    client, ws = web
+    run_id = f"run-{uuid.uuid4().hex}"
+    req = {'topic': 'La Escuela de Notre dame', 'subject': 'historia-i'}
+    with sqlite3.connect(ws.db) as con:
+        con.execute(
+            'INSERT INTO generation_runs(id, created_at, status, request_json, prompt_version, display_title, original_topic) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (run_id, '2026-10-11T12:00:00', 'draft', json.dumps(req), '1.0', 'La Escuela de Notre Dame', 'La Escuela de Notre dame'),
+        )
+
+    # Cambiar materia mediante POST /api/runs/{id}/subject a 'historia-ii'
+    res = client.post(f"/api/runs/{run_id}/subject", json={'subject': 'historia-ii'})
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert (data.get('request') or {}).get('subject') == 'historia-ii'
+
+    # Consultar de nuevo la propuesta
+    res_get = client.get(f"/api/runs/{run_id}")
+    assert res_get.status_code == 200
+    assert (res_get.json().get('request') or {}).get('subject') == 'historia-ii'
+
+    # También se puede desasignar (dejar 'Sin materia')
+    res_clear = client.post(f"/api/runs/{run_id}/subject", json={'subject': ''})
+    assert res_clear.status_code == 200
+    assert (res_clear.json().get('request') or {}).get('subject') is None
+
+
+
+

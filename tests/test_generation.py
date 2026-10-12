@@ -856,7 +856,7 @@ def test_normalize_topic_typos_in_header():
     from docente_ai.generation.render import render_student, render_pedagogy
 
     assert normalize_topic('Ockehem y la misa ciclica') == 'Johannes Ockeghem y la misa cíclica'
-    assert normalize_topic('Teoria y epitafio de seikilos') == 'Teoria y Epitafio de Seikilos'
+    assert normalize_topic('Teoria y epitafio de seikilos') == 'Teoría y Epitafio de Seikilos'
     assert normalize_topic('seikilos') == 'Seikilos'
     assert 'Sícilo' not in normalize_topic('seikilos')
     assert 'Sícilo' not in normalize_topic('epitafio de seikilos')
@@ -982,9 +982,9 @@ def test_migracion_recalcula_display_title_y_respeta_edicion_manual(tmp_path):
         )
         conn.execute("PRAGMA user_version = 8")
         conn.commit()
-        # Ejecutar migración v8 -> v9
+        # Ejecutar migración v8 -> SCHEMA_VERSION
         migrate(conn)
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 9
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
     # Comprobar que display_title fue recalculado y original_topic conservado
     run_migrado = get_run(db, run_id)

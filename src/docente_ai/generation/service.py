@@ -390,7 +390,8 @@ def get_run(db: Path, run_id: str):
         req = record.get('request') or {}
         orig = record.get('original_topic') or req.get('original_topic') or req.get('question') or ''
         disp = record.get('display_title') or req.get('display_title')
-        if not disp:
+        is_manual = bool(req.get('manual_title'))
+        if not is_manual or not disp:
             from docente_ai.teaching.terms import normalize_topic
             norm = normalize_topic(orig)
             disp = (norm[:1].upper() + norm[1:]) if norm else orig
@@ -440,6 +441,29 @@ def update_run_title(db: Path, run_id: str, title: str) -> dict:
             (clean_title, dump(req), run_id)
         )
     return get_run(db, run_id)
+
+
+def update_run_subject(db: Path, run_id: str, subject: str) -> dict:
+    """Actualiza la materia asignada a una propuesta pedagógica existente."""
+    clean_subj = (subject or '').strip()
+    with closing(connect(db)) as connection, connection:
+        connection.row_factory = None
+        connection.execute('BEGIN IMMEDIATE')
+        row = connection.execute('SELECT request_json FROM generation_runs WHERE id=?', (run_id,)).fetchone()
+        if not row:
+            raise ValueError(f'Registro generativo inexistente: {run_id}.')
+        request_raw = row[0]
+        req = json.loads(request_raw) if request_raw else {}
+        req['subject'] = clean_subj or None
+        if 'pedagogy' in req and isinstance(req['pedagogy'], dict):
+            if 'group' in req['pedagogy'] and isinstance(req['pedagogy']['group'], dict):
+                req['pedagogy']['group']['subject_id'] = clean_subj or None
+        connection.execute(
+            'UPDATE generation_runs SET request_json = ? WHERE id = ?',
+            (dump(req), run_id)
+        )
+    return get_run(db, run_id)
+
 
 
 def run_stats(db: Path, limit=100):

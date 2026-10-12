@@ -78,30 +78,33 @@ export function resultHTML(run) {
   const subtitleText = (rawQuestion && rawQuestion.toLowerCase() !== titleText.toLowerCase()) ?
     `Tema original: ${rawQuestion}` : '';
 
+  const currentSubj = run.subject || run.request?.subject || '';
+  const subjDisplay = subjectName(currentSubj) || (isPedagogy ? 'Sin materia' : 'Documentación');
+  const subjectBadgeHTML = isPedagogy ? [
+    `<span class="subject-badge subject-tag editable-subject" data-action="edit-proposal-subject" `,
+    `data-run="${e(run.id)}" title="Clic para asignar o cambiar la materia" `,
+    `style="${e(subjectStyle(currentSubj))}; cursor:pointer; display:inline-flex; align-items:center; gap:0.35rem;">`,
+    `${e(subjDisplay)} `,
+    `<button class="button small ghost icon-button inline-edit-btn" data-action="edit-proposal-subject" `,
+    `data-run="${e(run.id)}" aria-label="Cambiar materia" title="Cambiar materia">${icon('edit')}</button></span>`
+  ].join('') : [
+    `<span class="subject-badge subject-tag" style="${e(subjectStyle(run.subject))}">`,
+    `${e(subjectName(run.subject) || 'Documentación')}</span>`
+  ].join('');
+
   let content = [
     `<section class="panel result result-document"><header class="result-cover"><div `,
-    [
-      `class="result-cover-copy"><div class="result-kicker"><span class="subject-badge subject-tag" style="`
-    ].join(''),
-    `${e(subjectStyle(run.subject))}">`,
-    [
-      `${
-        e(subjectName(run.subject) || (isPedagogy ? 'Propuesta docente' : 'Documentación'))
-      }</span>`
-    ].join(''),
-    [
-      `${reviewBadge}${
-        groupAndLevel ? `<span class="result-meta-pill">${e(groupAndLevel)}</span>` : ''
-      }`
-    ].join(''),
+    `class="result-cover-copy"><div class="result-kicker">`,
+    `${subjectBadgeHTML}`,
+    `${reviewBadge}${
+      groupAndLevel ? `<span class="result-meta-pill">${e(groupAndLevel)}</span>` : ''
+    }`,
     `${
       totalMinutes ? `<span class="result-meta-pill">${e(totalMinutes)} min</span>` : ''
     }`,
-    [
-      `${
-        context?.session?.date ? `<span class="result-meta-pill">${e(context.session.date)}</span>` : ''
-      }`
-    ].join(''),
+    `${
+      context?.session?.date ? `<span class="result-meta-pill">${e(context.session.date)}</span>` : ''
+    }`,
     `</div><div class="result-title-container"><h2 class="result-title editable-title" ` +
     `data-action="edit-proposal-title" data-run="${e(run.id)}" title="Clic para editar el título" ` +
     `style="cursor:pointer; display:inline-flex; align-items:center; gap:0.5rem;">${e(titleText)} ` +
@@ -113,15 +116,20 @@ export function resultHTML(run) {
     `</div><div class="result-actions">${controls}</div></header>`
   ].join('');
 
-  if (['failed', 'cancelled', 'running'].includes(run.status)) return content + [
-    `<div class="notice error">`,
-    [
-      `${
-        e(run.error || 'Esta operación no ha terminado. Puedes volver a consultar su estado desde el historial.')
-      }`
-    ].join(''),
-    `</div></section>`
-  ].join('');
+  if (['failed', 'cancelled', 'running'].includes(run.status)) {
+    let errorMsg = run.error || '';
+    if (errorMsg.includes('no tiene sesiones previstas')) {
+      errorMsg = 'No tienes clases este día en el calendario.';
+    } else if (/traceback|file |line \d+|sqlite|exception|syntaxerror/i.test(errorMsg)) {
+      errorMsg = 'Ha ocurrido un problema al procesar la propuesta. Revisa tus fuentes o inténtalo de nuevo.';
+    }
+    return content + [
+      `<div class="notice ${errorMsg.includes('No tienes clases') ? 'warning' : 'error'}">`,
+      `${e(errorMsg || 'Esta operación no ha terminado. Puedes volver a consultar su estado desde el historial.')}`,
+      `</div></section>`
+    ].join('');
+  }
+
   if (run.status === 'abstained') {
     const sources = [...new Map((run.evidence || []).map(item => [item.document_id, item])).values()];
     const abstentionReason = run.result?.observations || run.result?.reason || '';
@@ -799,6 +807,54 @@ async function formEditProposalTitle({form, data}) {
   toast('Título de la propuesta actualizado.');
 }
 
+async function accionEditProposalSubject({target}) {
+  const el = target.closest('[data-run]');
+  const runId = el?.dataset.run || store.currentRun?.id;
+  const currentSubj = store.currentRun?.subject || store.currentRun?.request?.subject || '';
+  const subjects = store.state?.config?.subjects || [];
+  modal('Asignar materia a la propuesta', [
+    '<form data-form="edit-proposal-subject-form" class="stack">',
+    `<input type="hidden" name="run_id" value="${e(runId)}">`,
+    '<div class="field">',
+    '<label class="label" for="new-proposal-subject">Materia</label>',
+    '<select class="select input" id="new-proposal-subject" name="subject">',
+    `<option value="">Sin materia</option>`,
+    subjects.map(s => [
+      `<option value="${e(s.id)}" ${s.id === currentSubj ? 'selected' : ''}>`,
+      `${e(s.name)}</option>`
+    ].join('')).join(''),
+    '</select>',
+    '</div>',
+    '<p class="field-hint">La materia clasifica la propuesta con su color identificativo y ',
+    'organiza el trabajo de clase.</p>',
+    '<div class="dialog-actions">',
+    '<button class="button ghost" type="button" data-action="close-dialog">Cancelar</button>',
+    '<button class="button primary" type="submit">Guardar materia</button>',
+    '</div>',
+    '</form>'
+  ].join(''));
+}
+
+async function formEditProposalSubject({form, data}) {
+  const runId = data.run_id;
+  const subject = (data.subject || '').trim();
+  const updated = await api('/runs/' + encodeURIComponent(runId) + '/subject', {subject});
+  if (store.currentRun && store.currentRun.id === runId) {
+    store.currentRun.subject = subject;
+    if (store.currentRun.request) store.currentRun.request.subject = subject;
+    Object.assign(store.currentRun, updated);
+  }
+  if (store.state?.runs) {
+    const found = store.state.runs.find(r => r.id === runId);
+    if (found) {
+      found.subject = subject;
+    }
+  }
+  document.getElementById('dialog')?.close();
+  document.dispatchEvent(new CustomEvent('enjambre:render'));
+  toast('Materia de la propuesta actualizada.');
+}
+
 export const actions = {
   'open-sources-run': accionOpenSourcesRun,
   'copy-code': accionOpenCopyCode,
@@ -806,18 +862,26 @@ export const actions = {
   'copy-markdown': accionOpenCopyMarkdown,
   'download': accionOpenDownload,
   'edit-proposal-title': accionEditProposalTitle,
+  'edit-proposal-subject': accionEditProposalSubject,
 };
 
 export const forms = {
   'edit-proposal-title-form': formEditProposalTitle,
+  'edit-proposal-subject-form': formEditProposalSubject,
 };
 
 export const clickBindings = [
   {
-    priority: 3,
+    priority: 1,
     matches: target => target.dataset.action === 'edit-proposal-title' ||
       target.closest('[data-action="edit-proposal-title"]'),
     action: 'edit-proposal-title'
+  },
+  {
+    priority: 1,
+    matches: target => target.dataset.action === 'edit-proposal-subject' ||
+      target.closest('[data-action="edit-proposal-subject"]'),
+    action: 'edit-proposal-subject'
   },
   {priority: 4, matches: target => target.dataset.sourcesRun, action: 'open-sources-run'},
   {priority: 6, matches: target => target.dataset.copyCode, action: 'copy-code'},
@@ -825,4 +889,5 @@ export const clickBindings = [
   {priority: 9, matches: target => target.dataset.copyMarkdown, action: 'copy-markdown'},
   {priority: 10, matches: target => target.dataset.download || target.dataset.original ||
     target.dataset.ocrDocument, action: 'download'},
+
 ];

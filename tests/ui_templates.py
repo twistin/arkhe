@@ -190,6 +190,7 @@ HTML_SEGURO = frozenset(
         "panelGrupos",
         "panelConocimiento",
         "unitOptions",
+        "sessionOptions",
         "dialogHTML",
     }
 )

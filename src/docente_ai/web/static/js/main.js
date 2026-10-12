@@ -131,7 +131,7 @@ document.addEventListener('click', async event => {
     main.focus();
     return;
   }
-  const target = event.target.closest('button,a[data-nav]');
+  const target = event.target.closest('button,a[data-nav],[data-action]');
   if (!target) return;
   const name = bindings.find(binding => binding.matches(target))?.action || target.dataset.action;
   if (!name) return;

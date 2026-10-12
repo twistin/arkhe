@@ -308,6 +308,11 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         data = await body(request)
         return JSONResponse(await run_in_threadpool(ws.update_run_title, request.path_params['id'], data.get('title')))
 
+    async def set_subject(request):
+        data = await body(request)
+        return JSONResponse(await run_in_threadpool(ws.update_run_subject, request.path_params['id'], data.get('subject')))
+
+
     async def adopt_score(request):
         data = await body(request)
         run_id = request.path_params['id']
@@ -537,6 +542,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/runs/{id}/review', review, methods=['POST']),
               Route('/api/runs/{id}/edit', edit, methods=['POST']),
               Route('/api/runs/{id}/title', set_title, methods=['POST']),
+              Route('/api/runs/{id}/subject', set_subject, methods=['POST']),
+
               Route('/api/runs/{id}/descargar-ejemplos-ficha', descargar_ejemplos_ficha_route, methods=['POST']),
               Route('/api/fichas/{id}/descargar-ejemplos', descargar_ejemplos_ficha_route, methods=['POST']),
               Route('/api/fichas/{id}', ficha_get),
