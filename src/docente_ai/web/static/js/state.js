@@ -16,7 +16,8 @@ export const store = {
   monitorTimer: null,
   connectionLost: false,
   isClosed: false,
-  selectedRunStats: null
+  selectedRunStats: null,
+  selectedDocIds: []
 };
 export const view = () => ['biblioteca', 'asistente', 'propuestas', 'diario', 'ajustes'].includes(location
   .hash.slice(1)) ? location.hash.slice(1) : 'biblioteca';

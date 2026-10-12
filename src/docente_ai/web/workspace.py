@@ -250,6 +250,18 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             doc['period'] = period
         return documents
 
+    def batch_update_document_origin(self, doc_ids: list[str], origin: str) -> int:
+        """Actualiza el origen de múltiples documentos a la vez."""
+        from docente_ai.library.service import update_document
+        count = 0
+        for did in doc_ids:
+            try:
+                update_document(self.db, did, values={'origin': origin})
+                count += 1
+            except Exception:
+                pass
+        return count
+
     def state(self):
         runs = list_runs(self.db, limit=100)
         from docente_ai.teaching.terms import normalize_topic

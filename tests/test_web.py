@@ -668,6 +668,85 @@ def test_app_lifespan_cleans_stale_runs(tmp_path):
         assert row[1] == 'interrumpido'
 
 
+def test_batch_origin_update_and_server_decision(web, tmp_path):
+    """Comprueba que 'archivo local' no cuenta como bibliografía y que batch-origin actualiza en bloque."""
+    client, ws = web
+    from docente_ai.library.service import import_document
+    from docente_ai.generation.render import is_bibliographic_origin, enriquecer_run_respaldo_bibliografico
+
+    # Verificar función central de decisión del servidor
+    assert is_bibliographic_origin('bibliografia') is True
+    assert is_bibliographic_origin('fuente_primaria') is True
+    assert is_bibliographic_origin('material académico de la carrera') is True
+    assert is_bibliographic_origin('archivo local') is False
+    assert is_bibliographic_origin('sin_clasificar') is False
+    assert is_bibliographic_origin('notas_profesor') is False
+    assert is_bibliographic_origin(None) is False
+
+    # Crear dos documentos locales en la base de datos de test
+    doc1 = tmp_path / 'doc1.md'
+    doc1.write_text('# Documento 1\nContenido de prueba.', encoding='utf-8')
+    res1 = import_document(
+        ws.db, doc1, category='documental', subjects=['historia-i'], values={'origin': 'sin_clasificar'}
+    )
+
+    doc2 = tmp_path / 'doc2.md'
+    doc2.write_text('# Documento 2\nContenido de prueba.', encoding='utf-8')
+    res2 = import_document(
+        ws.db, doc2, category='documental', subjects=['historia-i'], values={'origin': 'sin_clasificar'}
+    )
+
+    id1, id2 = res1['document_id'], res2['document_id']
+
+    # Probar endpoint batch-origin
+    res = client.post('/api/documents/batch-origin', json={
+        'document_ids': [id1, id2],
+        'origin': 'bibliografia'
+    })
+    assert res.status_code == 200, res.text
+    data = res.json()
+    assert data['updated'] == 2
+    assert data['origin'] == 'bibliografia'
+
+    # Verificar que ahora ambos tienen origen bibliografia
+    docs = ws.documents()
+    map_docs = {d['id']: d for d in docs}
+    assert map_docs[id1]['metadata'].get('origin') == 'bibliografia'
+    assert map_docs[id2]['metadata'].get('origin') == 'bibliografia'
+
+    # Verificar enriquecimiento en run con y sin bibliografía
+    run_con_local = {
+        'result': {
+            'claims': [
+                {'title': 'Afirmación 1', 'evidence': [{'source_id': 's1'}]}
+            ]
+        },
+        'evidence': [
+            {'source_id': 's1', 'metadata': {'origin': 'archivo local'}},
+        ]
+    }
+    enriq1 = enriquecer_run_respaldo_bibliografico(run_con_local)
+    assert enriq1['aviso_fundamentacion'] is True
+    assert enriq1['evidence'][0]['es_bibliografico'] is False
+    assert enriq1['evidence'][0]['etiqueta_origen'] == ' [Sin clasificar]'
+
+    run_con_biblio = {
+        'result': {
+            'claims': [
+                {'title': 'Afirmación 1', 'evidence': [{'source_id': 's2'}]}
+            ]
+        },
+        'evidence': [
+            {'source_id': 's2', 'metadata': {'origin': 'bibliografia'}},
+        ]
+    }
+    enriq2 = enriquecer_run_respaldo_bibliografico(run_con_biblio)
+    assert enriq2['aviso_fundamentacion'] is False
+    assert enriq2['evidence'][0]['es_bibliografico'] is True
+    assert enriq2['evidence'][0]['etiqueta_origen'] == ' [Bibliografía]'
+
+
+
 
 
 

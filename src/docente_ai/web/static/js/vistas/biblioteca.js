@@ -117,13 +117,44 @@ export function libraryResults() {
     ].join('')
   ].join('');
   const periodSub = store.selectedPeriod ? ` · ${formatPeriod(store.selectedPeriod)}` : '';
+  const selectedDocs = store.selectedDocIds || [];
+  const selectedCount = selectedDocs.length;
+  const unclassifiedDocs = store.state.documents.filter(d =>
+    !d.metadata?.origin || d.metadata?.origin === 'archivo local' || d.metadata?.origin === 'sin_clasificar'
+  );
+  const unclassifiedCount = unclassifiedDocs.length;
+
+  const batchActions = selectedCount > 0 ? [
+    `<div class="batch-bar">`,
+    `  <button class="button small primary" data-action="batch-classify-bibliography">`,
+    `    ${icon('check')}Clasificar como bibliografía (${e(selectedCount)})`,
+    `  </button>`,
+    `  <button class="button small ghost" data-action="clear-selected-docs">Deseleccionar</button>`,
+    `</div>`
+  ].join('') : (
+    unclassifiedCount > 0 ? [
+      `<div class="batch-bar">`,
+      `  <button class="button small secondary" data-action="batch-classify-bibliography">`,
+      `    ${icon('check')}Clasificar como bibliografía (${e(unclassifiedCount)})`,
+      `  </button>`,
+      `  <button class="button small ghost" data-action="select-unclassified-docs">`,
+      `    Seleccionar sin clasificar (${e(unclassifiedCount)})`,
+      `  </button>`,
+      `</div>`
+    ].join('') : ''
+  );
+
   return [
-    [
-      `<div class="library-summary"><span>${e(docs.length)} ${docs.length===1?'documento':'documentos'}`
-    ].join(''),
-    `${store.selected?' · '+e(subjectName(store.selected)):''}${e(periodSub)}`,
-    `</span><button class="button ghost small" data-action="scan">${icon('refresh')}`,
-    `Revisar carpeta</button></div>`
+    `<div class="library-summary">`,
+    `  <div class="summary-meta">`,
+    `    <span>${e(docs.length)} ${docs.length===1?'documento':'documentos'}`,
+    `    ${store.selected?' · '+e(subjectName(store.selected)):''}${e(periodSub)}</span>`,
+    `  </div>`,
+    `  <div class="summary-actions">`,
+    `    ${batchActions}`,
+    `    <button class="button ghost small" data-action="scan">${icon('refresh')}Revisar carpeta</button>`,
+    `  </div>`,
+    `</div>`
   ].join('') + (docs.length ? `<div class="source-list">${docs.map(filaFuente).join('')}</div>` : [
     `<div class="empty-library"><h2>No hay coincidencias.</h2><p>Prueba otra materia, `,
     `período o una búsqueda diferente.</p><button class="button" `,
@@ -337,42 +368,40 @@ export async function scanFolder() {
 }
 
 function filaFuente(d) {
-
+  const isSelected = (store.selectedDocIds || []).includes(d.id);
   const firstSubj = d.subjects && d.subjects.length ? d.subjects[0] : 'none';
   const subjBadges = d.shared ? '<span class="subject-badge subject-tag">Compartido</span>' : (d
     .subjects && d.subjects.length ? d.subjects.map(s => [
       `<span class="subject-badge subject-tag" style="${e(subjectStyle(s))}">${e(subjectName(s))}</span>`
     ].join('')).join(' ') :
     '<span class="subject-badge subject-tag">Sin materia</span>');
+  const isUnclassified = !d.metadata.origin || d.metadata.origin === 'sin_clasificar' ||
+    d.metadata.origin === 'archivo local';
+  const subtitle = normalizeAuthorsDisplay(d.metadata.authors).join(', ') || (d.category === 'profesor' ?
+    'Material propio' : 'Autor pendiente de indicar');
   return [
-    `<button class="source-row subject-colored" style="${e(subjectStyle(firstSubj))}" data-document="${e(d.id)}`,
-    `"><span class="file-icon ${e(d.category)}">${e(d.format.toUpperCase())}`,
-    [
-      `</span><span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">`
-    ].join(''),
-    [
-      `${
-        e(normalizeAuthorsDisplay(d.metadata.authors).join(', ') || (d.category === 'profesor' ? 'Material propio' :
-          'Autor pendiente de indicar'))
-      }`
-    ].join(''),
-    `${d.metadata.year?' · '+e(d.metadata.year):''}`,
-    `${
-      d.period ? ` · <span class="period-tag">${e(formatPeriod(d.period))}</span>` : ''
-    }`,
+    `<div class="source-row-wrap ${isSelected ? 'selected' : ''}">`,
+    `  <label class="doc-select-box" title="Seleccionar para clasificar">`,
+    `    <input type="checkbox" class="doc-select-checkbox" data-select-doc="${e(d.id)}" ` +
+    `data-action="toggle-doc-select" ${isSelected ? 'checked' : ''} aria-label="Seleccionar ${e(d.metadata.title)}">`,
+    `  </label>`,
+    `  <button class="source-row subject-colored" style="${e(subjectStyle(firstSubj))}" data-document="${e(d.id)}">`,
+    `    <span class="file-icon ${e(d.category)}">${e(d.format.toUpperCase())}</span>`,
+    `    <span><span class="source-title">${e(d.metadata.title)}</span><span class="source-subtitle">`,
+    `    ${e(subtitle)}`,
+    `${d.metadata.year ? ' · ' + e(d.metadata.year) : ''}`,
+    `${d.period ? ` · <span class="period-tag">${e(formatPeriod(d.period))}</span>` : ''}`,
     `${
       d.metadata.origin === 'generado_ia' ? ' · <span class="pill warning">Generado por IA</span>' :
       d.metadata.origin === 'posible_generado_ia' ? ' · <span class="pill warning">Posible IA (por confirmar)</span>' :
-      d.metadata.origin === 'sin_clasificar' ? ' · <span class="pill danger">Sin clasificar</span>' :
+      isUnclassified ? ' · <span class="pill danger">Sin clasificar</span>' :
       d.metadata.origin === 'fuente_primaria' ? ' · <span class="pill">Fuente primaria</span>' :
       d.metadata.origin === 'notas_profesor' ? ' · <span class="pill">Notas profesor</span>' : ''
     }`,
-    [
-      `</span></span><span class="source-area">${subjBadges}</span>${statusBadge(d)}${icon('arrow')}`
-    ].join(''),
-    `</button>`
+    `    </span></span><span class="source-area">${subjBadges}</span>${statusBadge(d)}${icon('arrow')}`,
+    `  </button>`,
+    `</div>`
   ].join('');
-
 }
 
 function botonPeriodo(p) {
@@ -506,6 +535,55 @@ async function formularioMetadata({form, data}) {
   toast('Metadatos actualizados.');
 }
 
+async function accionBatchClassifyBibliography() {
+  const selected = store.selectedDocIds || [];
+  let idsToClassify = selected;
+  if (!idsToClassify.length) {
+    const unclassified = (store.state.documents || []).filter(d =>
+      !d.metadata?.origin || d.metadata?.origin === 'archivo local' || d.metadata?.origin === 'sin_clasificar'
+    );
+    if (!unclassified.length) {
+      toast('No hay documentos sin clasificar en la biblioteca.');
+      return;
+    }
+    if (!confirm(`¿Deseas clasificar como bibliografía los ${unclassified.length} documentos pendientes?`)) {
+      return;
+    }
+    idsToClassify = unclassified.map(d => d.id);
+  }
+
+  const res = await api('/documents/batch-origin', { ids: idsToClassify, origin: 'bibliografia' });
+  store.selectedDocIds = [];
+  await refresh();
+  toast(`${res.updated || idsToClassify.length} documentos clasificados como bibliografía.`);
+}
+
+function accionToggleDocSelect({target, event}) {
+  event?.stopPropagation?.();
+  const docId = target.dataset.selectDoc;
+  if (!docId) return;
+  store.selectedDocIds = store.selectedDocIds || [];
+  if (store.selectedDocIds.includes(docId)) {
+    store.selectedDocIds = store.selectedDocIds.filter(id => id !== docId);
+  } else {
+    store.selectedDocIds.push(docId);
+  }
+  render();
+}
+
+function accionSelectUnclassifiedDocs() {
+  const unclassified = (store.state.documents || []).filter(d =>
+    !d.metadata?.origin || d.metadata?.origin === 'archivo local' || d.metadata?.origin === 'sin_clasificar'
+  );
+  store.selectedDocIds = unclassified.map(d => d.id);
+  render();
+}
+
+function accionClearSelectedDocs() {
+  store.selectedDocIds = [];
+  render();
+}
+
 export const actions = {
   'open-document': accionOpenDocument,
   'delete-document': accionOpenDeleteDocument,
@@ -517,6 +595,10 @@ export const actions = {
   'reveal': accionReveal,
   'scan': accionScan,
   'clear-filter': accionClearFilter,
+  'batch-classify-bibliography': accionBatchClassifyBibliography,
+  'toggle-doc-select': accionToggleDocSelect,
+  'select-unclassified-docs': accionSelectUnclassifiedDocs,
+  'clear-selected-docs': accionClearSelectedDocs,
 };
 
 export const forms = {
@@ -528,6 +610,18 @@ export const forms = {
 
 export const clickBindings = [
   {priority: 1, matches: target => target.dataset.document, action: 'open-document'},
+  {priority: 4, matches: target => target.dataset.selectDoc, action: 'toggle-doc-select'},
+  {
+    priority: 5,
+    matches: target => target.dataset.action === 'batch-classify-bibliography',
+    action: 'batch-classify-bibliography',
+  },
+  {
+    priority: 6,
+    matches: target => target.dataset.action === 'select-unclassified-docs',
+    action: 'select-unclassified-docs',
+  },
+  {priority: 7, matches: target => target.dataset.action === 'clear-selected-docs', action: 'clear-selected-docs'},
   {priority: 12, matches: target => target.dataset.deleteDocument, action: 'delete-document'},
   {priority: 13, matches: target => target.dataset.exclude, action: 'exclude'},
   {priority: 24, matches: target => 'period' in target.dataset, action: 'select-period'},

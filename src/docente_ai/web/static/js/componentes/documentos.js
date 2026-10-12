@@ -188,14 +188,9 @@ export function resultHTML(run) {
   }
   for (const warning of run.warnings || []) content += `<div class="notice warning">${e(warning)}</div>`;
   const runClaims = run.result?.claims || [];
-  const hasUnbackedClaim = runClaims.some(claim => {
-    const evs = claim.evidence || [];
-    return !evs.some(ev => {
-      const src = (run.evidence || []).find(s => s.source_id === ev.source_id);
-      const orig = src?.metadata?.origin || (src?.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
-      return orig === 'bibliografia' || orig === 'fuente_primaria';
-    });
-  });
+  const hasUnbackedClaim = run.aviso_fundamentacion != null ?
+    run.aviso_fundamentacion :
+    runClaims.some(c => c.tiene_respaldo_bibliografico === false);
   if (hasUnbackedClaim && runClaims.length > 0) {
     content += [
       '<div class="notice warning"><strong>Aviso de fundamentación:</strong> ',
@@ -410,9 +405,8 @@ export function resultHTML(run) {
         const auth = normalizeAuthorsDisplay(m.authors).join('; ') || 'Sin autor identificado';
         const yr = m.year ? ` (${e(m.year)})` : '';
         const loc = locatorLabel(src.locator || {});
-        const orig = m.origin || (src.category === 'profesor' ? 'notas_profesor' : 'bibliografia');
-        const origLabel = orig === 'notas_profesor' ? ' [Notas profesor]' :
-          (orig === 'fuente_primaria' ? ' [Fuente primaria]' : ' [Bibliografía]');
+        const origLabel = src.etiqueta_origen || (src.es_bibliografico ? ' [Bibliografía]' :
+          (src.category === 'profesor' ? ' [Notas profesor]' : ' [Sin clasificar]'));
         return [
           `<li><strong>${e(auth)}</strong>${yr}. `,
           `<em>${e(m.title||'')}</em>, ${e(loc)}${e(origLabel)} — «${e(ev.quote||'')}»</li>`

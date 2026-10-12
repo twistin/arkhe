@@ -33,17 +33,29 @@ def format_locator(loc: dict) -> str:
 
 
 BIBLIOGRAPHIC_ORIGINS = {
-    'bibliografia', 'fuente_primaria', 'archivo local', 'material académico de la carrera'
+    'bibliografia', 'fuente_primaria', 'material académico de la carrera'
 }
 
 
-def is_bibliographic_origin(src: dict) -> bool:
+def is_bibliographic_origin(src: dict | str | None) -> bool:
+    """Decide de forma unificada en el servidor si una evidencia cuenta como respaldo bibliográfico.
+    'archivo local' se trata como 'sin clasificar' (no bibliográfico).
+    """
     if not src:
         return False
-    if src.get('category') == 'documental':
+    if isinstance(src, str):
+        if src in ('archivo local', 'sin_clasificar', ''):
+            return False
+        return src in BIBLIOGRAPHIC_ORIGINS
+    meta = src.get('metadata') or {}
+    orig = meta.get('origin')
+    if orig in ('archivo local', 'sin_clasificar', None, ''):
+        return False
+    if orig in BIBLIOGRAPHIC_ORIGINS:
         return True
-    orig = (src.get('metadata') or {}).get('origin')
-    return orig in BIBLIOGRAPHIC_ORIGINS
+    if src.get('category') == 'documental' and orig not in ('archivo local', 'sin_clasificar'):
+        return True
+    return False
 
 
 def claim_synthesis_label(claim: dict, by_id: dict) -> str:
@@ -60,19 +72,59 @@ def claim_synthesis_label(claim: dict, by_id: dict) -> str:
         meta = src.get('metadata') or {}
         orig = meta.get('origin')
         category = src.get('category')
-        if orig == 'sin_clasificar':
+        if orig in ('sin_clasificar', 'archivo local'):
             has_unclassified = True
         elif orig in ('notas_profesor', 'material docente propio') or category == 'profesor':
             has_prof = True
-        elif orig in BIBLIOGRAPHIC_ORIGINS or category == 'documental':
+        elif is_bibliographic_origin(src):
             has_bib = True
-    if has_bib:
+    if has_bib and not has_prof and not has_unclassified:
         return 'Síntesis respaldada por bibliografía'
+    if has_bib and has_prof:
+        return 'Cruce entre bibliografía y material docente'
     if has_prof:
         return 'Síntesis basada en notas del profesor'
     if has_unclassified:
         return 'Origen documental pendiente de clasificar'
     return 'Contenido sin respaldo bibliográfico'
+
+
+def enriquecer_run_respaldo_bibliografico(run_dict: dict) -> dict:
+    """Calcula en el servidor las etiquetas y estados de respaldo bibliográfico de claims y evidencias.
+    El cliente consume directamente estos campos sin recalcularlos.
+    """
+    evidences = run_dict.get('evidence') or []
+    by_id = {ev.get('source_id'): ev for ev in evidences if ev.get('source_id')}
+
+    for ev in evidences:
+        meta = ev.get('metadata') or {}
+        orig = meta.get('origin')
+        es_bib = is_bibliographic_origin(ev)
+        ev['es_bibliografico'] = es_bib
+        if es_bib:
+            ev['etiqueta_origen'] = ' [Fuente primaria]' if orig == 'fuente_primaria' else ' [Bibliografía]'
+        else:
+            cat = ev.get('category')
+            if cat == 'profesor' or orig in ('notas_profesor', 'material docente propio'):
+                ev['etiqueta_origen'] = ' [Notas profesor]'
+            elif orig in ('archivo local', 'sin_clasificar', None, ''):
+                ev['etiqueta_origen'] = ' [Sin clasificar]'
+            else:
+                ev['etiqueta_origen'] = f' [{orig}]'
+
+    result = run_dict.get('result') or {}
+    claims = result.get('claims') or []
+    has_unbacked_claim = False
+    for claim in claims:
+        c_evs = claim.get('evidence') or []
+        tiene_bib = any(is_bibliographic_origin(by_id.get(e.get('source_id'))) for e in c_evs)
+        claim['tiene_respaldo_bibliografico'] = tiene_bib
+        claim['synthesis_label'] = claim_synthesis_label(claim, by_id)
+        if not tiene_bib:
+            has_unbacked_claim = True
+
+    run_dict['aviso_fundamentacion'] = has_unbacked_claim and len(claims) > 0
+    return run_dict
 
 
 def format_claim_sources(claim: dict, by_id: dict) -> list[str]:

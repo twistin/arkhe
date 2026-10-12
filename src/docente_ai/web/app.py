@@ -252,6 +252,15 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             values['origin'] = data['origin']
         return JSONResponse(await run_in_threadpool(update_document, ws.db, request.path_params['id'], values=values, subjects=subjects))
 
+    async def batch_origin_route(request):
+        data = await body(request)
+        doc_ids = data.get('ids') or data.get('document_ids') or []
+        origin = data.get('origin', 'bibliografia')
+        if not doc_ids:
+            raise ValueError('No se proporcionaron documentos para clasificar.')
+        count = await run_in_threadpool(ws.batch_update_document_origin, doc_ids, origin)
+        return JSONResponse({'updated': count, 'origin': origin})
+
     async def generation(request):
         data = await body(request)
         await run_in_threadpool(ws.require_provider_consent, data.get('mode'))
@@ -280,6 +289,8 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         out = {k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
         out['ficha'] = ficha_data
         out['ficha_ejemplos'] = result.get('ficha_ejemplos') or []
+        from docente_ai.generation.render import enriquecer_run_respaldo_bibliografico
+        out = enriquecer_run_respaldo_bibliografico(out)
         return JSONResponse(out)
 
     async def descargar_ejemplos_ficha_route(request):
@@ -542,6 +553,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/documents/{id}/exclude', exclude, methods=['POST']),
               Route('/api/documents/{id}/delete', delete_doc, methods=['POST']),
               Route('/api/documents/{id}/metadata', metadata, methods=['POST']),
+              Route('/api/documents/batch-origin', batch_origin_route, methods=['POST']),
               Route('/api/generate', generation, methods=['POST']), Route('/api/runs/{id}', run),
               Route('/api/runs/{id}/delete', delete_run_route, methods=['POST']),
               Route('/api/runs/{id}/review', review, methods=['POST']),
