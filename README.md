@@ -139,6 +139,16 @@ de lo factual:
   del material del alumnado.
 
 Solo los componentes basados en proporciones o estructura llevan el distintivo «✓ Calculado a partir de la teoría».
+La selección de componentes didácticos se realiza además de forma determinista mediante reglas por tema
+(`config/componentes_por_tema.yaml`): tras la generación, el sistema incorpora los componentes necesarios según
+el tema, el plan y las afirmaciones (etiquetando el origen como `regla_tema` o `llm`).
+Las partituras verificadas y de teoría calculable se integran directamente en el material del alumnado junto a
+la actividad que las utiliza (`activity_title`), mostrando las letras griegas de notación alfabética situadas
+estrictamente sobre las notas cuando el MusicXML contiene una segunda línea de texto (`verse n="2"`).
+Si una actividad de clase cita una partitura o notación que aún no ha sido incorporada, la vista del profesor
+advierte explícitamente («⚠️ Actividad X sin material: falta la partitura…»).
+El sistema de exportación a PDF e impresión garantiza que todos los renderizados de Verovio y gráficos SVG
+estén completamente finalizados mediante `Promise.all` antes de emitir el documento.
 Las definiciones conceptuales factuales se articulan mediante fichas temáticas: el **glosario de términos griegos**
 reside en `config/fichas/glosario_griego.yaml` con `verificado: false`, mostrándose únicamente en la guía docente
 para revisión del profesor y publicándose al alumnado solo tras su validación explícita.

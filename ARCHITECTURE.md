@@ -985,8 +985,16 @@ Para enriquecer el material del estudiante con gráficos rigurosos sin depender 
   - Los términos técnicos (*phthongos, diastema, systema, díesis, ditono, sinaphe, diazeuxis, proslambanómenos, mese*) se gestionan mediante una ficha temática con `verificado: false`. Mientras no sea verificada por el docente, sus conceptos se muestran exclusivamente en la guía docente (`render_pedagogy`) para su revisión y nunca se publican en el material del alumnado.
 - **Desarrollo analítico de contenidos:**
   - La propiedad `student_summary` se amplía de un esquema sintético a una explicación desarrollada de uno a tres párrafos, conectada con el gráfico didáctico correspondiente y el nivel del grupo.
-- **Importación de transcripciones MusicXML (`teaching.score_resolver: importar_transcripcion_musicxml`):**
-  - La tarjeta de «Ejemplo pendiente» permite al profesor importar transcripciones en MusicXML (mediante subida de archivo `.musicxml`/`.xml` o texto pegado directo), asignando la fuente bibliográfica personalizada. El backend guarda la partitura en `data/ejemplos/` y la registra en `ejemplos.yaml`, incorporándola de inmediato a la propuesta como ejemplo verificado.
+- **Selección determinista por tema (`config/componentes_por_tema.yaml`):**
+  - Para asegurar que ninguna propuesta se quede sin gráficos aunque el LLM no los solicite, `generation.service` ejecuta un enriquecimiento post-generación determinista mediante `music.didactic: seleccionar_componentes_por_tema`. Los componentes inyectados por regla se marcan con `origen: 'regla_tema'`, mientras que los solicitados por el modelo conservan `origen: 'llm'`. El campo `didactic_components` es obligatorio en el esquema de respuesta del modelo pedagógico.
+- **Partituras y teoría integradas en el material del alumnado (`studentDocumentHTML`):**
+  - Las peticiones resueltas del catálogo verificadas o calculadas a partir de la teoría se renderizan directamente en la actividad que las utiliza (`activity_title`), mostrando el SVG procesado con Verovio junto a la consigna y entregable.
+  - El resolvedor nunca permite que un ejemplo de teoría usurpe una obra concreta (como el Epitafio de Seikilos); las obras concretas no disponibles quedan con `status: 'sin_resolver'` y motivo `'obra concreta no disponible'`.
+  - La importación de MusicXML permite al docente certificar el ejemplo (`verificado: true`) y detallar su fuente bibliográfica. Si la partitura incluye una segunda línea lírica (`verse n="2"`) con notación alfabética griega antigua, el servidor la desplaza sobre el pentagrama (`transform="translate(0, -1650)"`) con estilo destacado.
+- **Coherencia actividad–recurso y avisos en vista del profesor:**
+  - Si una actividad cita una partitura o notación sin que exista aún el recurso verificado, la vista del docente genera un aviso visible de advertencia («⚠️ Actividad X sin material: falta la partitura…»).
+- **Impresión asíncrona garantizada:**
+  - `printStudentDocument` sincroniza la renderización de todos los elementos visuales (Verovio y SVG) mediante `Promise.all` sobre las promesas de carga antes de clonar el contenido e invocar `print()`. `print.css` protege la visibilidad de contenedores y elementos vectoriales.
 
 
 
