@@ -143,25 +143,27 @@ def generar_tetracordos(
 def generar_partitura_tres_generos_musicxml() -> str:
     """Genera deterministamente con music21 el MusicXML del tetracordo descendente mi–si en los tres géneros:
     diatónico, cromático y enarmónico (con cuartos de tono / diéseis).
+    Sin indicación de compás, notas sin plica y barras divisorias solo entre géneros.
     """
     from docente_ai.music import get_music21
     m21 = get_music21()
 
     score = m21.stream.Score()
+    score.metadata = m21.metadata.Metadata()
+    score.metadata.title = "Tetracordo mi–si en los tres géneros"
+    score.metadata.movementName = "Tetracordo mi–si en los tres géneros"
+
     part = m21.stream.Part()
     part.id = "Tetracordos"
-
     part.append(m21.clef.TrebleClef())
-    part.append(m21.meter.TimeSignature('4/4'))
 
     # Compás 1: Diatónico (E4, D4, C4, B3)
     m1 = m21.stream.Measure(number=1)
     m1.append(m21.expressions.TextExpression('1. Diatónico'))
-    n1 = m21.note.Note('E4', quarterLength=1)
-    n2 = m21.note.Note('D4', quarterLength=1)
-    n3 = m21.note.Note('C4', quarterLength=1)
-    n4 = m21.note.Note('B3', quarterLength=1)
-    m1.append([n1, n2, n3, n4])
+    for p in ['E4', 'D4', 'C4', 'B3']:
+        n = m21.note.Note(p, quarterLength=1)
+        n.stemDirection = 'noStem'
+        m1.append(n)
     part.append(m1)
 
     # Compás 2: Cromático (E4, C#4, C4, B3)
@@ -172,7 +174,9 @@ def generar_partitura_tres_generos_musicxml() -> str:
     n7 = m21.note.Note('C4', quarterLength=1)
     n7.pitch.accidental = m21.pitch.Accidental('natural')
     n8 = m21.note.Note('B3', quarterLength=1)
-    m2.append([n5, n6, n7, n8])
+    for n in [n5, n6, n7, n8]:
+        n.stemDirection = 'noStem'
+        m2.append(n)
     part.append(m2)
 
     # Compás 3: Enarmónico con cuartos de tono (E4, C4, B3+half-sharp, B3)
@@ -184,13 +188,16 @@ def generar_partitura_tres_generos_musicxml() -> str:
     n11 = m21.note.Note('B3', quarterLength=1)
     n11.pitch.accidental = m21.pitch.Accidental('half-sharp')
     n12 = m21.note.Note('B3', quarterLength=1)
-    n12.pitch.accidental = m21.pitch.Accidental('natural')
-    m3.append([n9, n10, n11, n12])
+    for n in [n9, n10, n11, n12]:
+        n.stemDirection = 'noStem'
+        m3.append(n)
     part.append(m3)
 
     score.append(part)
     xml_bytes = m21.musicxml.m21ToXml.GeneralObjectExporter().parse(score)
-    return xml_bytes.decode('utf-8')
+    xml_str = xml_bytes.decode('utf-8')
+    xml_str = xml_str.replace('Music21 Fragment', 'Tetracordo mi–si en los tres géneros')
+    return xml_str
 
 
 def asegurar_archivo_partitura_tres_generos() -> str:

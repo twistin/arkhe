@@ -117,9 +117,9 @@ def resolver_peticion_musical(
         ejemplo_teoria = {
             'id': 'teoria-tetracordos-tres-generos',
             'titulo': 'Tetracordo descendente mi–si en los tres géneros (diatónico, cromático y enarmónico)',
-            'compositor': 'Teoría musical griega (Aristóxeno / Ptolomeo)',
+            'compositor': 'Teoría musical griega (según la división de Aristóxeno)',
             'obra': request.get('work') or 'Tetracordo descendente mi–si',
-            'seccion': request.get('section') or 'Tres géneros: diatónico, cromático y enarmónico',
+            'seccion': '',
             'compases': '1-3',
             'tecnica': 'Tetracordos (diatónico, cromático, enarmónico con cuartos de tono)',
             'voces': [{'id': 'Tetracordos', 'nombre': 'Tetracordo'}],

@@ -576,4 +576,39 @@ def test_gloria_dufay_recorte_directo_verovio_humdrum(tmp_path):
     assert '#f59e0b' in svg or '#d97706' in svg
 
 
+def test_tetracordos_griego_partitura_sin_compas_sin_plicas_y_con_cuarto_de_tono_sostenido(tmp_path):
+    """Comprueba que la partitura de los tres géneros no tenga Music21 Fragment, ni plicas, ni compás,
+    y que use el glifo de cuarto de tono sostenido SMuFL (accidentalQuarterToneSharpStein)."""
+    import re
+    from docente_ai.web.workspace import Workspace
+    from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
+    from test_generation import FakeEmbedder
+
+    fname = asegurar_archivo_partitura_tres_generos()
+    ws = Workspace(tmp_path, embedder_factory=FakeEmbedder)
+    score_path = Path('data/ejemplos') / fname
+    assert score_path.is_file()
+
+    svg = ws.render_score_svg(str(score_path), start_measure=1, end_measure=3)
+    assert '<svg' in svg
+
+    # 1. Título correcto sin 'Music21 Fragment'
+    assert 'Tetracordo mi–si en los tres géneros' in svg
+    assert 'Music21 Fragment' not in svg
+
+    # 2. Sin indicación de compás
+    assert 'timeSig' not in svg
+
+    # 3. Notas sin plica
+    assert 'class="stem"' not in svg
+
+    # 4. Glifo SMuFL de cuarto de tono sostenido (E282 = accidentalQuarterToneSharpStein)
+    assert 'E282' in svg
+
+    # 5. Barras divisorias delimitando los géneros
+    compases = re.findall(r'<g [^>]*class="[^"]*measure[^"]*"', svg)
+    assert len(compases) == 3
+
+
+
 

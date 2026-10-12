@@ -105,7 +105,8 @@ export function renderMusicRequestCard(item, result, run) {
     const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Ejemplo verificado';
     const badgeClass = isTheory ? 'badge info' : 'badge success';
     const fuenteText = isTheory ? 'Calculado a partir de la teoría' : (ej.fuente || 'Catálogo');
-    const freqsJson = JSON.stringify(ej.frecuencias_hz || []);
+    const sec = isTheory ? '' : (ej.seccion || req.section || '');
+    const secStr = sec ? `${e(sec)} · ` : '';
 
     return [
       `<div class="score-card score-card-verified score-candidate-item" data-candidate-id="${e(ej.id)}">`,
@@ -113,7 +114,7 @@ export function renderMusicRequestCard(item, result, run) {
       `    <div>`,
       `      <span class="${badgeClass}">${badgeText}</span>`,
       `      <h4>${e(ej.titulo || req.work)} — ${e(ej.compositor || req.composer)}</h4>`,
-      `      <small class="score-meta">${e(ej.seccion || req.section || '')} · `,
+      `      <small class="score-meta">${secStr}`,
       `Compases ${e(ej.compases || '1-3')} · Fuente: ${e(fuenteText)}</small>`,
       `    </div>`,
       `    <div class="candidate-controls">`,
