@@ -1,0 +1,38 @@
+id: glosario_griego
+tema: Música en la Grecia Antigua
+verificado: false
+
+conceptos:
+  - termino: "Phthongos (φθόγγος)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Sonido musical de altura determinada e invariable. Constituye la unidad elemental indivisible sobre la que se construye toda la escala."
+  - termino: "Diastema (διάστημα)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Intervalo musical. Es el espacio y distancia acústica comprendida entre dos sonidos de distinta altura."
+  - termino: "Systema (σύστημα)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Estructura escalar compuesta por la combinación de dos o más intervalos, como el tetracordo, la octava o el Gran Sistema Perfecto."
+  - termino: "Díesis (δίεσις)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Fracción mínima de tono; en la división de Aristóxeno corresponde al cuarto de tono (50 cents) característico del género enarmónico."
+  - termino: "Ditono (δίτονον)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Intervalo de dos tonos enteros (400 cents temperados o razón 81:64), característico del intervalo superior del tetracordo enarmónico."
+  - termino: "Sinaphe (συναφή)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Conjunción o enlace entre dos tetracordos adyacentes que comparten un sonido común como nexo articulador."
+  - termino: "Diazeuxis (διάζευξις)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Disyunción o separación entre dos tetracordos mediante el intervalo de un tono entero (tono de disyunción, 9:8)."
+  - termino: "Proslambanómenos (προσλαμβανόμενος)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Sonido grave añadido en la base del sistema (La2) para completar la doble octava sin romper la simetría de los tetracordos."
+  - termino: "Mese (μέση)"
+    categoria: "TÉRMINO GRIEGO"
+    definicion: "Nota central (La3). Constituye el eje modal, centro de simetría y referencia gravitatoria de todo el Gran Sistema Perfecto."
+
+bibliografia:
+  - autor: "Aristóxeno de Tarento"
+    titulo: "Elementos de armonía (Harmonika Stoicheia)"
+  - autor: "Claudio Ptolomeo"
+    titulo: "Harmónicos (Harmonika)"

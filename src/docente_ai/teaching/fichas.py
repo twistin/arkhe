@@ -33,6 +33,13 @@ _NTAM_REGEXES = (
     re.compile(r'\bnovas\s+tecnolox[ií]as\b', re.IGNORECASE),
 )
 
+_GREECE_REGEXES = (
+    re.compile(r'\bgrecia\b|\bgrieg[ao]s?\b', re.IGNORECASE),
+    re.compile(r'\bseikilos\b|\bepitafio\b', re.IGNORECASE),
+    re.compile(r'\btetracordo\b|\barist[oó]xeno\b|\bptolomeo\b', re.IGNORECASE),
+    re.compile(r'\bmonocordio\b|\bsistema\s+perfecto\b', re.IGNORECASE),
+)
+
 
 def _resolve_fichas_dirs(directory: Path | str | None = None) -> list[Path]:
     """Resuelve directorios de búsqueda de fichas (prioridad: directory, data/fichas, config/fichas)."""
@@ -107,7 +114,11 @@ def get_ficha_for_topic(topic: str, directory: Path | str | None = None) -> dict
     if any(rx.search(t) for rx in _NTAM_REGEXES):
         return get_ficha('ntam', directory)
 
-    # 4. Búsqueda por coincidencia en el campo 'tema'
+    # 4. Comprobación de Grecia Antigua
+    if any(rx.search(t) for rx in _GREECE_REGEXES):
+        return get_ficha('glosario_griego', directory)
+
+    # 5. Búsqueda por coincidencia en el campo 'tema'
     fichas = load_all_fichas(directory)
     for f in fichas:
         tema = str(f.get('tema') or '').lower()
