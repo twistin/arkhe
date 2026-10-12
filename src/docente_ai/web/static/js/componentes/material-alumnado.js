@@ -203,10 +203,8 @@ export function studentDocumentHTML(run) {
     (isFichaVerified ?
       (isEgypt ? renderEgyptInfographic(run) : (isPolyphony ? renderStudentInfographic(run) : '')) : '') || (
       visuals.length ? [
-        `\n        <div class="infographic-poster">\n          <div class="infographic-main-head">\n`,
-        `            <div class="info-tag-row"><span class="info-badge">${e(title.toUpperCase())}</span></div>\n`,
-        `            <h2>${e(section2Title)}</h2>\n`,
-        `          </div>\n          <div class="visual-items">\n`,
+        `\n        <div class="infographic-poster">\n`,
+        `          <div class="visual-items">\n`,
         visuals.map(v => {
           const isChronological = v.type === 'timeline' ||
             /cronolog|tiempo|hist[oó]ric|siglo/i.test(v.title || '') ||
@@ -228,9 +226,7 @@ export function studentDocumentHTML(run) {
         }).join(''),
         `          </div>\n        </div>\n`
       ].join('') : [
-        `\n        <div class="infographic-poster">\n          <div class="infographic-main-head">\n`,
-        `            <div class="info-tag-row"><span class="info-badge">${e(title.toUpperCase())}</span></div>\n`,
-        `            <h2>${e(section2Title)}</h2>\n          </div>\n`,
+        `\n        <div class="infographic-poster">\n`,
         `          <div class="visual-items">\n`,
         claims.slice(0, 4).map((c, i) => [
           `            <div class="visual-item"><strong>Eje ${e(i + 1)}</strong>`,

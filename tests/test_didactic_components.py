@@ -482,44 +482,120 @@ def test_linea_temporal_autores_en_pasajes_y_orden_cronologico():
     assert any('Agustín' in a for a in autores)
     assert any('Boecio' in a for a in autores)
 
+    # Comprobar que en los tratadistas no entra el Epitafio de Seikilos (obra, no persona)
+    assert not any('Seikilos' in a or 'Epitafio' in a for a in autores)
+
     # Comprobar orden cronológico estricto
     anos = [h['ano_numerico'] for h in hitos]
     assert anos == sorted(anos)
-
-    # San Agustín tiene fecha explícita (354-430) en el pasaje -> fecha_documentada True
-    agustin = next(h for h in hitos if 'Agustín' in h['autor'])
-    assert agustin['fecha_documentada'] is True
-
-    # Nicómaco o Platón citados por su teoría sin fecha biográfica en el texto -> fecha_documentada False
-    nicomaco = next(h for h in hitos if 'Nicómaco' in h['autor'])
-    assert nicomaco['fecha_documentada'] is False
 
     # Comprobar formato de fuente corta sin truncar palabras
     fuente_formateada = formatear_fuente_corta('Garrido Domené, Fuensanta', 'Los sistemas armónicos de la Grecia Antigua', 28)
     assert not fuente_formateada.endswith(' ')
     assert 'Garrido Domené, Los sistemas armónicos' in fuente_formateada
 
-    # SVG docente contiene la etiqueta de advertencia para autores sin fecha en el pasaje
-    svg_doc = generar_svg_linea_temporal(hitos, para_alumnado=False)
-    assert '[fecha sin fuente]' in svg_doc
-
-    # SVG para alumnado no contiene la advertencia interna
+    # Con la ficha sin verificar: para el alumnado NO aparecen fechas ("a. C.", "d. C.", etc.)
     svg_alum = generar_svg_linea_temporal(hitos, para_alumnado=True)
-    assert '[fecha sin fuente]' not in svg_alum
+    assert 'a. C.' not in svg_alum
+    assert 'd. C.' not in svg_alum
+    assert 'SECUENCIA HISTÓRICA DE TRATADISTAS' in svg_alum
+
+    # Para la guía docente aparece el aviso de ficha sin verificar
+    svg_doc = generar_svg_linea_temporal(hitos, para_alumnado=False)
+    assert 'pendiente de verificación' in svg_doc
 
 
-def test_tetracordos_glifo_vectorial_cuarto_tono():
-    """Comprueba que el glifo de cuarto de tono sea un trazado vectorial y no dependa de caracteres SMuFL."""
-    from docente_ai.music.didactic import generar_svg_tetracordos
+def test_cents_y_hz_salen_de_la_misma_funcion():
+    """Comprueba que los cents y las frecuencias Hz se deriven deterministamente
+    de la misma función (calcular_afinacion_tetracordos) para ambas afinaciones."""
+    from docente_ai.music.didactic import calcular_afinacion_tetracordos
+
+    # Afinación pitagórica exacta
+    af_pit = calcular_afinacion_tetracordos('pitagorica')
+    g_pit = af_pit['generos']
+    assert g_pit['diatonico']['cents'] == [204, 204, 90]
+    assert g_pit['cromatico']['cents'] == [294, 114, 90]
+    assert g_pit['enarmonico']['cents'] == [408, 45, 45]
+    assert g_pit['diatonico']['frecuencias_hz'] == [330.0, 293.33, 260.74, 247.5]
+    assert g_pit['cromatico']['frecuencias_hz'] == [330.0, 278.44, 260.74, 247.5]
+    assert g_pit['enarmonico']['frecuencias_hz'] == [330.0, 260.74, 254.04, 247.5]
+
+    # Cuarto de tono sostenido en el enarmónico
+    nota_cuarto_pit = next(n for n in g_pit['enarmonico']['notas'] if 'si ↑¼' in n['nombre'])
+    assert round(nota_cuarto_pit['freq_hz'], 1) == 254.0
+
+    # Temperamento igual moderno (12-EDO)
+    af_temp = calcular_afinacion_tetracordos('temperada')
+    g_temp = af_temp['generos']
+    assert g_temp['diatonico']['cents'] == [200, 200, 100]
+    assert g_temp['cromatico']['cents'] == [300, 100, 100]
+    assert g_temp['enarmonico']['cents'] == [400, 50, 50]
+    assert g_temp['diatonico']['frecuencias_hz'] == [329.63, 293.66, 261.63, 246.94]
+    assert g_temp['cromatico']['frecuencias_hz'] == [329.63, 277.18, 261.63, 246.94]
+    assert g_temp['enarmonico']['frecuencias_hz'] == [329.63, 261.63, 254.18, 246.94]
+
+    nota_cuarto_temp = next(n for n in g_temp['enarmonico']['notas'] if 'si ↑¼' in n['nombre'])
+    assert round(nota_cuarto_temp['freq_hz'], 1) == 254.2
+
+
+def test_tetracordos_verovio_musicxml_stein_bravura():
+    """Comprueba que los tetracordos se rendericen con Verovio desde MusicXML
+    (clave de sol, sin plica, sin compás) y con el glifo de Stein extraído de Bravura."""
+    from docente_ai.music.didactic import (
+        generar_svg_tetracordos,
+        renderizar_tetracordos_verovio_svg,
+        resolver_componente_didactico,
+    )
 
     svg = generar_svg_tetracordos()
-    # No debe contener el carácter Unicode que falla en PDF sin fuentes SMuFL
-    assert '𝄲' not in svg
-    # Debe contener el trazado vectorial del semibemol (cuarto de tono)
-    assert 'stroke="#dc2626"' in svg
-    assert '<path d="M 0,-2 C -4.5,-2' in svg
-    # Nombre legible de la nota
-    assert 'Si(¼♭)3' in svg
+    assert '<svg' in svg
+    # Renderizado de Verovio
+    assert 'Verovio' in svg or 'gClef' in svg or 'staff' in svg
+    # Trazado vectorial del glifo de Stein extraído de la fuente Bravura
+    assert 'M106 179' in svg
+    assert '<g transform="translate(' in svg
+
+    # Resolver componente devuelve la afinación dual y partitura
+    res = resolver_componente_didactico('tetracordos')
+    assert res['tipo'] == 'tetracordos'
+    assert 'afinacion_pitagorica' in res
+    assert 'afinacion_temperada' in res
+    assert res['afinacion_pitagorica']['generos']['enarmonico']['cents'] == [408, 45, 45]
+
+
+def test_cronologia_autores_ficha_y_trece_autores_canonicos():
+    """Comprueba la existencia de la ficha cronologia_autores.yaml con verificado: false
+    y los 13 autores canónicos de Historia I con forma 'fl.' o 'c.'."""
+    from pathlib import Path
+    import yaml
+    from docente_ai.teaching.fichas import get_ficha, is_ficha_verified
+
+    f_path = Path('config/fichas/cronologia_autores.yaml')
+    assert f_path.is_file()
+    data = yaml.safe_load(f_path.read_text(encoding='utf-8'))
+
+    assert data['verificado'] is False
+    autores = data.get('autores', [])
+    assert len(autores) == 13
+
+    # Comprobar autores canónicos requeridos
+    ids = [a['id'] for a in autores]
+    requeridos = [
+        'pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides',
+        'nicomaco', 'ptolomeo', 'aristides_quintiliano', 'alipio',
+        'san_ambrosio', 'san_agustin', 'boecio', 'casiodoro'
+    ]
+    for r in requeridos:
+        assert r in ids
+
+    # Formas 'fl.' o 'c.'
+    for a in autores:
+        assert a['forma'] in ('fl.', 'c.')
+        assert any(prefix in a['fecha_display'] for prefix in ('fl.', 'c.'))
+
+    # Epitafio de Seikilos (obra) no debe ser autor
+    assert 'seikilos' not in ids
+    assert 'epitafio' not in ids
 
 
 def test_glosario_griego_ditono_cents_y_verificacion(tmp_path):
@@ -532,12 +608,10 @@ def test_glosario_griego_ditono_cents_y_verificacion(tmp_path):
     assert f_path.is_file()
     datos = yaml.safe_load(f_path.read_text(encoding='utf-8'))
 
-    # Comprobar definición exacta del ditono
     ditono = next(c for c in datos['conceptos'] if 'Ditono' in c['termino'])
     assert '81:64 ≈ 408 cents' in ditono['definicion']
     assert 'dítono temperado son 400 cents' in ditono['definicion']
 
-    # Ficha temporal para probar verificación
     test_ficha_file = tmp_path / 'glosario_test.yaml'
     test_ficha_file.write_text(yaml.safe_dump({
         'id': 'glosario_test',
@@ -555,5 +629,6 @@ def test_glosario_griego_ditono_cents_y_verificacion(tmp_path):
     assert ficha_post['verificado_por'] == 'profesor_test'
     assert 'verificado_en' in ficha_post
     assert is_ficha_verified(ficha_post) is True
+
 
 

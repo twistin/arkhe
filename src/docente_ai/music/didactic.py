@@ -603,70 +603,84 @@ FIGURAS_HISTORICAS_GRIEGAS = {
         'epoca': 'c. 427–347 a. C.',
         'ano_numerico': -387,
         'aproximado': True,
-        'obra_canon': 'La República (Timeo y educación musical)',
+        'obra_canon': 'La República y Timeo',
     },
     'aristoteles': {
         'nombre_canonico': 'Aristóteles',
         'epoca': 'c. 384–322 a. C.',
         'ano_numerico': -350,
         'aproximado': True,
-        'obra_canon': 'Política (Libro VIII: teoría del ethos)',
+        'obra_canon': 'Política y Problemata',
     },
     'aristoxeno': {
         'nombre_canonico': 'Aristóxeno de Tarento',
-        'epoca': 'c. 375–300 a. C.',
-        'ano_numerico': -335,
+        'epoca': 'fl. c. 330 a. C.',
+        'ano_numerico': -330,
         'aproximado': True,
         'obra_canon': 'Elementos de armonía (Harmonika Stoicheia)',
     },
     'euclides': {
         'nombre_canonico': 'Euclides / Pseudo-Euclides',
-        'epoca': 'c. 300 a. C.',
+        'epoca': 'fl. c. 300 a. C.',
         'ano_numerico': -300,
         'aproximado': True,
-        'obra_canon': 'División del canon (Sectio Canonis)',
-    },
-    'seikilos': {
-        'nombre_canonico': 'Epitafio de Seikilos',
-        'epoca': 'c. s. I–II d. C.',
-        'ano_numerico': 50,
-        'aproximado': True,
-        'obra_canon': 'Inscripción en estela funeraria (Tralles)',
+        'obra_canon': 'División del canon (Katatome kanonos)',
     },
     'nicomaco': {
         'nombre_canonico': 'Nicómaco de Gerasa',
-        'epoca': 'c. 60–120 d. C.',
+        'epoca': 'fl. c. 100 d. C.',
         'ano_numerico': 100,
         'aproximado': True,
         'obra_canon': 'Manual de armónica (Harmonikon encheiridion)',
     },
     'ptolomeo': {
         'nombre_canonico': 'Claudio Ptolomeo',
-        'epoca': 'c. 100–170 d. C.',
-        'ano_numerico': 140,
+        'epoca': 'fl. c. 150 d. C.',
+        'ano_numerico': 150,
         'aproximado': True,
         'obra_canon': 'Harmónicos (Harmonika)',
     },
+    'aristides_quintiliano': {
+        'nombre_canonico': 'Arístides Quintiliano',
+        'epoca': 'fl. c. 300 d. C.',
+        'ano_numerico': 300,
+        'aproximado': True,
+        'obra_canon': 'Sobre la música (Peri mousikes)',
+    },
     'alipio': {
         'nombre_canonico': 'Alipio de Alejandría',
-        'epoca': 'c. s. IV d. C.',
-        'ano_numerico': 350,
+        'epoca': 'fl. c. 360 d. C.',
+        'ano_numerico': 360,
         'aproximado': True,
         'obra_canon': 'Introducción a la música (Tablas notacionales)',
     },
-    'agustin': {
+    'san_ambrosio': {
+        'nombre_canonico': 'San Ambrosio de Milán',
+        'epoca': 'c. 340–397 d. C.',
+        'ano_numerico': 374,
+        'aproximado': True,
+        'obra_canon': 'Himnodia litúrgica y canto antifonal',
+    },
+    'san_agustin': {
         'nombre_canonico': 'San Agustín de Hipona',
-        'epoca': '354–430 d. C.',
+        'epoca': 'c. 354–430 d. C.',
         'ano_numerico': 390,
-        'aproximado': False,
-        'obra_canon': 'De musica (Seis libros)',
+        'aproximado': True,
+        'obra_canon': 'De Musica (seis libros sobre ritmo)',
     },
     'boecio': {
         'nombre_canonico': 'Anicio Manlio Torcuato Severino Boecio',
         'epoca': 'c. 480–524 d. C.',
         'ano_numerico': 505,
-        'aproximado': False,
-        'obra_canon': 'De institutione musica',
+        'aproximado': True,
+        'obra_canon': 'De institutione musica (Quadrivium)',
+    },
+    'casiodoro': {
+        'nombre_canonico': 'Flavio Magno Aurelio Casiodoro',
+        'epoca': 'c. 485–585 d. C.',
+        'ano_numerico': 540,
+        'aproximado': True,
+        'obra_canon': 'Institutiones divinarum et saecularium litterarum',
     },
 }
 
@@ -676,13 +690,37 @@ PATRONES_AUTORES = {
     'aristoteles': re.compile(r'\barist[oó]tel', re.IGNORECASE),
     'aristoxeno': re.compile(r'\barist[oó]xen', re.IGNORECASE),
     'euclides': re.compile(r'\beuclid', re.IGNORECASE),
-    'seikilos': re.compile(r'\bseikil|\bepitafio\b', re.IGNORECASE),
     'nicomaco': re.compile(r'\bnic[oó]mac', re.IGNORECASE),
     'ptolomeo': re.compile(r'\bptolom|\btolom', re.IGNORECASE),
+    'aristides_quintiliano': re.compile(r'\bar[ií]stides\s+quintilian|\bquintilian', re.IGNORECASE),
     'alipio': re.compile(r'\balipi', re.IGNORECASE),
-    'agustin': re.compile(r'\bagust[ií]n', re.IGNORECASE),
+    'san_ambrosio': re.compile(r'\bambrosio\b', re.IGNORECASE),
+    'san_agustin': re.compile(r'\bagust[ií]n\b', re.IGNORECASE),
     'boecio': re.compile(r'\bboec|\bboeth', re.IGNORECASE),
+    'casiodoro': re.compile(r'\bcasiodor', re.IGNORECASE),
 }
+
+
+def envolver_texto(texto: str, max_chars: int = 24) -> list[str]:
+    """Divide un texto en líneas respetando palabras para evitar que desborde de las tarjetas."""
+    if not texto:
+        return []
+    palabras = str(texto).split()
+    lineas = []
+    actual: list[str] = []
+    long_actual = 0
+    for p in palabras:
+        if long_actual + len(p) + (1 if actual else 0) <= max_chars:
+            actual.append(p)
+            long_actual += len(p) + (1 if len(actual) > 1 else 0)
+        else:
+            if actual:
+                lineas.append(' '.join(actual))
+            actual = [p]
+            long_actual = len(p)
+    if actual:
+        lineas.append(' '.join(actual))
+    return lineas
 
 
 def formatear_fuente_corta(autor: str, titulo: str, max_chars_titulo: int = 28) -> str:
@@ -715,10 +753,19 @@ def construir_hitos_linea_temporal(
 ) -> list[dict[str, Any]]:
     """Construye dinámicamente los hitos de la línea temporal a partir de las fuentes
     citadas de la propuesta y de los autores nombrados en claims y visualizaciones.
-    Un autor entra si un pasaje citado de la biblioteca lo documenta (se le nombra con su idea).
-    La fecha sale del pasaje o de una ficha verificada. Si no hay fecha documentada en el
-    pasaje ni en ficha, se coloca sin fecha en una franja aparte y en la guía docente
-    aparece '[fecha sin fuente]'."""
+    Solo entran personas (tratadistas). Obras y fuentes (Epitafio de Seikilos) no van a la línea.
+    La fecha sale de la ficha config/fichas/cronologia_autores.yaml cuando está verificada.
+    Mientras no esté verificada, se marca para no mostrar fechas al alumnado."""
+    from docente_ai.teaching.fichas import get_ficha, is_ficha_verified
+
+    ficha_cron = get_ficha('cronologia_autores')
+    cron_verificada = is_ficha_verified(ficha_cron)
+    mapa_ficha: dict[str, dict[str, Any]] = {}
+    if ficha_cron and isinstance(ficha_cron.get('autores'), list):
+        for a in ficha_cron['autores']:
+            if isinstance(a, dict) and 'id' in a:
+                mapa_ficha[a['id']] = a
+
     hitos: list[dict[str, Any]] = []
     autores_en_fuentes: dict[str, dict[str, Any]] = {}
 
@@ -730,17 +777,21 @@ def construir_hitos_linea_temporal(
 
     def _detectar_key(texto: str) -> str | None:
         t_norm = _normalizar(texto)
+        if 'seikil' in t_norm or 'epitaf' in t_norm:
+            return None  # Solo personas; las obras y estelas no van a la línea de tratadistas
+        if 'quintilian' in t_norm: return 'aristides_quintiliano'
+        if 'ambrosio' in t_norm: return 'san_ambrosio'
+        if 'casiodor' in t_norm: return 'casiodoro'
         if 'plat' in t_norm: return 'platon'
         if 'aristot' in t_norm: return 'aristoteles'
         if 'aristox' in t_norm: return 'aristoxeno'
         if 'pitag' in t_norm: return 'pitagoras'
         if 'nicom' in t_norm: return 'nicomaco'
         if 'ptol' in t_norm or 'tolom' in t_norm: return 'ptolomeo'
-        if 'seikil' in t_norm or 'epitaf' in t_norm: return 'seikilos'
         if 'euclid' in t_norm: return 'euclides'
-        if 'boec' in t_norm or 'boeth' in t_norm: return 'boecio'
         if 'alipi' in t_norm: return 'alipio'
-        if 'agust' in t_norm: return 'agustin'
+        if 'agust' in t_norm: return 'san_agustin'
+        if 'boec' in t_norm or 'boeth' in t_norm: return 'boecio'
         return None
 
     # 1. Extraer autores y obras de las fuentes y pasajes citados
@@ -756,28 +807,23 @@ def construir_hitos_linea_temporal(
         for key, pat in PATRONES_AUTORES.items():
             if pat.search(todo_texto):
                 canon = FIGURAS_HISTORICAS_GRIEGAS[key]
-                # Buscar si el pasaje contiene fecha biográfica explícita para este autor
-                tiene_fecha_en_pasaje = False
-                m_fechas = re.search(r'\(?\b(\d{2,4})\s*[-–—]\s*(\d{2,4})\b(?:\s*(?:d\.\s*C\.|a\.\s*C\.|\b))?\)?', texto_ev)
-                if m_fechas:
-                    y1, y2 = int(m_fechas.group(1)), int(m_fechas.group(2))
-                    if abs(y1 - canon['ano_numerico']) < 150 or abs(y2 - canon['ano_numerico']) < 150:
-                        tiene_fecha_en_pasaje = True
+                ficha_item = mapa_ficha.get(key) or {}
+                epoca_str = ficha_item.get('fecha_display') or canon['epoca']
+                ano_num = ficha_item.get('ano_numerico', canon['ano_numerico'])
+                obra_str = ficha_item.get('obra_canon') or canon['obra_canon']
 
-                es_autor_propio = bool(_detectar_key(autor_doc) == key)
-                fecha_documentada = tiene_fecha_en_pasaje or es_autor_propio
-
-                if key not in autores_en_fuentes or (fecha_documentada and not autores_en_fuentes[key].get('fecha_documentada')):
+                if key not in autores_en_fuentes:
                     autores_en_fuentes[key] = {
                         'key': key,
                         'autor': canon['nombre_canonico'],
-                        'epoca': canon['epoca'],
-                        'ano_numerico': canon['ano_numerico'],
-                        'aproximado': canon['aproximado'],
-                        'obra': canon['obra_canon'],
+                        'epoca': epoca_str,
+                        'ano_numerico': ano_num,
+                        'aproximado': canon.get('aproximado', True),
+                        'obra': obra_str,
                         'fuente': fuente_corta,
                         'sin_fuente': False,
-                        'fecha_documentada': fecha_documentada,
+                        'cronologia_verificada': cron_verificada,
+                        'fecha_documentada': cron_verificada,
                     }
 
     for item in autores_en_fuentes.values():
@@ -807,32 +853,39 @@ def construir_hitos_linea_temporal(
     for key in autores_mencionados:
         if key not in autores_en_fuentes and key in FIGURAS_HISTORICAS_GRIEGAS:
             canon = FIGURAS_HISTORICAS_GRIEGAS[key]
+            ficha_item = mapa_ficha.get(key) or {}
+            epoca_str = ficha_item.get('fecha_display') or canon['epoca']
+            ano_num = ficha_item.get('ano_numerico', canon['ano_numerico'])
+            obra_str = ficha_item.get('obra_canon') or canon['obra_canon']
             hitos.append({
                 'key': key,
                 'autor': canon['nombre_canonico'],
-                'epoca': canon['epoca'],
-                'ano_numerico': canon['ano_numerico'],
-                'aproximado': canon['aproximado'],
-                'obra': canon['obra_canon'],
+                'epoca': epoca_str,
+                'ano_numerico': ano_num,
+                'aproximado': canon.get('aproximado', True),
+                'obra': obra_str,
                 'fuente': 'sin fuente en la biblioteca',
                 'sin_fuente': True,
+                'cronologia_verificada': cron_verificada,
                 'fecha_documentada': False,
             })
 
-    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con las figuras canónicas
+    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con figuras canónicas
     if not hitos:
-        for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'seikilos', 'nicomaco', 'ptolomeo', 'agustin', 'boecio'):
+        for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'nicomaco', 'ptolomeo', 'san_agustin', 'boecio'):
             canon = FIGURAS_HISTORICAS_GRIEGAS[k]
+            ficha_item = mapa_ficha.get(k) or {}
             hitos.append({
                 'key': k,
                 'autor': canon['nombre_canonico'],
-                'epoca': canon['epoca'],
-                'ano_numerico': canon['ano_numerico'],
-                'aproximado': canon['aproximado'],
-                'obra': canon['obra_canon'],
+                'epoca': ficha_item.get('fecha_display') or canon['epoca'],
+                'ano_numerico': ficha_item.get('ano_numerico', canon['ano_numerico']),
+                'aproximado': canon.get('aproximado', True),
+                'obra': ficha_item.get('obra_canon') or canon['obra_canon'],
                 'fuente': 'Referencia histórica',
                 'sin_fuente': False,
-                'fecha_documentada': True,
+                'cronologia_verificada': cron_verificada,
+                'fecha_documentada': cron_verificada,
             })
 
     # Ordenar estrictamente por año cronológico
@@ -844,40 +897,121 @@ def generar_svg_linea_temporal(
     hitos: list[dict[str, Any]] | None = None,
     para_alumnado: bool = False,
     ancho: int = 980,
-    alto: int = 410
+    alto: int = 420
 ) -> str:
-    """Genera un SVG determinista del eje cronológico real (600 a. C. a 600 d. C.)
-    con distribución anticolisión y separación estricta:
-    - Autores con fecha documentada en el eje temporal.
-    - Autores sin fecha documentada en los pasajes en una franja horizontal aparte
-      en orden cronológico relativo, marcados con '[fecha sin fuente]' en la guía docente."""
+    """Genera un SVG determinista de la línea temporal:
+    - Si cronologia_autores está verificada: eje cronológico real con fechas.
+    - Si NO está verificada: el alumnado ve la línea temporal sin fechas (solo orden relativo histórico)
+      y la guía docente ve el aviso destacado.
+    - Tarjetas con ajuste automático de línea y alto para que no corten texto."""
     hitos = hitos or construir_hitos_linea_temporal()
 
-    # Si es para el alumnado, excluir autores sin fuente autorizada
     if para_alumnado:
         hitos = [h for h in hitos if not h.get('sin_fuente')]
 
-    hitos_con_fecha = [h for h in hitos if h.get('fecha_documentada') and not h.get('sin_fuente')]
-    hitos_sin_fecha = [h for h in hitos if not h.get('fecha_documentada') or h.get('sin_fuente')]
+    cron_verificada = any(h.get('cronologia_verificada') for h in hitos)
+    n = len(hitos)
+    if n == 0:
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} 100"><text x="20" y="50">Sin tratadistas disponibles</text></svg>'
 
-    tiene_franja = bool(hitos_sin_fecha)
-    if not tiene_franja:
-        alto = 370
-        y_eje = 185
-    else:
-        alto = 410
-        y_eje = 140
+    margen_x = 40
+    ancho_util = ancho - 2 * margen_x
 
+    # Caso 1: Para el alumnado y cronología no verificada -> Secuencia histórica sin fechas numéricas
+    if para_alumnado and not cron_verificada:
+        usar_grid = (n > 4)
+        alto_calc = 390 if usar_grid else 280
+        svg = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto_calc}" class="didactic-svg didactic-timeline-seq">',
+            '<style>',
+            '.tl-bg { fill: #f8fafc; rx: 8px; }',
+            '.tl-title { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #475569; letter-spacing: 0.5px; }',
+            '.tl-card-box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; rx: 6px; }',
+            '.tl-badge-ord { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 800; fill: #0284c7; }',
+            '.tl-card-name { font-family: system-ui, sans-serif; font-size: 11.5px; font-weight: 700; fill: #0f172a; }',
+            '.tl-card-work { font-family: system-ui, sans-serif; font-size: 9.5px; font-style: italic; fill: #475569; }',
+            '.tl-card-src { font-family: system-ui, sans-serif; font-size: 9px; font-weight: 600; fill: #64748b; }',
+            '.tl-guide-line { stroke: #0284c7; stroke-width: 2; stroke-dasharray: 4,4; }',
+            '.tl-ord-circle { fill: #0284c7; stroke: #ffffff; stroke-width: 2; }',
+            '.tl-ord-num { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 800; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }',
+            '</style>',
+            f'<rect width="{ancho}" height="{alto_calc}" class="tl-bg"/>',
+            f'<text x="{margen_x + 10}" y="26" class="tl-title">SECUENCIA HISTÓRICA DE TRATADISTAS CITADOS EN LAS FUENTES (ORDEN TEÓRICO RELATIVO)</text>',
+        ]
+
+        if not usar_grid:
+            espacio_x = ancho_util / n
+            y_base = 50
+            for idx, h in enumerate(hitos):
+                cx = margen_x + idx * espacio_x
+                cw = espacio_x - 14
+                lineas_nombre = envolver_texto(h['autor'], max_chars=int(cw / 7.5))
+                lineas_obra = envolver_texto(h.get('obra', ''), max_chars=int(cw / 6.5))
+                lineas_fuente = envolver_texto(h.get('fuente', ''), max_chars=int(cw / 6.0))
+                h_card = 28 + len(lineas_nombre) * 14 + len(lineas_obra) * 12 + len(lineas_fuente) * 12 + 10
+                cy = y_base + 35
+                nx = cx + cw / 2
+                svg.append(f'<circle cx="{nx}" cy="{y_base + 12}" r="12" class="tl-ord-circle"/>')
+                svg.append(f'<text x="{nx}" y="{y_base + 12}" class="tl-ord-num">{idx + 1}</text>')
+                svg.append(f'<line x1="{nx}" y1="{y_base + 24}" x2="{nx}" y2="{cy}" class="tl-guide-line"/>')
+                svg.append(f'<rect x="{cx}" y="{cy}" width="{cw}" height="{h_card}" class="tl-card-box"/>')
+                cur_y = cy + 18
+                for ln in lineas_nombre:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-name">{ln}</text>')
+                    cur_y += 14
+                cur_y += 2
+                for ln in lineas_obra:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-work">{ln}</text>')
+                    cur_y += 12
+                cur_y += 2
+                for ln in lineas_fuente:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-src">{ln}</text>')
+                    cur_y += 12
+        else:
+            cols = 4
+            col_w = (ancho_util - (cols - 1) * 14) / cols
+            for idx, h in enumerate(hitos):
+                row = idx // cols
+                col = idx % cols
+                cx = margen_x + col * (col_w + 14)
+                cy = 45 + row * 165
+                lineas_nombre = envolver_texto(h['autor'], max_chars=24)
+                lineas_obra = envolver_texto(h.get('obra', ''), max_chars=26)
+                lineas_fuente = envolver_texto(h.get('fuente', ''), max_chars=28)
+                h_card = 24 + len(lineas_nombre) * 14 + len(lineas_obra) * 12 + len(lineas_fuente) * 12 + 8
+                svg.append(f'<rect x="{cx}" y="{cy}" width="{col_w}" height="{h_card}" class="tl-card-box"/>')
+                svg.append(f'<circle cx="{cx + 16}" cy="{cy + 16}" r="9" class="tl-ord-circle"/>')
+                svg.append(f'<text x="{cx + 16}" y="{cy + 16}" class="tl-ord-num" style="font-size:9.5px;">{idx + 1}</text>')
+                cur_y = cy + 20
+                svg.append(f'<text x="{cx + 32}" y="{cur_y}" class="tl-badge-ord">TRATADISTA {idx + 1}</text>')
+                cur_y += 18
+                for ln in lineas_nombre:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-name">{ln}</text>')
+                    cur_y += 14
+                cur_y += 2
+                for ln in lineas_obra:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-work">{ln}</text>')
+                    cur_y += 12
+                cur_y += 2
+                for ln in lineas_fuente:
+                    svg.append(f'<text x="{cx + 10}" y="{cur_y}" class="tl-card-src">{ln}</text>')
+                    cur_y += 12
+
+        svg.append('</svg>')
+        return '\n'.join(svg)
+
+    # Caso 2: Guía docente o Ficha verificada (Eje real de siglos con fechas)
+    alto_real = 440
+    y_eje = 160
     ano_min = -600
     ano_max = 600
-    margen_x = 75
     ancho_eje = ancho - 2 * margen_x
 
     def ano_a_x(ano: int) -> float:
         return margen_x + ((ano - ano_min) / (ano_max - ano_min)) * ancho_eje
 
     svg = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}" class="didactic-svg didactic-timeline">',
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto_real}" class="didactic-svg didactic-timeline">',
         '<style>',
         '.tl-bg { fill: #f8fafc; rx: 8px; }',
         '.tl-axis { stroke: #0f172a; stroke-width: 2.5; stroke-linecap: round; }',
@@ -891,22 +1025,26 @@ def generar_svg_linea_temporal(
         '.tl-card-date { font-family: system-ui, sans-serif; font-size: 9.5px; fill: #0284c7; font-weight: 600; }',
         '.tl-card-work { font-family: system-ui, sans-serif; font-size: 9px; fill: #475569; font-style: italic; }',
         '.tl-card-warn { font-family: system-ui, sans-serif; font-size: 8.5px; font-weight: 700; fill: #b91c1c; }',
-        '.tl-shelf-bg { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; rx: 6px; }',
-        '.tl-shelf-title { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: #475569; letter-spacing: 0.5px; }',
+        '.tl-notice-box { fill: #fffbeb; stroke: #fde68a; stroke-width: 1.2; rx: 6px; }',
+        '.tl-notice-text { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: #b45309; }',
         '</style>',
-        f'<rect width="{ancho}" height="{alto}" class="tl-bg"/>',
-        # Eje cronológico principal
-        f'<line x1="{margen_x}" y1="{y_eje}" x2="{ancho - margen_x}" y2="{y_eje}" class="tl-axis"/>',
+        f'<rect width="{ancho}" height="{alto_real}" class="tl-bg"/>',
     ]
 
-    # Separador a. C. / d. C. en año 0
-    x_cero = ano_a_x(0)
-    y_sep_max = y_eje + 80 if not tiene_franja else y_eje + 65
-    svg.append(f'<line x1="{x_cero}" y1="20" x2="{x_cero}" y2="{y_sep_max}" class="tl-era-divide"/>')
-    svg.append(f'<text x="{x_cero - 12}" y="32" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
-    svg.append(f'<text x="{x_cero + 12}" y="32" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
+    if not cron_verificada:
+        svg.append(f'<rect x="{margen_x}" y="12" width="{ancho_eje}" height="28" class="tl-notice-box"/>')
+        svg.append(
+            f'<text x="{ancho // 2}" y="30" class="tl-notice-text" style="text-anchor:middle;">'
+            '⚠️ Ficha cronologia_autores pendiente de verificación — en material del alumnado solo se muestra el orden sin fechas'
+            '</text>'
+        )
 
-    # Marcas de siglos
+    svg.append(f'<line x1="{margen_x}" y1="{y_eje}" x2="{ancho - margen_x}" y2="{y_eje}" class="tl-axis"/>')
+    x_cero = ano_a_x(0)
+    svg.append(f'<line x1="{x_cero}" y1="48" x2="{x_cero}" y2="{y_eje + 80}" class="tl-era-divide"/>')
+    svg.append(f'<text x="{x_cero - 12}" y="60" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
+    svg.append(f'<text x="{x_cero + 12}" y="60" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
+
     siglos = [
         (-600, 'VI a.C.'), (-500, 'V a.C.'), (-400, 'IV a.C.'), (-300, 'III a.C.'),
         (-200, 'II a.C.'), (-100, 'I a.C.'), (0, '0'), (100, 'I d.C.'),
@@ -917,212 +1055,220 @@ def generar_svg_linea_temporal(
         svg.append(f'<line x1="{xs}" y1="{y_eje - 4}" x2="{xs}" y2="{y_eje + 4}" class="tl-century-tick"/>')
         svg.append(f'<text x="{xs}" y="{y_eje + 15}" class="tl-century-label">{texto_siglo}</text>')
 
-    # 1. Hitos en el eje con fecha documentada
-    alturas_arriba = [y_eje - 75, y_eje - 45]
-    alturas_abajo = [y_eje + 35, y_eje + 65]
-    ultimo_x_arriba = -999.0
-    ultimo_nivel_arriba = 0
-    ultimo_x_abajo = -999.0
-    ultimo_nivel_abajo = 0
-
-    for i, hito in enumerate(hitos_con_fecha):
+    for i, hito in enumerate(hitos):
         x_nodo = ano_a_x(hito['ano_numerico'])
         arriba = (i % 2 == 0)
-
-        if arriba:
-            nivel = 1 - ultimo_nivel_arriba if abs(x_nodo - ultimo_x_arriba) < 130 else 0
-            ultimo_x_arriba = x_nodo
-            ultimo_nivel_arriba = nivel
-            y_tarjeta = alturas_arriba[nivel]
-            y_stem = y_tarjeta + 26
-        else:
-            nivel = 1 - ultimo_nivel_abajo if abs(x_nodo - ultimo_x_abajo) < 130 else 0
-            ultimo_x_abajo = x_nodo
-            ultimo_nivel_abajo = nivel
-            y_tarjeta = alturas_abajo[nivel]
-            y_stem = y_tarjeta - 10
+        y_stem = y_eje - 50 if arriba else y_eje + 65
+        y_txt = y_stem - 24 if arriba else y_stem + 14
 
         svg.append(f'<line x1="{x_nodo}" y1="{y_eje}" x2="{x_nodo}" y2="{y_stem}" class="tl-stem"/>')
         svg.append(f'<circle cx="{x_nodo}" cy="{y_eje}" r="5.5" class="tl-node"/>')
 
         anchor = 'middle'
-        if x_nodo < margen_x + 50:
+        if x_nodo < margen_x + 60:
             anchor = 'start'
-        elif x_nodo > ancho - margen_x - 50:
+        elif x_nodo > ancho - margen_x - 60:
             anchor = 'end'
 
-        aprox_mark = ' (aprox.)' if hito.get('aproximado') else ''
-        autor_txt = hito['autor']
-        if len(autor_txt) > 28:
-            autor_txt = autor_txt.split()[0] + ' ' + autor_txt.split()[-1]
+        autor_ln = envolver_texto(hito['autor'], 22)
+        cur_y = y_txt
+        for ln in autor_ln:
+            svg.append(f'<text x="{x_nodo}" y="{cur_y}" class="tl-card-author" style="text-anchor:{anchor};">{ln}</text>')
+            cur_y += 12
 
-        svg.append(f'<text x="{x_nodo}" y="{y_tarjeta}" class="tl-card-author" style="text-anchor:{anchor};">{autor_txt}</text>')
-        svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 12}" class="tl-card-date" style="text-anchor:{anchor};">{hito["epoca"]}{aprox_mark}</text>')
+        fecha_lbl = hito['epoca'] if cron_verificada else f"{hito['epoca']} [sin verificar]"
+        if hito.get('sin_fuente'):
+            fecha_lbl += ' [sin fuente]'
+        svg.append(f'<text x="{x_nodo}" y="{cur_y}" class="tl-card-date" style="text-anchor:{anchor};">{fecha_lbl}</text>')
+        cur_y += 11
+
         fuente_lbl = hito.get('fuente') or hito.get('obra', '')
-        svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 23}" class="tl-card-work" style="text-anchor:{anchor};">{fuente_lbl}</text>')
-
-    # 2. Franja horizontal aparte para autores sin fecha documentada
-    if tiene_franja:
-        y_shelf = y_eje + 75
-        h_shelf = alto - y_shelf - 18
-        svg.append(f'<rect x="{margen_x}" y="{y_shelf}" width="{ancho_eje}" height="{h_shelf}" class="tl-shelf-bg"/>')
-        svg.append(
-            f'<text x="{margen_x + 14}" y="{y_shelf + 18}" class="tl-shelf-title">'
-            'TRATADISTAS CITADOS EN FUENTES · REFERENCIAS TEÓRICAS SIN FECHA DOCUMENTADA EN EL PASAJE'
-            '</text>'
-        )
-
-        n_cards = len(hitos_sin_fecha)
-        card_gap = 12
-        card_w = (ancho_eje - 28 - (n_cards - 1) * card_gap) / max(n_cards, 1)
-
-        for idx, hito in enumerate(hitos_sin_fecha):
-            cx = margen_x + 14 + idx * (card_w + card_gap)
-            cy = y_shelf + 28
-            ch = h_shelf - 38
-
-            svg.append(f'<rect x="{cx}" y="{cy}" width="{card_w}" height="{ch}" rx="4" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>')
-
-            autor_txt = hito['autor']
-            if len(autor_txt) > 24:
-                autor_txt = autor_txt.split()[0] + ' ' + autor_txt.split()[-1]
-
-            svg.append(f'<text x="{cx + 10}" y="{cy + 17}" class="tl-card-author">{autor_txt}</text>')
-
-            if hito.get('sin_fuente'):
-                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-warn">[sin fuente en la biblioteca]</text>')
-            elif not para_alumnado:
-                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-warn">[fecha sin fuente]</text>')
-            else:
-                obra_txt = hito.get('obra', 'Tratado teórico')
-                if len(obra_txt) > 24:
-                    obra_txt = obra_txt[:24].rsplit(' ', 1)[0]
-                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-date">{obra_txt}</text>')
-
-            fuente_txt = hito.get('fuente') or 'Fuente documental'
-            svg.append(f'<text x="{cx + 10}" y="{cy + 43}" class="tl-card-work">{fuente_txt}</text>')
+        if hito.get('sin_fuente') and not fuente_lbl.startswith('['):
+            fuente_lbl = f"[{fuente_lbl}]"
+        lineas_fuente = [fuente_lbl] if hito.get('sin_fuente') else envolver_texto(fuente_lbl, 28)
+        for ln in lineas_fuente:
+            svg.append(f'<text x="{x_nodo}" y="{cur_y}" class="tl-card-work" style="text-anchor:{anchor};">{ln}</text>')
+            cur_y += 10
 
     svg.append('</svg>')
     return '\n'.join(svg)
 
 
 # ============================================================================
-# 5. TETRACORDOS SVG (Tres géneros con afinación dual)
+# 5. TETRACORDOS (Tres géneros con Verovio y afinación dual)
 # ============================================================================
 
-def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
-    """Genera un SVG determinista de la partitura de los tres géneros de tetracordos
-    (diatónico, cromático y enarmónico con cuarto de tono vectorial), con pentagramas limpios."""
-    svg = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}" class="didactic-svg didactic-tetracordos">',
-        '<style>',
-        '.tc-bg { fill: #fcfcfd; rx: 8px; }',
-        '.tc-box { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 6px; }',
-        '.tc-gen-title { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #0f172a; }',
-        '.tc-gen-sub { font-family: system-ui, sans-serif; font-size: 10px; fill: #64748b; }',
-        '.tc-staff { stroke: #cbd5e1; stroke-width: 1; }',
-        '.tc-bar { stroke: #475569; stroke-width: 2; }',
-        '.tc-note { fill: #0f172a; cursor: pointer; transition: fill 0.15s; }',
-        '.tc-note:hover { fill: #2563eb; }',
-        '.tc-note-name { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #334155; text-anchor: middle; }',
-        '.tc-acc { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #b45309; text-anchor: middle; }',
-        '.tc-quarter-acc { font-family: system-ui, sans-serif; font-size: 14px; font-weight: 700; fill: #dc2626; text-anchor: middle; }',
-        '.tc-hz-label { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #0284c7; text-anchor: middle; }',
-        '.tc-badge { font-family: system-ui, sans-serif; font-size: 9.5px; font-weight: 600; fill: #0284c7; }',
-        '</style>',
-        f'<rect width="{ancho}" height="{alto}" class="tc-bg"/>',
-    ]
+def calcular_afinacion_tetracordos(sistema: str = 'pitagorica') -> dict[str, Any]:
+    """Calcula deterministamente los cents y frecuencias Hz de los tres géneros
+    de tetracordos (diatónico, cromático, enarmónico) a partir de la misma función:
+    Pitagórica:
+      - Diatónico:  204 + 204 + 90  (suma 498 cents)
+      - Cromático:  294 + 114 + 90  (suma 498 cents)
+      - Enarmónico: 408 +  45 + 45  (suma 498 cents)
+    Temperada:
+      - Diatónico:  200 + 200 + 100 (suma 500 cents)
+      - Cromático:  300 + 100 + 100 (suma 500 cents)
+      - Enarmónico: 400 +  50 +  50 (suma 500 cents)
+    Nota de cuarto de tono en el enarmónico: 'si ↑¼' a 254.0 Hz.
+    """
+    sistema = (sistema or 'pitagorica').lower().strip()
+    if sistema not in ('pitagorica', 'temperada'):
+        sistema = 'pitagorica'
 
-    generos = [
-        {
-            'nombre': '1. Género Diatónico',
-            'sub1': 'Tono – Tono – Semitono',
-            'sub2': '(200 + 200 + 100 = 500 cents)',
-            'notas': [
-                {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
-                {'nombre': 'Re4', 'y_line': 2, 'freq_pit': '293.3 Hz', 'freq_temp': '293.7 Hz', 'acc': None},
-                {'nombre': 'Do4', 'y_line': 3, 'freq_pit': '260.7 Hz', 'freq_temp': '261.6 Hz', 'acc': None},
-                {'nombre': 'Si3', 'y_line': 4, 'freq_pit': '247.5 Hz', 'freq_temp': '246.9 Hz', 'acc': None},
-            ]
-        },
-        {
-            'nombre': '2. Género Cromático',
-            'sub1': 'Trihemitono – Semitono – Semitono',
-            'sub2': '(300 + 100 + 100 = 500 cents)',
-            'notas': [
-                {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
-                {'nombre': 'Do♯4', 'y_line': 3, 'freq_pit': '278.4 Hz', 'freq_temp': '277.2 Hz', 'acc': '♯'},
-                {'nombre': 'Do♮4', 'y_line': 3, 'freq_pit': '260.7 Hz', 'freq_temp': '261.6 Hz', 'acc': '♮'},
-                {'nombre': 'Si3', 'y_line': 4, 'freq_pit': '247.5 Hz', 'freq_temp': '246.9 Hz', 'acc': None},
-            ]
-        },
-        {
-            'nombre': '3. Género Enarmónico (cuartos de tono)',
-            'sub1': 'Ditono – Díesis – Díesis',
-            'sub2': '(400 + 50 + 50 = 500 cents)',
-            'notas': [
-                {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
-                {'nombre': 'Do♮4', 'y_line': 3, 'freq_pit': '260.7 Hz', 'freq_temp': '261.6 Hz', 'acc': '♮'},
-                {'nombre': 'Si(¼♭)3', 'y_line': 4, 'freq_pit': '254.0 Hz', 'freq_temp': '254.2 Hz', 'acc': 'vector_quarter'},
-                {'nombre': 'Si3', 'y_line': 4, 'freq_pit': '247.5 Hz', 'freq_temp': '246.9 Hz', 'acc': None},
-            ]
-        },
-    ]
+    if sistema == 'pitagorica':
+        return {
+            'sistema': 'pitagorica',
+            'nombre_sistema': 'Afinación pitagórica exacta (proporciones puras)',
+            'generos': {
+                'diatonico': {
+                    'nombre': '1. Género Diatónico',
+                    'formula': 'Tono – Tono – Semitono (Límma)',
+                    'cents': [204, 204, 90],
+                    'suma_cents': 498,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 330.0, 'cents_intervalo': 0},
+                        {'nombre': 'Re4', 'freq_hz': 293.33, 'cents_intervalo': 204},
+                        {'nombre': 'Do4', 'freq_hz': 260.74, 'cents_intervalo': 204},
+                        {'nombre': 'Si3', 'freq_hz': 247.5, 'cents_intervalo': 90},
+                    ],
+                    'frecuencias_hz': [330.0, 293.33, 260.74, 247.5],
+                },
+                'cromatico': {
+                    'nombre': '2. Género Cromático',
+                    'formula': 'Trihemitono – Semitono – Semitono',
+                    'cents': [294, 114, 90],
+                    'suma_cents': 498,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 330.0, 'cents_intervalo': 0},
+                        {'nombre': 'Do♯4', 'freq_hz': 278.44, 'cents_intervalo': 294},
+                        {'nombre': 'Do♮4', 'freq_hz': 260.74, 'cents_intervalo': 114},
+                        {'nombre': 'Si3', 'freq_hz': 247.5, 'cents_intervalo': 90},
+                    ],
+                    'frecuencias_hz': [330.0, 278.44, 260.74, 247.5],
+                },
+                'enarmonico': {
+                    'nombre': '3. Género Enarmónico (cuartos de tono)',
+                    'formula': 'Dítono – Díesis – Díesis',
+                    'cents': [408, 45, 45],
+                    'suma_cents': 498,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 330.0, 'cents_intervalo': 0},
+                        {'nombre': 'Do4', 'freq_hz': 260.74, 'cents_intervalo': 408},
+                        {'nombre': 'si ↑¼', 'freq_hz': 254.04, 'cents_intervalo': 45},
+                        {'nombre': 'Si3', 'freq_hz': 247.5, 'cents_intervalo': 45},
+                    ],
+                    'frecuencias_hz': [330.0, 260.74, 254.04, 247.5],
+                },
+            },
+        }
+    else:  # temperada
+        return {
+            'sistema': 'temperada',
+            'nombre_sistema': 'Temperamento igual moderno (12-EDO)',
+            'generos': {
+                'diatonico': {
+                    'nombre': '1. Género Diatónico',
+                    'formula': 'Tono – Tono – Semitono',
+                    'cents': [200, 200, 100],
+                    'suma_cents': 500,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 329.63, 'cents_intervalo': 0},
+                        {'nombre': 'Re4', 'freq_hz': 293.66, 'cents_intervalo': 200},
+                        {'nombre': 'Do4', 'freq_hz': 261.63, 'cents_intervalo': 200},
+                        {'nombre': 'Si3', 'freq_hz': 246.94, 'cents_intervalo': 100},
+                    ],
+                    'frecuencias_hz': [329.63, 293.66, 261.63, 246.94],
+                },
+                'cromatico': {
+                    'nombre': '2. Género Cromático',
+                    'formula': 'Trihemitono – Semitono – Semitono',
+                    'cents': [300, 100, 100],
+                    'suma_cents': 500,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 329.63, 'cents_intervalo': 0},
+                        {'nombre': 'Do♯4', 'freq_hz': 277.18, 'cents_intervalo': 300},
+                        {'nombre': 'Do♮4', 'freq_hz': 261.63, 'cents_intervalo': 100},
+                        {'nombre': 'Si3', 'freq_hz': 246.94, 'cents_intervalo': 100},
+                    ],
+                    'frecuencias_hz': [329.63, 277.18, 261.63, 246.94],
+                },
+                'enarmonico': {
+                    'nombre': '3. Género Enarmónico (cuartos de tono)',
+                    'formula': 'Dítono – Díesis – Díesis',
+                    'cents': [400, 50, 50],
+                    'suma_cents': 500,
+                    'notas': [
+                        {'nombre': 'Mi4', 'freq_hz': 329.63, 'cents_intervalo': 0},
+                        {'nombre': 'Do4', 'freq_hz': 261.63, 'cents_intervalo': 400},
+                        {'nombre': 'si ↑¼', 'freq_hz': 254.18, 'cents_intervalo': 50},
+                        {'nombre': 'Si3', 'freq_hz': 246.94, 'cents_intervalo': 50},
+                    ],
+                    'frecuencias_hz': [329.63, 261.63, 254.18, 246.94],
+                },
+            },
+        }
 
-    box_w = (ancho - 48 - 32) / 3
-    for g_idx, gen in enumerate(generos):
-        bx = 24 + g_idx * (box_w + 16)
-        by = 24
-        bh = alto - 44
-        svg.append(f'<rect x="{bx}" y="{by}" width="{box_w}" height="{bh}" class="tc-box"/>')
-        svg.append(f'<text x="{bx + 14}" y="{by + 22}" class="tc-gen-title">{gen["nombre"]}</text>')
-        svg.append(f'<text x="{bx + 14}" y="{by + 36}" class="tc-gen-sub">{gen["sub1"]}</text>')
-        svg.append(f'<text x="{bx + 14}" y="{by + 48}" class="tc-gen-sub">{gen["sub2"]}</text>')
 
-        # Pentagrama (5 líneas)
-        staff_base = by + 78
-        line_step = 12
-        for l in range(5):
-            ly = staff_base + l * line_step
-            svg.append(f'<line x1="{bx + 20}" y1="{ly}" x2="{bx + box_w - 20}" y2="{ly}" class="tc-staff"/>')
+def renderizar_tetracordos_verovio_svg(xml_content: str | None = None) -> str:
+    """Renderiza con Verovio el MusicXML de los tres géneros de tetracordos
+    (clave de sol, notas sin plica, sin compás) y convierte el glifo de Stein
+    (accidentalQuarterToneSharpStein, SMuFL E282) a un trazado vectorial explícito
+    extraído de la fuente Bravura para garantizar su impresión idéntica en PDF."""
+    from pathlib import Path
+    import re
+    import verovio
 
-        # Barras divisorias en extremos
-        svg.append(f'<line x1="{bx + 20}" y1="{staff_base}" x2="{bx + 20}" y2="{staff_base + 4 * line_step}" class="tc-bar"/>')
-        svg.append(f'<line x1="{bx + box_w - 20}" y1="{staff_base}" x2="{bx + box_w - 20}" y2="{staff_base + 4 * line_step}" class="tc-bar"/>')
+    if not xml_content:
+        from docente_ai.music.greek import generar_partitura_tres_generos_musicxml
+        xml_content = generar_partitura_tres_generos_musicxml()
 
-        n_space = (box_w - 80) / 3
-        for n_idx, notita in enumerate(gen['notas']):
-            nx = bx + 40 + n_idx * n_space
-            ny = staff_base + notita['y_line'] * (line_step / 2) + 12
+    data_dir = Path(verovio.__file__).parent / "data"
+    tk = verovio.toolkit(False)
+    if data_dir.is_dir():
+        tk.setResourcePath(str(data_dir))
 
-            # Cabeza de nota (sin plica)
-            svg.append(f'<ellipse cx="{nx}" cy="{ny}" rx="6" ry="4.5" class="tc-note"/>')
+    tk.setOptions({
+        "pageWidth": 1800,
+        "pageHeight": 450,
+        "scale": 45,
+        "adjustPageHeight": True,
+        "breaks": "none",
+        "header": "none",
+        "footer": "none",
+    })
+    tk.loadData(xml_content)
+    if tk.getPageCount() < 1:
+        return ""
+    svg = tk.renderToSVG(1)
 
-            # Alteración
-            if notita['acc'] == 'vector_quarter':
-                svg.append(
-                    f'<g transform="translate({nx - 14},{ny + 1})">'
-                    f'<line x1="0" y1="-12" x2="0" y2="4" stroke="#dc2626" stroke-width="1.6" stroke-linecap="round"/>'
-                    f'<path d="M 0,-2 C -4.5,-2 -7.5,-4.8 -7.5,-8 C -7.5,-11 -4.5,-12.5 0,-10 Z" fill="#dc2626"/>'
+    sym_m = re.search(r'<symbol id="(E282[^"]*)"[^>]*>([\s\S]*?)</symbol>', svg)
+    if sym_m:
+        sym_id = sym_m.group(1)
+        path_m = re.search(r'<path[^>]*d="([^"]+)"', sym_m.group(2))
+        if path_m:
+            path_d = path_m.group(1)
+            use_pattern = re.compile(
+                rf'<use[^>]*xlink:href="#{re.escape(sym_id)}"[^>]*x="([^"]+)"[^>]*y="([^"]+)"[^>]*height="([^"]+)"[^>]*width="([^"]+)"[^>]*/>'
+            )
+            def _repl(m):
+                x = m.group(1)
+                y = m.group(2)
+                h_val = float(m.group(3).replace("px", ""))
+                scale = h_val / 1000.0
+                return (
+                    f'<g transform="translate({x}, {y}) scale({scale})">'
+                    f'<path transform="scale(1,-1)" d="{path_d}" fill="currentColor" />'
                     f'</g>'
                 )
-            elif notita['acc']:
-                svg.append(f'<text x="{nx - 14}" y="{ny + 5}" class="{ "tc-quarter-acc" if "¼" in notita["acc"] else "tc-acc" }">{notita["acc"]}</text>')
+            svg = use_pattern.sub(_repl, svg)
 
-            # Nombre de la nota
-            svg.append(f'<text x="{nx}" y="{by + 162}" class="tc-note-name">{notita["nombre"]}</text>')
-            # Frecuencia (pitagórica por defecto)
-            svg.append(
-                f'<text x="{nx}" y="{by + 177}" class="tc-hz-label" '
-                f'data-tc-gen="{g_idx}" data-tc-note="{n_idx}" '
-                f'data-freq-pit="{notita["freq_pit"]}" data-freq-temp="{notita["freq_temp"]}">'
-                f'{notita["freq_pit"]}</text>'
-            )
+    return svg
 
-        svg.append(f'<text x="{bx + 14}" y="{by + bh - 14}" class="tc-badge">Web Audio: afinación pitagórica exacta</text>')
 
-    svg.append('</svg>')
-    return '\n'.join(svg)
+def generar_svg_tetracordos(sistema: str = 'pitagorica') -> str:
+    """Genera la partitura de tetracordos renderizada con Verovio desde MusicXML
+    (clave de sol, sin plica, sin compás, y cuarto de tono con trazado de Stein)."""
+    return renderizar_tetracordos_verovio_svg()
 
 
 # ============================================================================
@@ -1145,25 +1291,30 @@ def resolver_componente_didactico(
     if tipo in ('tetracordos', 'tetracordo'):
         from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
         archivo = asegurar_archivo_partitura_tres_generos()
-        svg = generar_svg_tetracordos()
+        svg_partitura = renderizar_tetracordos_verovio_svg()
+        af_pit = calcular_afinacion_tetracordos('pitagorica')
+        af_temp = calcular_afinacion_tetracordos('temperada')
         return {
             'tipo': 'tetracordos',
             'titulo': 'Tetracordo descendente mi–si en los tres géneros',
             'archivo_partitura': archivo,
-            'svg': svg,
+            'svg': svg_partitura,
+            'svg_partitura': svg_partitura,
+            'afinacion_pitagorica': af_pit,
+            'afinacion_temperada': af_temp,
             'afinados': {
                 'pitagorica': {
-                    'diatonico': [330.0, 293.33, 260.74, 247.5],
-                    'cromatico': [330.0, 278.44, 260.74, 247.5],
-                    'enarmonico': [330.0, 260.74, 254.04, 247.5],
+                    'diatonico': af_pit['generos']['diatonico']['frecuencias_hz'],
+                    'cromatico': af_pit['generos']['cromatico']['frecuencias_hz'],
+                    'enarmonico': af_pit['generos']['enarmonico']['frecuencias_hz'],
                 },
                 'temperada': {
-                    'diatonico': [329.63, 293.66, 261.63, 246.94],
-                    'cromatico': [329.63, 277.18, 261.63, 246.94],
-                    'enarmonico': [329.63, 261.63, 254.18, 246.94],
+                    'diatonico': af_temp['generos']['diatonico']['frecuencias_hz'],
+                    'cromatico': af_temp['generos']['cromatico']['frecuencias_hz'],
+                    'enarmonico': af_temp['generos']['enarmonico']['frecuencias_hz'],
                 },
             },
-            'frecuencias_hz': [330.0, 293.33, 260.74, 247.5],  # Diatónico pitagórico por defecto
+            'frecuencias_hz': af_pit['generos']['diatonico']['frecuencias_hz'],
             'descripcion': 'Ilustración de la subdivisión del intervalo de cuarta en los géneros diatónico, cromático y enarmónico.',
             'calculado_teoria': True,
             'verificado': True,

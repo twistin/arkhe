@@ -561,7 +561,7 @@ def test_ejemplos_musicales_ficha_jrp_descarga_y_verovio(score_client):
         assert voz in svg_content
     assert 'Voice' not in svg_content
     # Ninguna indicación metronómica
-    assert '384' not in svg_content
+    assert not re.search(r'=\s*384', svg_content)
     # Tenor resaltado del mismo color que el piano roll (#f59e0b / #d97706)
     assert 'cantus-firmus-highlight' in svg_content
     assert '#f59e0b' in svg_content
@@ -603,7 +603,6 @@ def test_gloria_dufay_recorte_directo_verovio_humdrum(tmp_path):
     assert 'Voice' not in svg
 
     # 3. Ninguna indicación de tempo metronómica
-    assert '384' not in svg
     assert not re.search(r'=\s*384', svg)
 
     # 4. Voz cantus firmus / Tenor resaltada

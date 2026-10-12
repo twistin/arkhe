@@ -1,0 +1,95 @@
+id: cronologia_autores
+tema: Cronología de autores de Historia de la Música I
+verificado: false
+
+autores:
+  - id: pitagoras
+    nombre: Pitágoras de Samos
+    fecha_display: "c. 570–495 a. C."
+    ano_numerico: -530
+    forma: "c."
+    obra_canon: "Acústica del monocordio y proporciones consonantes"
+
+  - id: platon
+    nombre: Platón
+    fecha_display: "c. 427–347 a. C."
+    ano_numerico: -387
+    forma: "c."
+    obra_canon: "La República y Timeo (ethos y armonía del cosmos)"
+
+  - id: aristoteles
+    nombre: Aristóteles
+    fecha_display: "c. 384–322 a. C."
+    ano_numerico: -350
+    forma: "c."
+    obra_canon: "Política y Problemata (mímesis, catarsis y acústica)"
+
+  - id: aristoxeno
+    nombre: Aristóxeno de Tarento
+    fecha_display: "fl. c. 330 a. C."
+    ano_numerico: -330
+    forma: "fl."
+    obra_canon: "Elementos de armonía y Elementos de rítmica"
+
+  - id: euclides
+    nombre: Euclides / Pseudo-Euclides
+    fecha_display: "fl. c. 300 a. C."
+    ano_numerico: -300
+    forma: "fl."
+    obra_canon: "División del canon (Katatome kanonos)"
+
+  - id: nicomaco
+    nombre: Nicómaco de Gerasa
+    fecha_display: "fl. c. 100 d. C."
+    ano_numerico: 100
+    forma: "fl."
+    obra_canon: "Manual de armónica (Harmonikon encheiridion)"
+
+  - id: ptolomeo
+    nombre: Claudio Ptolomeo
+    fecha_display: "fl. c. 150 d. C."
+    ano_numerico: 150
+    forma: "fl."
+    obra_canon: "Harmónicos (Harmonika)"
+
+  - id: aristides_quintiliano
+    nombre: Arístides Quintiliano
+    fecha_display: "fl. c. 300 d. C."
+    ano_numerico: 300
+    forma: "fl."
+    obra_canon: "Sobre la música (Peri mousikes)"
+
+  - id: alipio
+    nombre: Alipio de Alejandría
+    fecha_display: "fl. c. 360 d. C."
+    ano_numerico: 360
+    forma: "fl."
+    obra_canon: "Introducción a la música (Tablas notacionales griegas)"
+
+  - id: san_ambrosio
+    nombre: San Ambrosio de Milán
+    fecha_display: "c. 340–397 d. C."
+    ano_numerico: 374
+    forma: "c."
+    obra_canon: "Himnodia litúrgica y canto antifonal"
+
+  - id: san_agustin
+    nombre: San Agustín de Hipona
+    fecha_display: "c. 354–430 d. C."
+    ano_numerico: 390
+    forma: "c."
+    obra_canon: "De Musica (seis libros sobre ritmo y orden trascendente)"
+
+  - id: boecio
+    nombre: Anicio Manlio Torcuato Severino Boecio
+    fecha_display: "c. 480–524 d. C."
+    ano_numerico: 505
+    forma: "c."
+    obra_canon: "De institutione musica (Quadrivium)"
+
+  - id: casiodoro
+    nombre: Flavio Magno Aurelio Casiodoro
+    fecha_display: "c. 485–585 d. C."
+    ano_numerico: 540
+    forma: "c."
+    obra_canon: "Institutiones divinarum et saecularium litterarum"
