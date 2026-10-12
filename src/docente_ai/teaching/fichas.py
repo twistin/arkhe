@@ -96,6 +96,34 @@ def is_ficha_verified(ficha: dict[str, Any] | None) -> bool:
     return bool(ficha.get('verificado') is True)
 
 
+def verificar_ficha(
+    ficha_id: str,
+    verificado_por: str = 'profesor',
+    directory: Path | str | None = None,
+) -> dict[str, Any] | None:
+    """Acción explícita de UI del profesor: verifica una ficha y registra verificado_por y verificado_en."""
+    from datetime import datetime, timezone
+
+    ficha = get_ficha(ficha_id, directory=directory)
+    if not ficha:
+        return None
+
+    ficha['verificado'] = True
+    ficha['verificado_por'] = verificado_por
+    ficha['verificado_en'] = datetime.now(timezone.utc).isoformat()
+
+    source_file = ficha.get('_source_file')
+    target_path = Path(source_file) if source_file else Path('config/fichas') / f"{ficha_id}.yaml"
+
+    data_to_save = {k: v for k, v in ficha.items() if k != '_source_file'}
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(
+        yaml.safe_dump(data_to_save, sort_keys=False, allow_unicode=True),
+        encoding='utf-8',
+    )
+    return ficha
+
+
 def get_ficha_for_topic(topic: str, directory: Path | str | None = None) -> dict[str, Any] | None:
     """Obtiene la ficha correspondiente a un tema de estudio según patrones canónicos."""
     if not topic:

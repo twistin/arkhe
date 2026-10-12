@@ -287,6 +287,32 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             from docente_ai.teaching.fichas import get_ficha_for_run
             ficha_data = get_ficha_for_run(result)
         out = {k: result.get(k) for k in ('id', 'status', 'created_at', 'request', 'result', 'evidence', 'warnings', 'error', 'review', 'display_title', 'original_topic')}
+        res_data = out.get('result')
+        if isinstance(res_data, dict):
+            did_comps = res_data.get('didactic_components') or res_data.get('resolved_didactic_components') or []
+            if did_comps:
+                from docente_ai.music.didactic import resolver_componente_didactico
+                re_resolved = []
+                for comp in did_comps:
+                    tipo = comp.get('tipo')
+                    parametros = comp.get('parametros', {})
+                    origen = comp.get('origen', 'llm')
+                    try:
+                        res_c = resolver_componente_didactico(
+                            tipo,
+                            parametros,
+                            evidence=out.get('evidence'),
+                            claims=res_data.get('claims'),
+                            visualizaciones=res_data.get('visualizations'),
+                        )
+                        res_c['origen'] = origen
+                        if comp.get('actividad'):
+                            res_c['actividad'] = comp.get('actividad')
+                        re_resolved.append(res_c)
+                    except Exception:
+                        re_resolved.append(comp)
+                if re_resolved:
+                    res_data['resolved_didactic_components'] = re_resolved
         out['ficha'] = ficha_data
         out['ficha_ejemplos'] = result.get('ficha_ejemplos') or []
         from docente_ai.generation.render import enriquecer_run_respaldo_bibliografico
@@ -302,6 +328,14 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         from docente_ai.teaching.fichas import get_ficha
         f_id = request.path_params['id']
         f = await run_in_threadpool(get_ficha, f_id)
+        if not f:
+            return JSONResponse({'error': f'Ficha no encontrada: {f_id}'}, status_code=404)
+        return JSONResponse(f)
+
+    async def ficha_verificar(request):
+        from docente_ai.teaching.fichas import verificar_ficha
+        f_id = request.path_params['id']
+        f = await run_in_threadpool(verificar_ficha, f_id, verificado_por='profesor')
         if not f:
             return JSONResponse({'error': f'Ficha no encontrada: {f_id}'}, status_code=404)
         return JSONResponse(f)
@@ -569,6 +603,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
 
               Route('/api/runs/{id}/descargar-ejemplos-ficha', descargar_ejemplos_ficha_route, methods=['POST']),
               Route('/api/fichas/{id}/descargar-ejemplos', descargar_ejemplos_ficha_route, methods=['POST']),
+              Route('/api/fichas/{id}/verificar', ficha_verificar, methods=['POST']),
               Route('/api/fichas/{id}', ficha_get),
               Route('/api/runs/{id}/music_requests/{req_id}/adopt', adopt_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/discard', discard_score, methods=['POST']),

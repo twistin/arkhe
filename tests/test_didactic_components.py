@@ -437,3 +437,123 @@ def test_seleccion_determinista_componentes_por_tema():
     for c in comps:
         assert c["origen"] == "regla_tema"
 
+
+def test_linea_temporal_autores_en_pasajes_y_orden_cronologico():
+    """Comprueba que los autores citados en pasajes entren en la línea temporal,
+    se ordenen cronológicamente y distingan fechas documentadas de no documentadas."""
+    from docente_ai.music.didactic import (
+        construir_hitos_linea_temporal,
+        generar_svg_linea_temporal,
+        formatear_fuente_corta,
+    )
+
+    # Simular las evidencias de Grecia de la biblioteca
+    evidence = [
+        {
+            'source_id': 'S0',
+            'metadata': {'title': 'De institutione musica', 'authors': ['Boecio']},
+            'text': 'Boecio expone la división del monocordio atribuida a Pitágoras y cita a Nicómaco de Gerasa.',
+        },
+        {
+            'source_id': 'S1',
+            'metadata': {'title': 'Sobre la música', 'authors': ['Arístides Quintiliano']},
+            'text': 'Platón en el Timeo y en La República describe la armonía de las esferas.',
+        },
+        {
+            'source_id': 'S2',
+            'metadata': {'title': 'Los sistemas armónicos de la Grecia Antigua', 'authors': ['Garrido Domené, Fuensanta']},
+            'text': 'Claudio Ptolomeo en sus Harmónicos perfecciona la teoría de los tetracordos.',
+        },
+        {
+            'source_id': 'S3',
+            'metadata': {'title': 'La música en la edad media', 'authors': ['Reese, Gustave']},
+            'text': 'San Agustín (354-430) en su tratado De musica analiza los ritmos y proporciones métricas.',
+        },
+    ]
+
+    hitos = construir_hitos_linea_temporal(evidence)
+    autores = [h['autor'] for h in hitos]
+
+    # Comprobar que entran Pitágoras, Platón, Nicómaco, Ptolomeo, San Agustín y Boecio
+    assert any('Pitágoras' in a for a in autores)
+    assert any('Platón' in a for a in autores)
+    assert any('Nicómaco' in a for a in autores)
+    assert any('Ptolomeo' in a for a in autores)
+    assert any('Agustín' in a for a in autores)
+    assert any('Boecio' in a for a in autores)
+
+    # Comprobar orden cronológico estricto
+    anos = [h['ano_numerico'] for h in hitos]
+    assert anos == sorted(anos)
+
+    # San Agustín tiene fecha explícita (354-430) en el pasaje -> fecha_documentada True
+    agustin = next(h for h in hitos if 'Agustín' in h['autor'])
+    assert agustin['fecha_documentada'] is True
+
+    # Nicómaco o Platón citados por su teoría sin fecha biográfica en el texto -> fecha_documentada False
+    nicomaco = next(h for h in hitos if 'Nicómaco' in h['autor'])
+    assert nicomaco['fecha_documentada'] is False
+
+    # Comprobar formato de fuente corta sin truncar palabras
+    fuente_formateada = formatear_fuente_corta('Garrido Domené, Fuensanta', 'Los sistemas armónicos de la Grecia Antigua', 28)
+    assert not fuente_formateada.endswith(' ')
+    assert 'Garrido Domené, Los sistemas armónicos' in fuente_formateada
+
+    # SVG docente contiene la etiqueta de advertencia para autores sin fecha en el pasaje
+    svg_doc = generar_svg_linea_temporal(hitos, para_alumnado=False)
+    assert '[fecha sin fuente]' in svg_doc
+
+    # SVG para alumnado no contiene la advertencia interna
+    svg_alum = generar_svg_linea_temporal(hitos, para_alumnado=True)
+    assert '[fecha sin fuente]' not in svg_alum
+
+
+def test_tetracordos_glifo_vectorial_cuarto_tono():
+    """Comprueba que el glifo de cuarto de tono sea un trazado vectorial y no dependa de caracteres SMuFL."""
+    from docente_ai.music.didactic import generar_svg_tetracordos
+
+    svg = generar_svg_tetracordos()
+    # No debe contener el carácter Unicode que falla en PDF sin fuentes SMuFL
+    assert '𝄲' not in svg
+    # Debe contener el trazado vectorial del semibemol (cuarto de tono)
+    assert 'stroke="#dc2626"' in svg
+    assert '<path d="M 0,-2 C -4.5,-2' in svg
+    # Nombre legible de la nota
+    assert 'Si(¼♭)3' in svg
+
+
+def test_glosario_griego_ditono_cents_y_verificacion(tmp_path):
+    """Comprueba la corrección del dítono en cents y la verificación por UI."""
+    from pathlib import Path
+    import yaml
+    from docente_ai.teaching.fichas import get_ficha, verificar_ficha, is_ficha_verified
+
+    f_path = Path('config/fichas/glosario_griego.yaml')
+    assert f_path.is_file()
+    datos = yaml.safe_load(f_path.read_text(encoding='utf-8'))
+
+    # Comprobar definición exacta del ditono
+    ditono = next(c for c in datos['conceptos'] if 'Ditono' in c['termino'])
+    assert '81:64 ≈ 408 cents' in ditono['definicion']
+    assert 'dítono temperado son 400 cents' in ditono['definicion']
+
+    # Ficha temporal para probar verificación
+    test_ficha_file = tmp_path / 'glosario_test.yaml'
+    test_ficha_file.write_text(yaml.safe_dump({
+        'id': 'glosario_test',
+        'tema': 'Test',
+        'verificado': False,
+        'conceptos': [{'termino': 'Test', 'definicion': 'Definicion test'}]
+    }), encoding='utf-8')
+
+    ficha_pre = get_ficha('glosario_test', directory=tmp_path)
+    assert is_ficha_verified(ficha_pre) is False
+
+    ficha_post = verificar_ficha('glosario_test', verificado_por='profesor_test', directory=tmp_path)
+    assert ficha_post is not None
+    assert ficha_post['verificado'] is True
+    assert ficha_post['verificado_por'] == 'profesor_test'
+    assert 'verificado_en' in ficha_post
+    assert is_ficha_verified(ficha_post) is True
+
+

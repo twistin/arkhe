@@ -241,7 +241,7 @@ export function studentDocumentHTML(run) {
     ),
     `\n    </section>\n\n`,
     renderDidacticSection(run, { skipTimeline: timelineRendered }),
-    hasFichaConceptos ? [
+    (hasFichaConceptos && isFichaVerified) ? [
       `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
       `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
       `        <span class="student-section-number">03</span>\n        <div>\n`,

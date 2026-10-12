@@ -539,6 +539,9 @@ export function resultHTML(run) {
   if (isPedagogy && (run.result?.music_requests?.length || run.result?.resolved_music_requests?.length)) {
     content += renderMusicRequestsBlock(run);
   }
+  if (run.ficha?.conceptos?.length) {
+    content += renderFichaGlosarioBlock(run);
+  }
   if (run.status === 'draft' && isPedagogy && !review) {
     content += [
       [
@@ -892,6 +895,107 @@ async function formEditProposalSubject({form, data}) {
   toast('Materia de la propuesta actualizada.');
 }
 
+export function renderFichaGlosarioBlock(run) {
+  const ficha = run?.ficha;
+  if (!ficha || !ficha.conceptos?.length) return '';
+  const isVerified = Boolean(ficha.verificado === true && ficha.verificado_por && ficha.verificado_en);
+  const tema = ficha.tema || 'Ficha de conceptos';
+
+  if (!isVerified) {
+    return [
+      '\n    <div class="pedagogy-block ficha-glosario-block" ',
+      'style="border-left: 4px solid #f59e0b; background: #fffbeb; padding: 14px 16px; ',
+      'border-radius: 8px; margin: 18px 0;">\n',
+      '      <div class="block-header" style="display: flex; align-items: flex-start; ',
+      'justify-content: space-between; gap: 12px; margin-bottom: 12px;">\n',
+      '        <div style="display: flex; align-items: flex-start; gap: 12px;">\n',
+      '          <span class="block-num" style="font-size: 18px;">📖</span>\n',
+      '          <div>\n',
+      `            <h3 style="margin: 0 0 4px; font-size: 15px;">Glosario de conceptos técnicos (${e(tema)})</h3>\n`,
+      '            <p class="block-desc" style="margin: 0; color: #b45309; font-weight: 600; font-size: 12px;">',
+      '⚠️ Pendiente de revisión por el profesor — no visible en el material del alumnado hasta su verificación.</p>\n',
+      '          </div>\n',
+      '        </div>\n',
+      `        <button type="button" class="button primary small" data-action="verificar-ficha" `,
+      `data-ficha-id="${e(ficha.id)}" data-run-id="${e(run.id)}" style="flex-shrink: 0;">`,
+      '✓ Revisar y verificar</button>\n',
+      '      </div>\n',
+      '      <div class="concept-grid" style="display: grid; grid-template-columns: ',
+      'repeat(auto-fit, minmax(260px, 1fr)); gap: 10px;">\n',
+      ficha.conceptos.map(c => [
+        '        <div class="concept-card" style="padding: 10px; background: #ffffff; ',
+        'border: 1px solid #fde68a; border-radius: 6px;">\n',
+        '          <div class="concept-head" style="display: flex; justify-content: space-between; ',
+        'margin-bottom: 4px;">\n',
+        `            <span class="concept-badge" style="font-size: 10px; font-weight: 700; color: #b45309;">`,
+        `${e(c.categoria || 'REVISIÓN')}</span>\n`,
+        `            <strong>${e(c.termino)}</strong>\n`,
+        '          </div>\n',
+        `          <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.4;">${e(c.definicion)}</p>\n`,
+        '        </div>\n'
+      ].join('')).join(''),
+      '      </div>\n    </div>\n'
+    ].join('');
+  }
+
+  return [
+    '\n    <div class="pedagogy-block ficha-glosario-block" ',
+    'style="border-left: 4px solid #10b981; background: #f0fdf4; padding: 14px 16px; ',
+    'border-radius: 8px; margin: 18px 0;">\n',
+    '      <div class="block-header" style="display: flex; align-items: flex-start; gap: 12px; ',
+    'margin-bottom: 12px;">\n',
+    '        <span class="block-num" style="font-size: 18px;">✓</span>\n',
+    '        <div>\n',
+    `          <h3 style="margin: 0 0 4px; font-size: 15px;">Glosario de conceptos técnicos (${e(tema)})</h3>\n`,
+    '          <p class="block-desc" style="margin: 0; color: #047857; font-weight: 600; font-size: 12px;">',
+    `✓ Verificado por ${e(ficha.verificado_por)} (${e(ficha.verificado_en)}) — visible en el alumnado.</p>\n`,
+    '        </div>\n',
+    '      </div>\n',
+    '      <div class="concept-grid" style="display: grid; grid-template-columns: ',
+    'repeat(auto-fit, minmax(260px, 1fr)); gap: 10px;">\n',
+    ficha.conceptos.map(c => [
+      '        <div class="concept-card" style="padding: 10px; background: #ffffff; ',
+      'border: 1px solid #a7f3d0; border-radius: 6px;">\n',
+      '          <div class="concept-head" style="display: flex; justify-content: space-between; ',
+      'margin-bottom: 4px;">\n',
+      `            <span class="concept-badge" style="font-size: 10px; font-weight: 700; color: #047857;">`,
+      `${e(c.categoria || 'CONCEPTO')}</span>\n`,
+      `            <strong>${e(c.termino)}</strong>\n`,
+      '          </div>\n',
+      `          <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.4;">${e(c.definicion)}</p>\n`,
+      '        </div>\n'
+    ].join('')).join(''),
+    '      </div>\n    </div>\n'
+  ].join('');
+}
+
+async function accionVerificarFicha({target}) {
+  const btn = target.closest('[data-action="verificar-ficha"]');
+  const fichaId = btn?.dataset.fichaId;
+  const runId = btn?.dataset.runId;
+  if (!fichaId) return;
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Verificando...';
+    const res = await api('/fichas/' + encodeURIComponent(fichaId) + '/verificar', {});
+    toast('Glosario revisado y verificado correctamente.');
+    if (store.currentRun && (store.currentRun.id === runId || store.currentRun.ficha?.id === fichaId)) {
+      store.currentRun.ficha = res;
+    }
+    if (store.state?.runs) {
+      const found = store.state.runs.find(r => r.id === runId);
+      if (found) found.ficha = res;
+    }
+    document.dispatchEvent(new CustomEvent('enjambre:render'));
+  } catch (err) {
+    toast(`Error al verificar la ficha: ${err.message}`, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✓ Revisar y verificar';
+    }
+  }
+}
+
 export const actions = {
   'open-sources-run': accionOpenSourcesRun,
   'copy-code': accionOpenCopyCode,
@@ -900,6 +1004,7 @@ export const actions = {
   'download': accionOpenDownload,
   'edit-proposal-title': accionEditProposalTitle,
   'edit-proposal-subject': accionEditProposalSubject,
+  'verificar-ficha': accionVerificarFicha,
 };
 
 export const forms = {
@@ -908,6 +1013,12 @@ export const forms = {
 };
 
 export const clickBindings = [
+  {
+    priority: 1,
+    matches: target => target.dataset.action === 'verificar-ficha' ||
+      target.closest('[data-action="verificar-ficha"]'),
+    action: 'verificar-ficha'
+  },
   {
     priority: 1,
     matches: target => target.dataset.action === 'edit-proposal-title' ||
@@ -926,5 +1037,4 @@ export const clickBindings = [
   {priority: 9, matches: target => target.dataset.copyMarkdown, action: 'copy-markdown'},
   {priority: 10, matches: target => target.dataset.download || target.dataset.original ||
     target.dataset.ocrDocument, action: 'download'},
-
 ];

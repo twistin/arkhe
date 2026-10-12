@@ -633,6 +633,13 @@ FIGURAS_HISTORICAS_GRIEGAS = {
         'aproximado': True,
         'obra_canon': 'Inscripción en estela funeraria (Tralles)',
     },
+    'nicomaco': {
+        'nombre_canonico': 'Nicómaco de Gerasa',
+        'epoca': 'c. 60–120 d. C.',
+        'ano_numerico': 100,
+        'aproximado': True,
+        'obra_canon': 'Manual de armónica (Harmonikon encheiridion)',
+    },
     'ptolomeo': {
         'nombre_canonico': 'Claudio Ptolomeo',
         'epoca': 'c. 100–170 d. C.',
@@ -663,6 +670,42 @@ FIGURAS_HISTORICAS_GRIEGAS = {
     },
 }
 
+PATRONES_AUTORES = {
+    'pitagoras': re.compile(r'\bpit[aá]gor', re.IGNORECASE),
+    'platon': re.compile(r'\bplat[oó]n', re.IGNORECASE),
+    'aristoteles': re.compile(r'\barist[oó]tel', re.IGNORECASE),
+    'aristoxeno': re.compile(r'\barist[oó]xen', re.IGNORECASE),
+    'euclides': re.compile(r'\beuclid', re.IGNORECASE),
+    'seikilos': re.compile(r'\bseikil|\bepitafio\b', re.IGNORECASE),
+    'nicomaco': re.compile(r'\bnic[oó]mac', re.IGNORECASE),
+    'ptolomeo': re.compile(r'\bptolom|\btolom', re.IGNORECASE),
+    'alipio': re.compile(r'\balipi', re.IGNORECASE),
+    'agustin': re.compile(r'\bagust[ií]n', re.IGNORECASE),
+    'boecio': re.compile(r'\bboec|\bboeth', re.IGNORECASE),
+}
+
+
+def formatear_fuente_corta(autor: str, titulo: str, max_chars_titulo: int = 28) -> str:
+    """Formatea la fuente bibliográfica como 'Autor, título corto' sin truncar a mitad de palabra."""
+    autor_str = autor.split(',')[0].strip() if autor else ''
+    titulo_str = titulo.strip() if titulo else ''
+    if not titulo_str and not autor_str:
+        return 'Fuente autorizada'
+    if not autor_str:
+        autor_str = 'Fuente'
+
+    if len(titulo_str) > max_chars_titulo:
+        corte = titulo_str[:max_chars_titulo]
+        if ' ' in corte:
+            corte = corte.rsplit(' ', 1)[0]
+        titulo_corto = corte.rstrip('.,;:- ')
+    else:
+        titulo_corto = titulo_str
+
+    if autor_str and titulo_corto:
+        return f"{autor_str}, {titulo_corto}"
+    return autor_str or titulo_corto
+
 
 def construir_hitos_linea_temporal(
     evidence: list[dict[str, Any]] | None = None,
@@ -672,8 +715,10 @@ def construir_hitos_linea_temporal(
 ) -> list[dict[str, Any]]:
     """Construye dinámicamente los hitos de la línea temporal a partir de las fuentes
     citadas de la propuesta y de los autores nombrados en claims y visualizaciones.
-    Si un autor solicitado o citado no tiene fuente en la biblioteca,
-    se marca explícitamente como 'sin_fuente' para la guía docente."""
+    Un autor entra si un pasaje citado de la biblioteca lo documenta (se le nombra con su idea).
+    La fecha sale del pasaje o de una ficha verificada. Si no hay fecha documentada en el
+    pasaje ni en ficha, se coloca sin fecha en una franja aparte y en la guía docente
+    aparece '[fecha sin fuente]'."""
     hitos: list[dict[str, Any]] = []
     autores_en_fuentes: dict[str, dict[str, Any]] = {}
 
@@ -689,7 +734,8 @@ def construir_hitos_linea_temporal(
         if 'aristot' in t_norm: return 'aristoteles'
         if 'aristox' in t_norm: return 'aristoxeno'
         if 'pitag' in t_norm: return 'pitagoras'
-        if 'ptol' in t_norm: return 'ptolomeo'
+        if 'nicom' in t_norm: return 'nicomaco'
+        if 'ptol' in t_norm or 'tolom' in t_norm: return 'ptolomeo'
         if 'seikil' in t_norm or 'epitaf' in t_norm: return 'seikilos'
         if 'euclid' in t_norm: return 'euclides'
         if 'boec' in t_norm or 'boeth' in t_norm: return 'boecio'
@@ -697,30 +743,43 @@ def construir_hitos_linea_temporal(
         if 'agust' in t_norm: return 'agustin'
         return None
 
-    # 1. Extraer autores y obras de las fuentes efectivamente citadas
+    # 1. Extraer autores y obras de las fuentes y pasajes citados
     for ev in (evidence or []):
         meta = ev.get('metadata') or {}
+        autor_doc = (meta.get('authors') or [''])[0] or ev.get('source_author') or ''
         titulo_doc = meta.get('title') or ev.get('source_title') or ''
-        for autor_raw in (meta.get('authors') or []):
-            autor_clean = str(autor_raw).strip()
-            key = _detectar_key(autor_clean)
-            if not key and titulo_doc:
-                key = _detectar_key(titulo_doc)
+        fuente_corta = formatear_fuente_corta(autor_doc, titulo_doc, max_chars_titulo=26)
 
-            if key and key not in autores_en_fuentes and key in FIGURAS_HISTORICAS_GRIEGAS:
+        texto_ev = (ev.get('text') or '') + ' ' + ' '.join(str(p) for p in (ev.get('passages') or []))
+        todo_texto = f"{autor_doc} {titulo_doc} {texto_ev}"
+
+        for key, pat in PATRONES_AUTORES.items():
+            if pat.search(todo_texto):
                 canon = FIGURAS_HISTORICAS_GRIEGAS[key]
-                autores_en_fuentes[key] = {
-                    'key': key,
-                    'autor': canon['nombre_canonico'],
-                    'epoca': canon['epoca'],
-                    'ano_numerico': canon['ano_numerico'],
-                    'aproximado': canon['aproximado'],
-                    'obra': titulo_doc or canon['obra_canon'],
-                    'fuente': titulo_doc or 'Fuente autorizada en biblioteca',
-                    'sin_fuente': False,
-                }
+                # Buscar si el pasaje contiene fecha biográfica explícita para este autor
+                tiene_fecha_en_pasaje = False
+                m_fechas = re.search(r'\(?\b(\d{2,4})\s*[-–—]\s*(\d{2,4})\b(?:\s*(?:d\.\s*C\.|a\.\s*C\.|\b))?\)?', texto_ev)
+                if m_fechas:
+                    y1, y2 = int(m_fechas.group(1)), int(m_fechas.group(2))
+                    if abs(y1 - canon['ano_numerico']) < 150 or abs(y2 - canon['ano_numerico']) < 150:
+                        tiene_fecha_en_pasaje = True
 
-    # Si hay autores en fuentes, añadirlos
+                es_autor_propio = bool(_detectar_key(autor_doc) == key)
+                fecha_documentada = tiene_fecha_en_pasaje or es_autor_propio
+
+                if key not in autores_en_fuentes or (fecha_documentada and not autores_en_fuentes[key].get('fecha_documentada')):
+                    autores_en_fuentes[key] = {
+                        'key': key,
+                        'autor': canon['nombre_canonico'],
+                        'epoca': canon['epoca'],
+                        'ano_numerico': canon['ano_numerico'],
+                        'aproximado': canon['aproximado'],
+                        'obra': canon['obra_canon'],
+                        'fuente': fuente_corta,
+                        'sin_fuente': False,
+                        'fecha_documentada': fecha_documentada,
+                    }
+
     for item in autores_en_fuentes.values():
         hitos.append(item)
 
@@ -757,11 +816,12 @@ def construir_hitos_linea_temporal(
                 'obra': canon['obra_canon'],
                 'fuente': 'sin fuente en la biblioteca',
                 'sin_fuente': True,
+                'fecha_documentada': False,
             })
 
-    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con las figuras de Grecia relevantes
+    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con las figuras canónicas
     if not hitos:
-        for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'seikilos', 'ptolomeo', 'boecio'):
+        for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'seikilos', 'nicomaco', 'ptolomeo', 'agustin', 'boecio'):
             canon = FIGURAS_HISTORICAS_GRIEGAS[k]
             hitos.append({
                 'key': k,
@@ -772,6 +832,7 @@ def construir_hitos_linea_temporal(
                 'obra': canon['obra_canon'],
                 'fuente': 'Referencia histórica',
                 'sin_fuente': False,
+                'fecha_documentada': True,
             })
 
     # Ordenar estrictamente por año cronológico
@@ -783,21 +844,34 @@ def generar_svg_linea_temporal(
     hitos: list[dict[str, Any]] | None = None,
     para_alumnado: bool = False,
     ancho: int = 980,
-    alto: int = 370
+    alto: int = 410
 ) -> str:
     """Genera un SVG determinista del eje cronológico real (600 a. C. a 600 d. C.)
-    con distribución anticolisión escalonada en 4 niveles para evitar todo solapamiento."""
+    con distribución anticolisión y separación estricta:
+    - Autores con fecha documentada en el eje temporal.
+    - Autores sin fecha documentada en los pasajes en una franja horizontal aparte
+      en orden cronológico relativo, marcados con '[fecha sin fuente]' en la guía docente."""
     hitos = hitos or construir_hitos_linea_temporal()
 
-    # Si es para el alumnado, excluir los autores sin fuente autorizada
+    # Si es para el alumnado, excluir autores sin fuente autorizada
     if para_alumnado:
         hitos = [h for h in hitos if not h.get('sin_fuente')]
+
+    hitos_con_fecha = [h for h in hitos if h.get('fecha_documentada') and not h.get('sin_fuente')]
+    hitos_sin_fecha = [h for h in hitos if not h.get('fecha_documentada') or h.get('sin_fuente')]
+
+    tiene_franja = bool(hitos_sin_fecha)
+    if not tiene_franja:
+        alto = 370
+        y_eje = 185
+    else:
+        alto = 410
+        y_eje = 140
 
     ano_min = -600
     ano_max = 600
     margen_x = 75
     ancho_eje = ancho - 2 * margen_x
-    y_eje = 185
 
     def ano_a_x(ano: int) -> float:
         return margen_x + ((ano - ano_min) / (ano_max - ano_min)) * ancho_eje
@@ -817,6 +891,8 @@ def generar_svg_linea_temporal(
         '.tl-card-date { font-family: system-ui, sans-serif; font-size: 9.5px; fill: #0284c7; font-weight: 600; }',
         '.tl-card-work { font-family: system-ui, sans-serif; font-size: 9px; fill: #475569; font-style: italic; }',
         '.tl-card-warn { font-family: system-ui, sans-serif; font-size: 8.5px; font-weight: 700; fill: #b91c1c; }',
+        '.tl-shelf-bg { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; rx: 6px; }',
+        '.tl-shelf-title { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: #475569; letter-spacing: 0.5px; }',
         '</style>',
         f'<rect width="{ancho}" height="{alto}" class="tl-bg"/>',
         # Eje cronológico principal
@@ -825,10 +901,10 @@ def generar_svg_linea_temporal(
 
     # Separador a. C. / d. C. en año 0
     x_cero = ano_a_x(0)
-    svg.append(f'<line x1="{x_cero}" y1="25" x2="{x_cero}" y2="{alto - 25}" class="tl-era-divide"/>')
-    # Etiquetas de era en la parte superior despejada
-    svg.append(f'<text x="{x_cero - 12}" y="36" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
-    svg.append(f'<text x="{x_cero + 12}" y="36" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
+    y_sep_max = y_eje + 80 if not tiene_franja else y_eje + 65
+    svg.append(f'<line x1="{x_cero}" y1="20" x2="{x_cero}" y2="{y_sep_max}" class="tl-era-divide"/>')
+    svg.append(f'<text x="{x_cero - 12}" y="32" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
+    svg.append(f'<text x="{x_cero + 12}" y="32" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
 
     # Marcas de siglos
     siglos = [
@@ -841,46 +917,34 @@ def generar_svg_linea_temporal(
         svg.append(f'<line x1="{xs}" y1="{y_eje - 4}" x2="{xs}" y2="{y_eje + 4}" class="tl-century-tick"/>')
         svg.append(f'<text x="{xs}" y="{y_eje + 15}" class="tl-century-label">{texto_siglo}</text>')
 
-    # Disposición anticolisión escalonada en 4 niveles de altura
-    # Arriba: nivel 0 (Y = 55), nivel 1 (Y = 105)
-    # Abajo:  nivel 0 (Y = 245), nivel 1 (Y = 295)
-    alturas_arriba = [55, 105]
-    alturas_abajo = [245, 295]
-
+    # 1. Hitos en el eje con fecha documentada
+    alturas_arriba = [y_eje - 75, y_eje - 45]
+    alturas_abajo = [y_eje + 35, y_eje + 65]
     ultimo_x_arriba = -999.0
     ultimo_nivel_arriba = 0
     ultimo_x_abajo = -999.0
     ultimo_nivel_abajo = 0
 
-    for i, hito in enumerate(hitos):
+    for i, hito in enumerate(hitos_con_fecha):
         x_nodo = ano_a_x(hito['ano_numerico'])
         arriba = (i % 2 == 0)
 
         if arriba:
-            if abs(x_nodo - ultimo_x_arriba) < 130:
-                nivel = 1 - ultimo_nivel_arriba
-            else:
-                nivel = 0
+            nivel = 1 - ultimo_nivel_arriba if abs(x_nodo - ultimo_x_arriba) < 130 else 0
             ultimo_x_arriba = x_nodo
             ultimo_nivel_arriba = nivel
             y_tarjeta = alturas_arriba[nivel]
             y_stem = y_tarjeta + 26
         else:
-            if abs(x_nodo - ultimo_x_abajo) < 130:
-                nivel = 1 - ultimo_nivel_abajo
-            else:
-                nivel = 0
+            nivel = 1 - ultimo_nivel_abajo if abs(x_nodo - ultimo_x_abajo) < 130 else 0
             ultimo_x_abajo = x_nodo
             ultimo_nivel_abajo = nivel
             y_tarjeta = alturas_abajo[nivel]
             y_stem = y_tarjeta - 10
 
-        # Línea de conexión al eje
         svg.append(f'<line x1="{x_nodo}" y1="{y_eje}" x2="{x_nodo}" y2="{y_stem}" class="tl-stem"/>')
-        # Nodo en el eje
         svg.append(f'<circle cx="{x_nodo}" cy="{y_eje}" r="5.5" class="tl-node"/>')
 
-        # Alineación del texto para no salirse de los márgenes
         anchor = 'middle'
         if x_nodo < margen_x + 50:
             anchor = 'start'
@@ -894,13 +958,49 @@ def generar_svg_linea_temporal(
 
         svg.append(f'<text x="{x_nodo}" y="{y_tarjeta}" class="tl-card-author" style="text-anchor:{anchor};">{autor_txt}</text>')
         svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 12}" class="tl-card-date" style="text-anchor:{anchor};">{hito["epoca"]}{aprox_mark}</text>')
+        fuente_lbl = hito.get('fuente') or hito.get('obra', '')
+        svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 23}" class="tl-card-work" style="text-anchor:{anchor};">{fuente_lbl}</text>')
 
-        # Advertencia en guía docente si no tiene fuente
-        if hito.get('sin_fuente'):
-            svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 23}" class="tl-card-warn" style="text-anchor:{anchor};">[sin fuente en la biblioteca]</text>')
-        else:
-            obra_corta = hito.get('obra', '')[:30]
-            svg.append(f'<text x="{x_nodo}" y="{y_tarjeta + 23}" class="tl-card-work" style="text-anchor:{anchor};">{obra_corta}</text>')
+    # 2. Franja horizontal aparte para autores sin fecha documentada
+    if tiene_franja:
+        y_shelf = y_eje + 75
+        h_shelf = alto - y_shelf - 18
+        svg.append(f'<rect x="{margen_x}" y="{y_shelf}" width="{ancho_eje}" height="{h_shelf}" class="tl-shelf-bg"/>')
+        svg.append(
+            f'<text x="{margen_x + 14}" y="{y_shelf + 18}" class="tl-shelf-title">'
+            'TRATADISTAS CITADOS EN FUENTES · REFERENCIAS TEÓRICAS SIN FECHA DOCUMENTADA EN EL PASAJE'
+            '</text>'
+        )
+
+        n_cards = len(hitos_sin_fecha)
+        card_gap = 12
+        card_w = (ancho_eje - 28 - (n_cards - 1) * card_gap) / max(n_cards, 1)
+
+        for idx, hito in enumerate(hitos_sin_fecha):
+            cx = margen_x + 14 + idx * (card_w + card_gap)
+            cy = y_shelf + 28
+            ch = h_shelf - 38
+
+            svg.append(f'<rect x="{cx}" y="{cy}" width="{card_w}" height="{ch}" rx="4" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1"/>')
+
+            autor_txt = hito['autor']
+            if len(autor_txt) > 24:
+                autor_txt = autor_txt.split()[0] + ' ' + autor_txt.split()[-1]
+
+            svg.append(f'<text x="{cx + 10}" y="{cy + 17}" class="tl-card-author">{autor_txt}</text>')
+
+            if hito.get('sin_fuente'):
+                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-warn">[sin fuente en la biblioteca]</text>')
+            elif not para_alumnado:
+                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-warn">[fecha sin fuente]</text>')
+            else:
+                obra_txt = hito.get('obra', 'Tratado teórico')
+                if len(obra_txt) > 24:
+                    obra_txt = obra_txt[:24].rsplit(' ', 1)[0]
+                svg.append(f'<text x="{cx + 10}" y="{cy + 30}" class="tl-card-date">{obra_txt}</text>')
+
+            fuente_txt = hito.get('fuente') or 'Fuente documental'
+            svg.append(f'<text x="{cx + 10}" y="{cy + 43}" class="tl-card-work">{fuente_txt}</text>')
 
     svg.append('</svg>')
     return '\n'.join(svg)
@@ -912,14 +1012,14 @@ def generar_svg_linea_temporal(
 
 def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
     """Genera un SVG determinista de la partitura de los tres géneros de tetracordos
-    (diatónico, cromático y enarmónico con cuarto de tono), con pentagramas limpios."""
+    (diatónico, cromático y enarmónico con cuarto de tono vectorial), con pentagramas limpios."""
     svg = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}" class="didactic-svg didactic-tetracordos">',
         '<style>',
         '.tc-bg { fill: #fcfcfd; rx: 8px; }',
         '.tc-box { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.5; rx: 6px; }',
         '.tc-gen-title { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #0f172a; }',
-        '.tc-gen-sub { font-family: system-ui, sans-serif; font-size: 11px; fill: #64748b; }',
+        '.tc-gen-sub { font-family: system-ui, sans-serif; font-size: 10px; fill: #64748b; }',
         '.tc-staff { stroke: #cbd5e1; stroke-width: 1; }',
         '.tc-bar { stroke: #475569; stroke-width: 2; }',
         '.tc-note { fill: #0f172a; cursor: pointer; transition: fill 0.15s; }',
@@ -928,7 +1028,7 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
         '.tc-acc { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #b45309; text-anchor: middle; }',
         '.tc-quarter-acc { font-family: system-ui, sans-serif; font-size: 14px; font-weight: 700; fill: #dc2626; text-anchor: middle; }',
         '.tc-hz-label { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #0284c7; text-anchor: middle; }',
-        '.tc-badge { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #0284c7; }',
+        '.tc-badge { font-family: system-ui, sans-serif; font-size: 9.5px; font-weight: 600; fill: #0284c7; }',
         '</style>',
         f'<rect width="{ancho}" height="{alto}" class="tc-bg"/>',
     ]
@@ -936,7 +1036,8 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
     generos = [
         {
             'nombre': '1. Género Diatónico',
-            'desc': 'Tono – Tono – Semitono (200 + 200 + 100 = 500 cents)',
+            'sub1': 'Tono – Tono – Semitono',
+            'sub2': '(200 + 200 + 100 = 500 cents)',
             'notas': [
                 {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
                 {'nombre': 'Re4', 'y_line': 2, 'freq_pit': '293.3 Hz', 'freq_temp': '293.7 Hz', 'acc': None},
@@ -946,7 +1047,8 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
         },
         {
             'nombre': '2. Género Cromático',
-            'desc': 'Trihemitono – Semitono – Semitono (300 + 100 + 100 = 500 cents)',
+            'sub1': 'Trihemitono – Semitono – Semitono',
+            'sub2': '(300 + 100 + 100 = 500 cents)',
             'notas': [
                 {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
                 {'nombre': 'Do♯4', 'y_line': 3, 'freq_pit': '278.4 Hz', 'freq_temp': '277.2 Hz', 'acc': '♯'},
@@ -956,11 +1058,12 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
         },
         {
             'nombre': '3. Género Enarmónico (cuartos de tono)',
-            'desc': 'Ditono – Cuarto de tono – Cuarto de tono (400 + 50 + 50 = 500 cents)',
+            'sub1': 'Ditono – Díesis – Díesis',
+            'sub2': '(400 + 50 + 50 = 500 cents)',
             'notas': [
                 {'nombre': 'Mi4', 'y_line': 1, 'freq_pit': '330.0 Hz', 'freq_temp': '329.6 Hz', 'acc': None},
                 {'nombre': 'Do♮4', 'y_line': 3, 'freq_pit': '260.7 Hz', 'freq_temp': '261.6 Hz', 'acc': '♮'},
-                {'nombre': 'Si𝄲3', 'y_line': 4, 'freq_pit': '254.0 Hz', 'freq_temp': '254.2 Hz', 'acc': '𝄲'},
+                {'nombre': 'Si(¼♭)3', 'y_line': 4, 'freq_pit': '254.0 Hz', 'freq_temp': '254.2 Hz', 'acc': 'vector_quarter'},
                 {'nombre': 'Si3', 'y_line': 4, 'freq_pit': '247.5 Hz', 'freq_temp': '246.9 Hz', 'acc': None},
             ]
         },
@@ -969,14 +1072,15 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
     box_w = (ancho - 48 - 32) / 3
     for g_idx, gen in enumerate(generos):
         bx = 24 + g_idx * (box_w + 16)
-        by = 28
-        bh = alto - 48
+        by = 24
+        bh = alto - 44
         svg.append(f'<rect x="{bx}" y="{by}" width="{box_w}" height="{bh}" class="tc-box"/>')
-        svg.append(f'<text x="{bx + 14}" y="{by + 24}" class="tc-gen-title">{gen["nombre"]}</text>')
-        svg.append(f'<text x="{bx + 14}" y="{by + 40}" class="tc-gen-sub">{gen["desc"]}</text>')
+        svg.append(f'<text x="{bx + 14}" y="{by + 22}" class="tc-gen-title">{gen["nombre"]}</text>')
+        svg.append(f'<text x="{bx + 14}" y="{by + 36}" class="tc-gen-sub">{gen["sub1"]}</text>')
+        svg.append(f'<text x="{bx + 14}" y="{by + 48}" class="tc-gen-sub">{gen["sub2"]}</text>')
 
         # Pentagrama (5 líneas)
-        staff_base = by + 75
+        staff_base = by + 78
         line_step = 12
         for l in range(5):
             ly = staff_base + l * line_step
@@ -995,22 +1099,27 @@ def generar_svg_tetracordos(ancho: int = 920, alto: int = 340) -> str:
             svg.append(f'<ellipse cx="{nx}" cy="{ny}" rx="6" ry="4.5" class="tc-note"/>')
 
             # Alteración
-            if notita['acc']:
-                is_quarter = '¼' in notita['acc']
-                acc_class = 'tc-quarter-acc' if is_quarter else 'tc-acc'
-                svg.append(f'<text x="{nx - 14}" y="{ny + 5}" class="{acc_class}">{notita["acc"]}</text>')
+            if notita['acc'] == 'vector_quarter':
+                svg.append(
+                    f'<g transform="translate({nx - 14},{ny + 1})">'
+                    f'<line x1="0" y1="-12" x2="0" y2="4" stroke="#dc2626" stroke-width="1.6" stroke-linecap="round"/>'
+                    f'<path d="M 0,-2 C -4.5,-2 -7.5,-4.8 -7.5,-8 C -7.5,-11 -4.5,-12.5 0,-10 Z" fill="#dc2626"/>'
+                    f'</g>'
+                )
+            elif notita['acc']:
+                svg.append(f'<text x="{nx - 14}" y="{ny + 5}" class="{ "tc-quarter-acc" if "¼" in notita["acc"] else "tc-acc" }">{notita["acc"]}</text>')
 
             # Nombre de la nota
-            svg.append(f'<text x="{nx}" y="{by + 160}" class="tc-note-name">{notita["nombre"]}</text>')
+            svg.append(f'<text x="{nx}" y="{by + 162}" class="tc-note-name">{notita["nombre"]}</text>')
             # Frecuencia (pitagórica por defecto)
             svg.append(
-                f'<text x="{nx}" y="{by + 175}" class="tc-hz-label" '
+                f'<text x="{nx}" y="{by + 177}" class="tc-hz-label" '
                 f'data-tc-gen="{g_idx}" data-tc-note="{n_idx}" '
                 f'data-freq-pit="{notita["freq_pit"]}" data-freq-temp="{notita["freq_temp"]}">'
                 f'{notita["freq_pit"]}</text>'
             )
 
-        svg.append(f'<text x="{bx + 14}" y="{by + 205}" class="tc-badge">Web Audio: afinación pitagórica exacta</text>')
+        svg.append(f'<text x="{bx + 14}" y="{by + bh - 14}" class="tc-badge">Web Audio: afinación pitagórica exacta</text>')
 
     svg.append('</svg>')
     return '\n'.join(svg)
