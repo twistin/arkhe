@@ -307,6 +307,34 @@ export function resultHTML(run) {
                 isIndiv ? '<span class="step-pill-indiv">Ejercicio Individual</span>' :
                 '<span class="step-pill-class">Práctica Colectiva</span>';
             }
+            const warnings = [];
+            const textToScan = (
+              a.title + ' ' + (a.instructions || '') + ' ' + (a.student_task || '') + ' ' + (a.teacher_notes || '')
+            ).toLowerCase();
+            if (/partitura|notaci[oó]n|transcripci[oó]n|epitafio|seikilos/i.test(textToScan)) {
+              const reqs = run.result?.resolved_music_requests || [];
+              const hasScore = reqs.some(r =>
+                (r.verificado || r.origen === 'calculado_teoria' || r.ejemplo?.calculado_teoria) &&
+                r.status === 'resuelto_catalogo'
+              );
+              if (!hasScore) {
+                const obra = /epitafio|seikilos/i.test(textToScan) ? ' del Epitafio' : '';
+                warnings.push('Actividad ' + (idx + 1) + ' sin material: falta la partitura' + obra);
+              }
+            }
+            if (/compara el esquema|analiza el esquema|diagrama/i.test(textToScan)) {
+              const hasDiag = (run.result?.resolved_didactic_components?.length || 0) > 0 ||
+                (run.result?.visualizations?.length || 0) > 0;
+              if (!hasDiag) {
+                warnings.push('Actividad ' + (idx + 1) + ' sin material: falta el esquema requerido');
+              }
+            }
+            const warningsBadge = warnings.map(w => [
+              `              <div class="activity-material-warning" style="margin: 0.4rem 0; padding: 0.4rem `,
+              `0.6rem; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 4px; color: #92400e; `,
+              `font-size: 0.85rem; font-weight: 600;">⚠️ ${e(w)}</div>\n`
+            ].join('')).join('');
+
             return [
               `\n          <div class="timeline-step">\n            <div class="step-timing">\n `,
               `             <span class="timing-range">${start}–${elapsed}`,
@@ -318,6 +346,7 @@ export function resultHTML(run) {
                 `\n                </div>\n                <span class="step-claims-badge">Fundamento: Contenidos `
               ].join(''),
               `${e(a.claim_ids.map(c => '#' + c).join(', '))}`,
+              warningsBadge,
               a.teacher_notes ? [
                 `              <p class="step-teacher-notes"><strong>Pautas docentes:</strong> `,
                 `${e(a.teacher_notes)}</p>\n`

@@ -104,6 +104,13 @@ export function studentDocumentHTML(run) {
   const isEgypt = isAncientEgypt(run);
   const listenings = isPolyphony ? POLYPHONY_LISTENINGS : getRunListenings(run);
   const isFichaVerified = Boolean(run.ficha?.verificado === true);
+  const timelineComp = (run.result?.resolved_didactic_components || []).find(c => c.tipo === 'linea_temporal');
+  const section2Title = isPolyphony ? 'MODELOS Y ANÁLISIS DE TEXTURAS' : 'ESQUEMA CONCEPTUAL Y ESTRUCTURAS';
+  const hasFichaConceptos = Boolean(run.ficha?.conceptos?.length);
+  const resolvedScores = (run.result?.resolved_music_requests || []).filter(item =>
+    item.status === 'resuelto_catalogo' && item.ejemplo &&
+    (item.verificado || item.origen === 'calculado_teoria' || item.ejemplo.calculado_teoria)
+  );
   let elapsed = 0;
 
   // Extraer autores citados realmente
@@ -191,23 +198,31 @@ export function studentDocumentHTML(run) {
       visuals.length ? [
         `\n        <div class="infographic-poster">\n          <div class="infographic-main-head">\n`,
         `            <div class="info-tag-row"><span class="info-badge">${e(title.toUpperCase())}</span></div>\n`,
-        `            <h2>MODELOS Y ANÁLISIS DE TEXTURAS</h2>\n`,
+        `            <h2>${e(section2Title)}</h2>\n`,
         `          </div>\n          <div class="visual-items">\n`,
-        visuals.map(v => [
-          `            <div class="visual-card">\n              <h3>${e(v.title)}</h3>\n`,
-          v.caption ? `              <p class="visual-caption">${e(v.caption)}</p>\n` : '',
-          `              <div class="visual-items">\n`,
-          (v.items || []).map(it => [
-            `                <div class="visual-item">\n                  <strong>${e(it.label)}</strong>\n`,
-            `                  <span>${e(it.detail)}</span>\n                </div>\n`
-          ].join('')).join(''),
-          `              </div>\n            </div>\n`
-        ].join('')).join(''),
+        visuals.map(v => {
+          const isChronological = v.type === 'timeline' ||
+            /cronolog|tiempo|hist[oó]ric|siglo/i.test(v.title || '') ||
+            (v.items || []).some(it => /a\.\s*c\.|d\.\s*c\.|siglo|\b\d{3,4}\b/i.test(it.label || ''));
+          if (isChronological && timelineComp) {
+            return renderDidacticComponent(timelineComp);
+          }
+          return [
+            `            <div class="visual-card">\n              <h3>${e(v.title)}</h3>\n`,
+            v.caption ? `              <p class="visual-caption">${e(v.caption)}</p>\n` : '',
+            `              <div class="visual-items">\n`,
+            (v.items || []).map(it => [
+              `                <div class="visual-item">\n                  <strong>${e(it.label)}</strong>\n`,
+              `                  <span>${e(it.detail)}</span>\n                </div>\n`
+            ].join('')).join(''),
+            `              </div>\n            </div>\n`
+          ].join('');
+        }).join(''),
         `          </div>\n        </div>\n`
       ].join('') : [
         `\n        <div class="infographic-poster">\n          <div class="infographic-main-head">\n`,
         `            <div class="info-tag-row"><span class="info-badge">${e(title.toUpperCase())}</span></div>\n`,
-        `            <h2>ESQUEMA CONCEPTUAL Y ESTRUCTURAL</h2>\n          </div>\n`,
+        `            <h2>${e(section2Title)}</h2>\n          </div>\n`,
         `          <div class="visual-items">\n`,
         claims.slice(0, 4).map((c, i) => [
           `            <div class="visual-item"><strong>Eje ${e(i + 1)}</strong>`,
@@ -218,35 +233,21 @@ export function studentDocumentHTML(run) {
     ),
     `\n    </section>\n\n`,
     renderDidacticSection(run),
-    `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
-    `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
-    `        <span class="student-section-number">03</span>\n        <div>\n`,
-    `          <h2>Conceptos obligatorios para aprender</h2>\n`,
-    `          <p class="student-section-intro">Vocabulario técnico y conceptos analíticos indispensables.</p>\n`,
-    `        </div>\n      </div>\n`,
-    `      <div class="concept-grid">\n`,
-    (isFichaVerified && run.ficha?.conceptos?.length) ? (
+    hasFichaConceptos ? [
+      `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
+      `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
+      `        <span class="student-section-number">03</span>\n        <div>\n`,
+      `          <h2>Conceptos obligatorios para aprender</h2>\n`,
+      `          <p class="student-section-intro">Vocabulario técnico y conceptos analíticos indispensables.</p>\n`,
+      `        </div>\n      </div>\n`,
+      `      <div class="concept-grid">\n`,
       run.ficha.conceptos.map(c => [
         `\n        <div class="concept-card">\n          <div class="concept-head">`,
-        `<span class="concept-badge">${e(c.categoria || 'CONCEPTO')}</span>`,
+        `<span class="concept-badge">${e(c.categoria || (isFichaVerified ? 'CONCEPTO' : 'REVISIÓN'))}</span>`,
         `<strong>${e(c.termino)}</strong></div>\n          <p>${e(c.definicion)}</p>\n        </div>\n`
-      ].join('')).join('')
-    ) : (
-      visuals.flatMap(v => v.items || []).slice(0, 8).map((it, i) => [
-        `\n        <div class="concept-card">\n          <div class="concept-head">`,
-        `<span class="concept-badge">CONCEPTO ${e(i + 1)}</span><strong>${e(it.label)}</strong></div>\n`,
-        `          <p>${e(it.detail)}</p>\n        </div>\n`
-      ].join('')).join('') || claims.slice(0, 6).map((c, i) => {
-        const first = c.text.split('.')[0];
-        return [
-          `\n        <div class="concept-card">\n          <div class="concept-head">`,
-          `<span class="concept-badge">CLAVE ${e(i + 1)}</span>`,
-          `<strong>${e(first.slice(0, 40))}…</strong></div>\n`,
-          `          <p>${e(cleanStudentText(c.text, false))}</p>\n        </div>\n`
-        ].join('');
-      }).join('')
-    ),
-    `\n      </div>\n    </section>\n\n`,
+      ].join('')).join(''),
+      `\n      </div>\n    </section>\n\n`
+    ].join('') : '',
     `${(isNTAM || (!isEgypt && !isPolyphony && (!listenings || !listenings.length))) ? '' : [
       `<!-- SECCIÓN 04: RELACIÓN DE AUDICIONES COMENTADAS -->\n`,
       `    <section class="student-section section-listenings">\n`,
@@ -276,6 +277,42 @@ export function studentDocumentHTML(run) {
       elapsed += mins;
       const taskText = cleanStudentText(activity.student_task || activity.instructions || '', true);
       const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
+
+      const actScores = resolvedScores.filter(m => {
+        if (m.request?.activity_title && m.request.activity_title === activity.title) return true;
+        if (m.request_id && activity.music_request_id === m.request_id) return true;
+        const obra = m.ejemplo?.obra || m.request?.work || '';
+        if (obra && activity.title && activity.title.toLowerCase().includes(obra.toLowerCase())) return true;
+        if (resolvedScores.length === 1 && (
+          activity.title?.toLowerCase().includes('notacion') ||
+          activity.title?.toLowerCase().includes('seikilos')
+        )) return true;
+        return false;
+      });
+
+      const scoreBoxesHtml = actScores.map(m => {
+        const ej = m.ejemplo;
+        const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
+        const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Partitura verificada';
+        return [
+          `\n          <div class="student-score-box score-card-verified score-candidate-item" ` +
+          `data-candidate-id="${e(ej.id)}" data-run-id="${e(run.id)}">\n`,
+          `            <div class="score-card-head">\n              <div>\n`,
+          `                <span class="badge info">${badgeText}</span>\n`,
+          `                <h4>${e(ej.titulo || m.request?.work)} — ${e(ej.compositor || m.request?.composer)}</h4>\n`,
+          `                <small class="score-meta">Compases ${e(ej.compases || '1-3')} · ` +
+          `Fuente: ${e(ej.fuente || 'Catálogo')}</small>\n`,
+          `              </div>\n            </div>\n`,
+          `            <div class="score-preview-container">\n`,
+          `              <div class="score-preview-box" data-candidate-id="${e(ej.id)}" ` +
+          `data-run-id="${e(run.id)}" data-current-mode="svg">\n`,
+          `                <div class="score-loading"><span class="spinner"></span> ` +
+          `Renderizando partitura con Verovio…</div>\n`,
+          `              </div>\n            </div>\n`,
+          `          </div>\n`
+        ].join('');
+      }).join('');
+
       return [
         `\n        <div class="assignment-card">\n          <div class="assign-head">\n`,
         `            <span class="assign-tag">${start}–${elapsed} min</span>\n`,
@@ -286,6 +323,7 @@ export function studentDocumentHTML(run) {
           `          <p class="activity-deliverable"><strong>Entregable:</strong> `,
           `${e(cleanStudentText(activity.deliverable, true))}</p>\n`
         ].join('') : '',
+        scoreBoxesHtml,
         `        </div>\n`
       ].join('');
     }).join(''),
@@ -318,7 +356,7 @@ export function studentDocumentHTML(run) {
   ].join('');
 }
 
-export function printStudentDocument() {
+export async function printStudentDocument() {
   const handout = document.querySelector('.student-dialog .student-handout');
   if (!handout) {
     document.body.classList.add('student-printing');
@@ -328,6 +366,10 @@ export function printStudentDocument() {
     window.print();
     return;
   }
+
+  // Esperar a que terminen los renderizados Verovio y SVG de componentes antes de clonar
+  const boxes = Array.from(document.querySelectorAll('.student-dialog .score-preview-box'));
+  await Promise.all(boxes.map(b => b._renderPromise || Promise.resolve()));
 
   // Clone handout content so the on-screen modal stays intact
   const clone = handout.cloneNode(true);
@@ -339,7 +381,7 @@ export function printStudentDocument() {
   });
 
   // Remove buttons and interactive elements
-  clone.querySelectorAll('.button, button, [data-action]').forEach(el => el.remove());
+  clone.querySelectorAll('.button, button, [data-action], .score-loading').forEach(el => el.remove());
 
   // Use an isolated hidden iframe for 100% clean, non-modal browser printing
   let iframe = document.getElementById('student-print-frame');
@@ -372,18 +414,21 @@ export function printStudentDocument() {
 
   doc.body.appendChild(clone);
 
-  setTimeout(() => {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch (e) {
-      document.body.classList.add('student-printing');
-      window.addEventListener('afterprint', () => document.body.classList.remove('student-printing'), {
-        once: true
-      });
-      window.print();
-    }
-  }, 250);
+  if (iframe.contentWindow.document.fonts) {
+    await iframe.contentWindow.document.fonts.ready;
+  }
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+  } catch (e) {
+    document.body.classList.add('student-printing');
+    window.addEventListener('afterprint', () => document.body.classList.remove('student-printing'), {
+      once: true
+    });
+    window.print();
+  }
 }
 
 export async function studentMaterialModal(id) {

@@ -433,4 +433,34 @@
     font-size: 9.5px !important;
     box-shadow: none !important;
   }
+
+  /* Modelos didácticos, partituras y gráficos deterministas en impresión */
+  .section-didactic-models,
+  .didactic-models-container,
+  .didactic-model-card,
+  .student-score-box,
+  .score-card,
+  .score-card-verified,
+  .verovio-score-svg,
+  .pianoroll-score-svg {
+    display: block !important;
+    visibility: visible !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .didactic-models-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  svg, canvas {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    visibility: visible !important;
+  }
 }
