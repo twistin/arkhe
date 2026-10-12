@@ -83,8 +83,9 @@ export function renderScoreCandidateItem(cand, cIdx, runId, reqId) {
 }
 
 export function renderWavDownloadButton(ej) {
+  const isTheory = ej?.calculado_teoria || ej?.fuente === 'Calculado a partir de la teoría';
   const hasFluid = store.state?.music_capabilities?.fluidsynth;
-  if (!hasFluid || !ej?.id) return '';
+  if ((!hasFluid && !isTheory) || !ej?.id) return '';
   return [
     `<a class="button small ghost download-wav-btn" href="/api/ejemplos/${e(ej.id)}/wav" `,
     `download="${e(ej.id)}.wav">`,

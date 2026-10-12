@@ -825,6 +825,15 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         from docente_ai.teaching.ejemplos import get_ejemplo
         import tempfile
 
+        # 0. Ejemplos de teoría microtonal: síntesis con frecuencias exactas en Hz
+        if "teoria-tetracordo" in score_id.lower() or "tetracordo" in score_id.lower():
+            from docente_ai.music.greek import sintetizar_tetracordos_wav
+            ej = get_ejemplo(score_id, directory=self.root / "data/ejemplos") or get_ejemplo(
+                score_id, directory=self.root / "config/ejemplos"
+            ) or get_ejemplo(score_id)
+            freqs = (ej or {}).get("frecuencias_hz")
+            return sintetizar_tetracordos_wav(freqs)
+
         if not fluidsynth_available():
             raise ValueError("FluidSynth no está disponible en este sistema.")
 

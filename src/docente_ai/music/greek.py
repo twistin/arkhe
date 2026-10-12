@@ -215,3 +215,59 @@ def asegurar_archivo_partitura_tres_generos() -> str:
         r.write_text(xml_content, encoding="utf-8")
     return filename
 
+
+def sintetizar_tetracordos_wav(
+    frecuencias_hz: list[float] | None = None,
+    duracion_nota: float = 0.6,
+    duracion_silencio: float = 0.05,
+    sample_rate: int = 44100,
+) -> bytes:
+    """Sintetiza un archivo de audio WAV PCM de 16 bits monoaural con frecuencias exactas en Hz.
+    Garantiza la preservación absoluta de los cuartos de tono (como 254.18 Hz para el Si+diesis)
+    sin degradación a semitonos temperados.
+    """
+    import io
+    import math
+    import struct
+    import wave
+
+    if not frecuencias_hz:
+        frecuencias_hz = [
+            329.63, 293.66, 261.63, 246.94,  # Diatónico (E4, D4, C4, B3)
+            329.63, 277.18, 261.63, 246.94,  # Cromático (E4, C#4, C4, B3)
+            329.63, 261.63, 254.18, 246.94,  # Enarmónico (E4, C4, B3+diesis, B3)
+        ]
+
+    audio_samples: list[float] = []
+    fade_len = int(sample_rate * 0.02)  # 20ms fade suave para evitar chasquidos
+
+    for freq in frecuencias_hz:
+        n_samples = int(sample_rate * duracion_nota)
+        for i in range(n_samples):
+            t = i / sample_rate
+            env = 1.0
+            if i < fade_len:
+                env = i / fade_len
+            elif i > n_samples - fade_len:
+                env = (n_samples - i) / fade_len
+            val = 0.5 * env * math.sin(2.0 * math.pi * freq * t)
+            audio_samples.append(val)
+
+        if duracion_silencio > 0:
+            gap_samples = int(sample_rate * duracion_silencio)
+            audio_samples.extend([0.0] * gap_samples)
+
+    buf = io.BytesIO()
+    with wave.open(buf, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sample_rate)
+        raw = bytearray()
+        for s in audio_samples:
+            val_int = max(-32767, min(32767, int(s * 32767.0)))
+            raw.extend(struct.pack('<h', val_int))
+        wf.writeframes(raw)
+
+    return buf.getvalue()
+
+
