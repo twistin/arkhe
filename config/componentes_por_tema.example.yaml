@@ -1,0 +1,15 @@
+schema_version: 1
+reglas:
+  - patron: "tetracordo|tetracordos|género|genero|géneros|generos|enarmónico|enarmonico|diatónico|diatonico|cromático|cromatico|diesis|díesis"
+    componentes:
+      - tipo: "tetracordos"
+  - patron: "sistema perfecto|gran sistema|seikilos|epitafio|tonos|proslambanomenos|proslambanómenos"
+    componentes:
+      - tipo: "gran_sistema_perfecto"
+  - patron: "pitágoras|pitagoras|proporción|proporcion|consonancia|monocordio|canon pitagorico|canon pitagórico"
+    componentes:
+      - tipo: "monocordio"
+      - tipo: "escalera_intervalos"
+  - patron: "tratadista|tratadistas|siglo|cronología|cronologia|línea temporal|linea temporal|eje histórico|eje historico|aristóxeno|aristoxeno|ptolomeo|boecio|platón|platon|aristóteles|aristoteles"
+    componentes:
+      - tipo: "linea_temporal"

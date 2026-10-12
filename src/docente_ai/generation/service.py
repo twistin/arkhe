@@ -344,29 +344,54 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                 report(f'Aviso en resolución de partituras: {res_err}')
 
         if result:
-            d_comps = result.get('didactic_components')
-            top_clean = (str(request.get('original_topic') or request.get('question') or '')).lower()
-            is_greek_theme = any(k in top_clean for k in ('grecia', 'seikilos', 'epitafio', 'tetracordo', 'aristóxeno', 'aristoxeno', 'ptolomeo', 'monocordio', 'sistema perfecto'))
-            if d_comps is None and is_greek_theme:
-                d_comps = [
-                    {'tipo': 'tetracordos'},
-                    {'tipo': 'gran_sistema_perfecto'},
-                    {'tipo': 'monocordio'},
-                    {'tipo': 'escalera_intervalos'},
-                    {'tipo': 'linea_temporal'},
-                ]
-                result['didactic_components'] = d_comps
+            from docente_ai.music.didactic import seleccionar_componentes_por_tema, resolver_componente_didactico
 
-            if isinstance(d_comps, list) and d_comps:
+            raw_d_comps = result.get('didactic_components') or []
+            comps_llm = []
+            if isinstance(raw_d_comps, list):
+                for comp in raw_d_comps:
+                    c_dict = dict(comp)
+                    c_dict['origen'] = 'llm'
+                    comps_llm.append(c_dict)
+
+            plan_data = result.get('plan') or {}
+            claims_data = result.get('claims') or []
+            textos_analisis = [
+                str(request.get('original_topic') or ''),
+                str(request.get('question') or ''),
+                str(request.get('display_title') or ''),
+                str(result.get('display_title') or ''),
+                ' '.join(plan_data.get('objectives') or []),
+                ' '.join(
+                    str(act.get('title', '')) + ' ' + str(act.get('instructions', '')) + ' ' + str(act.get('student_task', ''))
+                    for act in (plan_data.get('activities') or [])
+                ),
+                str(plan_data.get('observations') or ''),
+                ' '.join(str(c.get('text', '')) for c in claims_data),
+            ]
+            texto_completo = ' '.join(textos_analisis)
+
+            comps_regla = seleccionar_componentes_por_tema(texto_completo)
+            tipos_existentes = {c.get('tipo') for c in comps_llm if c.get('tipo')}
+            comps_finales = list(comps_llm)
+            for c_regla in comps_regla:
+                if c_regla.get('tipo') not in tipos_existentes:
+                    comps_finales.append(c_regla)
+                    tipos_existentes.add(c_regla.get('tipo'))
+
+            result['didactic_components'] = comps_finales
+
+            if comps_finales:
                 try:
-                    from docente_ai.music.didactic import resolver_componente_didactico
                     report('Resolviendo componentes didácticos musicales deterministas')
                     resolved_comps = []
-                    for comp in d_comps:
+                    for comp in comps_finales:
                         tipo = comp.get('tipo')
                         parametros = comp.get('parametros') or {}
+                        origen = comp.get('origen', 'regla_tema')
                         try:
                             res = resolver_componente_didactico(tipo, parametros, evidence=bundle.get('evidence'))
+                            res['origen'] = origen
                             if comp.get('actividad'):
                                 res['actividad'] = comp.get('actividad')
                             resolved_comps.append(res)
@@ -799,6 +824,7 @@ def import_score_musicxml(
     *,
     titulo: str | None = None,
     compositor: str | None = None,
+    verificado: bool = True,
     rango_compases: str = "1-12",
     directorio_destino: Path | str | None = None
 ) -> dict:
@@ -841,6 +867,7 @@ def import_score_musicxml(
             fuente=fuente,
             titulo=titulo,
             compositor=compositor,
+            verificado=verificado,
             rango_compases=rango_compases,
             directorio_destino=directorio_destino
         )
@@ -848,7 +875,7 @@ def import_score_musicxml(
         resolved_item['status'] = 'resuelto_catalogo'
         resolved_item['origen'] = 'catalogo_local'
         resolved_item['ejemplo'] = nuevo_ejemplo
-        resolved_item['verificado'] = True
+        resolved_item['verificado'] = nuevo_ejemplo.get('verificado', True)
         resolved_item['candidatos'] = []
 
         result['resolved_music_requests'] = resolved_list

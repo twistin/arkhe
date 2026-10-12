@@ -140,6 +140,7 @@ RESPONSE_SCHEMA['properties']['didactic_components'] = {
     'type': 'array',
     'items': DIDACTIC_COMPONENT_SCHEMA,
 }
+RESPONSE_SCHEMA['required'].append('didactic_components')
 
 
 class PedagogicalGenerator(OllamaGenerator):

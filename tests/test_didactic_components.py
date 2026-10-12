@@ -396,3 +396,18 @@ def test_endpoint_import_musicxml(tmp_path):
         assert resolved_reqs[0]['verificado'] is True
         assert resolved_reqs[0]['ejemplo']['fuente'] == 'Transcripción propia a partir de la estela de Tralles'
 
+
+def test_seleccion_determinista_componentes_por_tema():
+    """Comprueba que seleccionar_componentes_por_tema extraiga los componentes correctos a partir de palabras clave."""
+    from docente_ai.music.didactic import seleccionar_componentes_por_tema
+
+    texto_grecia = "El sistema perfecto y los géneros de tetracordos en la música griega. Monocordio de Pitágoras."
+    comps = seleccionar_componentes_por_tema(texto_grecia)
+    tipos = [c["tipo"] for c in comps]
+    assert "tetracordos" in tipos
+    assert "gran_sistema_perfecto" in tipos
+    assert "monocordio" in tipos
+    assert "escalera_intervalos" in tipos
+    for c in comps:
+        assert c["origen"] == "regla_tema"
+

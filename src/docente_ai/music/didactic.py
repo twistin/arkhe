@@ -7,8 +7,11 @@ del contenido factual (autores, fechas, tratados procedentes de las fuentes).
 """
 
 from dataclasses import dataclass
-from typing import Any
+from pathlib import Path
 import math
+import re
+from typing import Any
+import yaml
 
 
 # ============================================================================
@@ -1112,3 +1115,50 @@ def resolver_componente_didactico(
         f"Tipo de componente didáctico no soportado: '{tipo}'. "
         f"Tipos válidos: tetracordos, gran_sistema_perfecto, monocordio, escalera_intervalos, linea_temporal."
     )
+
+
+def cargar_reglas_componentes_por_tema(config_path: Path | str | None = None) -> list[dict[str, Any]]:
+    """Carga las reglas deterministas para asociar temas con componentes didácticos."""
+    candidatos = []
+    if config_path:
+        candidatos.append(Path(config_path))
+    candidatos.append(Path("config/componentes_por_tema.yaml"))
+    candidatos.append(Path("config/componentes_por_tema.example.yaml"))
+    for p in candidatos:
+        if p.is_file():
+            try:
+                data = yaml.safe_load(p.read_text(encoding="utf-8"))
+                if isinstance(data, dict) and "reglas" in data:
+                    return data["reglas"]
+            except Exception:
+                continue
+    return []
+
+
+def seleccionar_componentes_por_tema(
+    texto: str,
+    config_path: Path | str | None = None
+) -> list[dict[str, Any]]:
+    """Evalúa el texto libre (tema, plan, claims) frente a las reglas deterministas
+    y devuelve los componentes didácticos sugeridos por regla temática."""
+    reglas = cargar_reglas_componentes_por_tema(config_path)
+    if not reglas or not texto:
+        return []
+
+    texto_lower = str(texto).lower()
+    componentes: list[dict[str, Any]] = []
+    tipos_vistos: set[str] = set()
+
+    for regla in reglas:
+        patron = regla.get("patron", "")
+        if patron and re.search(patron, texto_lower, re.IGNORECASE):
+            for c in regla.get("componentes", []):
+                tipo = c.get("tipo")
+                if tipo and tipo not in tipos_vistos:
+                    tipos_vistos.add(tipo)
+                    componentes.append({
+                        "tipo": tipo,
+                        "parametros": c.get("parametros") or {},
+                        "origen": "regla_tema",
+                    })
+    return componentes
