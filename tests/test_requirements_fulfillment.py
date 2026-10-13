@@ -4,6 +4,7 @@ import sqlite3
 from pathlib import Path
 import pytest
 
+from docente_ai.generation.settings import GenerationSettings
 from docente_ai.rag.planning import extract_requirements
 from docente_ai.teaching.fulfillment import (
     EJECUTORES_VALIDOS,
@@ -25,11 +26,24 @@ CRITERIO_SEIKILOS = (
 )
 
 
-def test_asignacion_ejecutores_caso_seikilos():
-    """Verifica que cada requisito del caso de Seikilos se asigna al ejecutor correcto."""
+def test_extract_requirements_sin_settings_lanza_error():
+    """extract_requirements sin settings debe lanzar un error explícito, nunca crear GenerationSettings('default')."""
+    with pytest.raises(ValueError, match="extract_requirements requiere un objeto GenerationSettings explícito"):
+        extract_requirements(
+            topic="La forma sonata",
+            criteria="Exposición, desarrollo y reexposición",
+            settings=None,
+        )
+
+
+def test_fallback_asignacion_ejecutores_caso_seikilos():
+    """Verifica que cada requisito del caso de Seikilos se asigna al ejecutor correcto usando fallback."""
+    settings = GenerationSettings("test")
     reqs = extract_requirements(
         topic="La música en la antigua Grecia y el Epitafio de Seikilos",
         criteria=CRITERIO_SEIKILOS,
+        settings=settings,
+        generator_factory=None,
     )
     assert len(reqs) == 8
 
@@ -53,11 +67,14 @@ def test_asignacion_ejecutores_caso_seikilos():
     assert by_id["R8"]["ejecutor"] == "analisis_sobre_partitura"
 
 
-def test_r8_pendiente_profesor_sin_partitura_verificada(tmp_path):
+def test_fallback_r8_pendiente_profesor_sin_partitura_verificada(tmp_path):
     """Verifica que R8 queda como pendiente_profesor si no hay partitura verificada en el entorno."""
+    settings = GenerationSettings("test")
     reqs = extract_requirements(
         topic="La música en la antigua Grecia y el Epitafio de Seikilos",
         criteria=CRITERIO_SEIKILOS,
+        settings=settings,
+        generator_factory=None,
     )
 
     # Entorno sin partituras verificadas
@@ -254,7 +271,7 @@ def test_omision_seccion_pendiente_y_aviso_en_actividades_alumnado():
     assert "glossary-callout" in mat_js
 
 
-def test_caso_polifonia_siglo_xvi_descomposicion_y_fulfillment():
+def test_fallback_caso_polifonia_siglo_xvi_descomposicion_y_fulfillment():
     """Caso real run-1367d9daff4e4bcfb82e1e000c16b53e:
     La propuesta del siglo XVI debe descomponerse en al menos 8 requisitos atómicos,
     no incluir contenido de Grecia ni del siglo XV, y tener fulfillment nunca null."""
@@ -269,9 +286,12 @@ def test_caso_polifonia_siglo_xvi_descomposicion_y_fulfillment():
         "8. Actividad práctica de análisis auditivo comparativo de texturas del siglo XVI."
     )
 
+    settings = GenerationSettings("test")
     reqs = extract_requirements(
         topic="La polifonía en el siglo XVI",
         criteria=criterios_xvi,
+        settings=settings,
+        generator_factory=None,
     )
 
     # 1. Al menos 8 requisitos atómicos
@@ -319,15 +339,23 @@ def test_cita_profesor_literal_y_rechazo_si_no_coincide():
 def test_fallback_a_frases_sin_plantillas_ante_fallo_llm():
     """Simula fallo completo del LLM y comprueba aviso de error y troceado por frases sin plantillas."""
     class FakeBrokenGenerator:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
         def generate(self, prompt, **kwargs):
-            return "Esto no es un JSON válido en absoluto."
+            return {"content": "Esto no es un JSON válido en absoluto."}
 
     topic = "La síntesis FM y el diseño de sonido digital en los años 80"
     criteria = "Explicar oscilador portador y modulador; índice de modulación; espectro no armónico; DX7 de Yamaha"
 
+    settings = GenerationSettings("test")
     reqs = extract_requirements(
         topic=topic,
         criteria=criteria,
+        settings=settings,
         generator_factory=lambda _: FakeBrokenGenerator(),
     )
 
@@ -345,13 +373,19 @@ def test_fallback_a_frases_sin_plantillas_ante_fallo_llm():
             assert forbidden not in r["description"].lower()
 
 
-def test_caso_xvi_texto_informal_con_erratas_del_profesor():
+def test_fallback_caso_xvi_texto_informal_con_erratas_del_profesor():
     """Prueba con el texto real del profesor (informal, sin espacios tras comas):
     los requisitos deben basarse en sus palabras y no inventar autores como requisitos obligatorios."""
     topic = "Quiero trabajar la polifonia Renacentista del siglo XVI: generaciones 3,4 y 5 de compositores, escuelas europeas Reforma y contrarreforma,Misa,chanson y Madrigales"
     criteria = "Priorizar formas musicales, compositores, cambios en el contexto social, politico y economico (america, Reforma, contrarreforma), tecnicas de composicion"
 
-    reqs = extract_requirements(topic=topic, criteria=criteria)
+    settings = GenerationSettings("test")
+    reqs = extract_requirements(
+        topic=topic,
+        criteria=criteria,
+        settings=settings,
+        generator_factory=None,
+    )
     assert len(reqs) >= 4
 
     texto_total = f"{topic} {criteria}"
@@ -361,5 +395,52 @@ def test_caso_xvi_texto_informal_con_erratas_del_profesor():
         # La cita debe estar presente en el texto
         from docente_ai.rag.planning import _verificar_cita_profesor
         assert _verificar_cita_profesor(cita, texto_total), f"Cita '{cita}' no encontrada en el texto del profesor"
+
+
+def test_llm_extraccion_requisitos_con_generador_falso():
+    """Prueba que extract_requirements procesa adecuadamente la salida válida de un LLM."""
+    payload = {
+        "requirements": [
+            {
+                "id": "R1",
+                "description": "Línea de tiempo con los principales tratadistas griegos",
+                "type": "línea temporal",
+                "cita_profesor": "Línea de tiempo con los principales tratadistas y filósofos musicales griegos",
+            },
+            {
+                "id": "R2",
+                "description": "Doctrina del ethos y consonancia pitagórica",
+                "type": "contenido",
+                "cita_profesor": "Fundamentos teóricos: doctrina del ethos",
+                "sugerencias": ["Monocordio pitagórico", "Aristóxeno de Tarento"],
+            },
+        ],
+        "sugerencias_adicionales": ["Escala de géneros griegos"],
+    }
+
+    class FakeLLMGenerator:
+        def __init__(self, *args, **kwargs):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def generate(self, prompt, **kwargs):
+            return {"content": json.dumps(payload, ensure_ascii=False)}
+
+    settings = GenerationSettings("test")
+    reqs = extract_requirements(
+        topic="La música en la antigua Grecia",
+        criteria=CRITERIO_SEIKILOS,
+        settings=settings,
+        generator_factory=lambda _: FakeLLMGenerator(),
+    )
+    assert len(reqs) == 2
+    assert reqs[0]["ejecutor"] == "linea_temporal"
+    assert reqs[0]["cita_profesor"] == "Línea de tiempo con los principales tratadistas y filósofos musicales griegos"
+    assert reqs[1]["sugerencias"] == ["Monocordio pitagórico", "Aristóxeno de Tarento"]
+    assert getattr(reqs, "error", None) is None
+    assert "Escala de géneros griegos" in getattr(reqs, "sugerencias", [])
+
 
 

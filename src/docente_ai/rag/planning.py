@@ -142,7 +142,6 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
     )
 
     if (pat_represent and pat_teoria) or es_teoria_pura:
-        req['ejecutor'] = 'componente_calculado'
         comps = []
         if re.search(r'tetracordo|g[eé]nero|enarm[oó]nico|diat[oó]nico|crom[aá]tico', d_norm):
             comps.append({'tipo': 'tetracordos', 'parametros': {}})
@@ -159,8 +158,13 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
                 comps_unicos.append(c)
                 vistos.add(c['tipo'])
 
+        if not comps_unicos:
+            req['ejecutor'] = 'texto_fuentes'
+            return req
+
+        req['ejecutor'] = 'componente_calculado'
         req['componentes'] = comps_unicos
-        req['componente_tipo'] = ','.join(c['tipo'] for c in comps_unicos) if comps_unicos else 'tetracordos'
+        req['componente_tipo'] = ','.join(c['tipo'] for c in comps_unicos)
         return req
 
     # 4. Partitura de obra (partitura en sí sin análisis)
@@ -244,16 +248,15 @@ def extract_requirements(topic: str, criteria: str, settings=None, generator_fac
     asignando a cada uno su ejecutor correspondiente.
     Si el LLM falla tras el reintento, registra el error y divide el texto por frases
     para que el profesor lo edite, sin plantillas fijas."""
+    if settings is None:
+        raise ValueError("extract_requirements requiere un objeto GenerationSettings explícito.")
+
     clean_topic = (topic or '').strip()
     clean_criteria = (criteria or '').strip()
     texto_profesor = f"{clean_topic}\n{clean_criteria}".strip()
     valid_types = {'contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato'}
 
-    if settings is None and generator_factory is not None:
-        from docente_ai.generation.settings import GenerationSettings
-        settings = GenerationSettings(model='default', num_ctx=4096, max_output_tokens=2048)
-
-    if generator_factory is not None and settings is not None and clean_criteria and len(clean_criteria) >= 20:
+    if generator_factory is not None and clean_criteria and len(clean_criteria) >= 20:
         system_msg = (
             'Eres un planificador docente riguroso. A partir del tema y de los criterios del profesor, '
             'extrae una lista de requisitos ATÓMICOS (de 3 a 12).\n'

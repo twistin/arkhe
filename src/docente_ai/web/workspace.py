@@ -529,6 +529,19 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         if not reqs:
             generator_factory = data.get('generator_factory')
             settings = data.get('settings')
+            if settings is None:
+                ped_path = self.root / 'config/pedagogy.yaml'
+                gen_path = self.root / 'config/generation.yaml'
+                cfg_path = ped_path if ped_path.exists() else gen_path
+                if cfg_path.exists():
+                    settings = generation_settings(cfg_path)
+            if generator_factory is None and settings is not None:
+                if settings.is_remote:
+                    from docente_ai.llm.openai_compatible import OpenAICompatibleGenerator
+                    generator_factory = OpenAICompatibleGenerator
+                else:
+                    from docente_ai.llm.generation import OllamaGenerator
+                    generator_factory = OllamaGenerator
             reqs = extract_requirements(question, criteria, settings=settings, generator_factory=generator_factory)
             err_msg = getattr(reqs, 'error', None)
             sugs = getattr(reqs, 'sugerencias', [])

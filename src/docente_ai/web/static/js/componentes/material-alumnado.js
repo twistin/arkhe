@@ -135,10 +135,10 @@ export function renderDidacticSection(run, options = {}) {
 export function renderFichaInfographic(run) {
   if (!run?.ficha?.verificado || !run?.ficha?.infografia) return '';
   const infog = run.ficha.infografia;
-  if (infog.organologia || run.ficha.id === 'egipto') {
+  if (infog.organologia) {
     return renderEgyptInfographic(run);
   }
-  if (infog.modelos_misa || run.ficha.id === 'polifonia_xv') {
+  if (infog.modelos_misa) {
     return renderStudentInfographic(run);
   }
   return '';
@@ -260,7 +260,7 @@ export function studentDocumentHTML(run) {
 
       // Partituras Verovio verificadas
       if (req.ejecutor === 'partitura_obra' || req.ejecutor === 'analisis_sobre_partitura' ||
-          /partitura|seikilos/i.test(req.description || '')) {
+          /partitura/i.test(req.description || '')) {
         for (const sc of resolvedScores) {
           const scKey = sc.ejemplo?.id || sc.request_id || 'score';
           if (!renderedArtifacts.has(scKey)) {
@@ -272,7 +272,7 @@ export function studentDocumentHTML(run) {
 
       // Infografía de ficha verificada (si aplica al tema o primer requisito)
       if (run.ficha?.verificado && run.ficha?.infografia && !renderedArtifacts.has('ficha_infografia')) {
-        const infogRegex = /infograf|l[aá]mina|esquema|organolog|instrument|marco|misa|t[eé]cnica|egipto/i;
+        const infogRegex = /infograf|l[aá]mina|esquema|organolog|instrument|marco|misa|t[eé]cnica/i;
         const matchesInfog = infogRegex.test(req.description || '') || (requirements.indexOf(req) === 0);
         if (matchesInfog) {
           renderedArtifacts.add('ficha_infografia');
@@ -473,8 +473,10 @@ export function studentDocumentHTML(run) {
       // Comprobar si la actividad trabaja un requisito pendiente
       const isPendingResource = (activity.requirement_id && unmetReqIds.has(activity.requirement_id)) ||
         (activity.music_request_id && unmetReqIds.size > 0 &&
-          [...unmetReqIds].some(rid => rid.toLowerCase().includes('score') || rid.toLowerCase().includes('r8') ||
-            rid.toLowerCase().includes('obra') || rid.toLowerCase().includes('seikilos')));
+          [...unmetReqIds].some(rid => {
+            const rObj = (requirements || []).find(r => r.id === rid);
+            return rObj?.ejecutor === 'partitura_obra' || rObj?.ejecutor === 'analisis_sobre_partitura';
+          }));
 
       const pendingBadge = isPendingResource ? [
         `\n          <div class="activity-resource-pending">\n`,
