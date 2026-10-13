@@ -8,17 +8,18 @@ import yaml
 FICHAS_DEFAULT_DIR = Path('data/fichas')
 FICHAS_CONFIG_DIR = Path('config/fichas')
 
-_POLYPHONY_REGEXES = (
-    re.compile(r'\bpolifon[ií]a\b', re.IGNORECASE),
+# Reglas estrictas de coincidencia: requieren coherencia de periodo y materia.
+# Prohibido usar palabras sueltas como 'polifonía' que causan cruces de periodos.
+_PERIODOS_INCOMPATIBLES_SIGLO_XV = re.compile(
+    r'\bsiglo\s*xvi\b|\bs\.\s*xvi\b|\b16th\s*century\b|\brenacimiento\b|\brenacentista\b|'
+    r'\bpalestrina\b|\blassus\b|\bvictoria\b|\bmorales\b|\bguerrero\b',
+    re.IGNORECASE
+)
+
+_POLYPHONY_XV_REGEXES = (
     re.compile(r'\bsiglo\s*xv\b|\bs\.\s*xv\b|\b15th\s*century\b', re.IGNORECASE),
-    re.compile(r'\bcantus\s+firmus\b', re.IGNORECASE),
-    re.compile(r'\bmisa\s+c[ií]clica\b', re.IGNORECASE),
-    re.compile(r'\bmisa\s+parodia\b', re.IGNORECASE),
-    re.compile(r'\bmisa\s+par[aá]frasis\b', re.IGNORECASE),
-    re.compile(r'\bdu\s*fay\b|\bdufay\b', re.IGNORECASE),
-    re.compile(r'\bockeghem\b|\bbinchois\b|\bbusno[iy]s\b', re.IGNORECASE),
+    re.compile(r'\bdu\s*fay\b|\bdufay\b|\bockeghem\b|\bbinchois\b|\bbusno[iy]s\b', re.IGNORECASE),
     re.compile(r'\bse\s+la\s+face\s+ay\s+pale\b', re.IGNORECASE),
-    re.compile(r'\bl[\'\’]?homme\s+arm[eé]\b', re.IGNORECASE),
 )
 
 _EGYPT_REGEXES = (
@@ -29,8 +30,7 @@ _EGYPT_REGEXES = (
 
 _NTAM_REGEXES = (
     re.compile(r'\bntam\b', re.IGNORECASE),
-    re.compile(r'\bnuevas\s+tecnolog[ií]as\b', re.IGNORECASE),
-    re.compile(r'\bnovas\s+tecnolox[ií]as\b', re.IGNORECASE),
+    re.compile(r'\bnuevas\s+tecnolog[ií]as\b|\bnovas\s+tecnolox[ií]as\b', re.IGNORECASE),
 )
 
 _GREECE_REGEXES = (
@@ -124,35 +124,82 @@ def verificar_ficha(
     return ficha
 
 
-def get_ficha_for_topic(topic: str, directory: Path | str | None = None) -> dict[str, Any] | None:
-    """Obtiene la ficha correspondiente a un tema de estudio según patrones canónicos."""
+def listar_fichas_aplicables(
+    topic: str,
+    criteria: str = "",
+    subject: str = "",
+    directory: Path | str | None = None,
+) -> list[dict[str, Any]]:
+    """Lista todas las fichas temáticas aplicables a un tema y periodo específicos.
+    Permite que la UI muestre al profesor las fichas que se utilizarán, con opción de quitarlas."""
     if not topic:
-        return None
-    t = str(topic).strip()
+        return []
+    texto_eval = f"{topic} {criteria} {subject}".strip()
 
-    # 1. Comprobación de polifonía del siglo XV
-    if any(rx.search(t) for rx in _POLYPHONY_REGEXES):
-        return get_ficha('polifonia_xv', directory)
+    candidatas = []
+    # 1. Polifonía del siglo XV
+    if not _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
+        if any(rx.search(texto_eval) for rx in _POLYPHONY_XV_REGEXES):
+            f = get_ficha('polifonia_xv', directory)
+            if f:
+                candidatas.append(f)
 
-    # 2. Comprobación de Antiguo Egipto
-    if any(rx.search(t) for rx in _EGYPT_REGEXES):
-        return get_ficha('egipto', directory)
+    # 2. Antiguo Egipto
+    if any(rx.search(texto_eval) for rx in _EGYPT_REGEXES):
+        f = get_ficha('egipto', directory)
+        if f:
+            candidatas.append(f)
 
-    # 3. Comprobación de NTAM
-    if any(rx.search(t) for rx in _NTAM_REGEXES):
-        return get_ficha('ntam', directory)
+    # 3. NTAM
+    if any(rx.search(texto_eval) for rx in _NTAM_REGEXES):
+        f = get_ficha('ntam', directory)
+        if f:
+            candidatas.append(f)
 
-    # 4. Comprobación de Grecia Antigua
-    if any(rx.search(t) for rx in _GREECE_REGEXES):
-        return get_ficha('glosario_griego', directory)
+    # 4. Grecia Antigua
+    if any(rx.search(texto_eval) for rx in _GREECE_REGEXES):
+        f = get_ficha('glosario_griego', directory)
+        if f:
+            candidatas.append(f)
 
-    # 5. Búsqueda por coincidencia en el campo 'tema'
+    # 5. Coincidencia declarada en otras fichas por tema exacto con límites de palabra
     fichas = load_all_fichas(directory)
+    vistas = {c['id'] for c in candidatas}
+    periodos_defecto = {
+        'polifonia_xv': 'Siglo XV',
+        'egipto': 'Antigüedad',
+        'ntam': 'Música contemporánea',
+        'glosario_griego': 'Antigüedad',
+        'cronologia_autores': 'Antigüedad a Edad Media',
+    }
     for f in fichas:
-        tema = str(f.get('tema') or '').lower()
-        if tema and tema in t.lower():
-            return f
+        fid = f.get('id')
+        if fid in vistas or fid == 'cronologia_autores':
+            continue
+        if fid == 'polifonia_xv' and _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
+            continue
+        f_tema = str(f.get('tema') or '').strip().lower()
+        f_periodo = str(f.get('periodo') or periodos_defecto.get(fid, '')).strip().lower()
+        if 'siglo xv' in f_periodo and _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
+            continue
+        if f_tema and re.search(rf'\b{re.escape(f_tema)}\b', texto_eval, re.IGNORECASE):
+            candidatas.append(f)
+            vistas.add(fid)
 
+    return candidatas
+
+
+def get_ficha_for_topic(
+    topic: str,
+    directory: Path | str | None = None,
+    fichas_excluidas: list[str] | set[str] | None = None,
+) -> dict[str, Any] | None:
+    """Obtiene la ficha correspondiente a un tema respetando periodo y exclusiones."""
+    excluidas = set(fichas_excluidas or [])
+    aplicables = listar_fichas_aplicables(topic, directory=directory)
+    for f in aplicables:
+        if f.get('id') not in excluidas:
+            return f
     return None
 
 
@@ -175,5 +222,5 @@ def get_ficha_for_run(run: dict[str, Any], directory: Path | str | None = None) 
     crit = str(ped.get('teacher_criteria') or '')
 
     combined = f"{disp} {q} {crit} {subj} {group.get('name', '')} {unit.get('id', '')} {ped.get('unit_id', '')}"
-
-    return get_ficha_for_topic(combined, directory)
+    fichas_excluidas = req.get('fichas_excluidas') or ped.get('fichas_excluidas')
+    return get_ficha_for_topic(combined, directory, fichas_excluidas=fichas_excluidas)
