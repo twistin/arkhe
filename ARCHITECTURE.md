@@ -996,6 +996,33 @@ Para enriquecer el material del estudiante con gráficos rigurosos sin depender 
 - **Impresión asíncrona garantizada:**
   - `printStudentDocument` sincroniza la renderización de todos los elementos visuales (Verovio y SVG) mediante `Promise.all` sobre las promesas de carga antes de clonar el contenido e invocar `print()`. `print.css` protege la visibilidad de contenedores y elementos vectoriales.
 
+## Asignación de ejecutor por requisito y resolución previa al LLM
+
+Para garantizar que cada indicación del profesor se resuelva deterministamente por quien está capacitado para cumplirla y nunca se entregue en silencio una propuesta incompleta:
+- **Enum cerrado de ejecutores (`rag.planning: EJECUTORES_VALIDOS`):**
+  - Cada requisito extraído recibe un ejecutor específico:
+    1. `texto_fuentes`: redactado por el LLM a partir de pasajes autorizados de la biblioteca.
+    2. `componente_calculado`: generado mediante funciones matemáticas exactas (`tetracordos`, `gran_sistema_perfecto`, `monocordio`, `escalera_intervalos`).
+    3. `partitura_obra`: repertorio musical resuelto exclusivamente desde el catálogo de ejemplos verificados por el profesor (`verificado: true` con `verificado_por` y timestamp ISO `verificado_en`).
+    4. `analisis_sobre_partitura`: cálculo musical con `music21` (ámbito, grados del Gran Sistema Perfecto, nota final, tetracordos activos) derivado de una partitura verificada.
+    5. `linea_temporal`: eje cronológico de autores y tratados derivado de los pasajes citados y `config/fichas/cronologia_autores.yaml`.
+    6. `actividad`: diseño metodológico de aula y ejercicios prácticos.
+  - Las reglas deterministas de `config/componentes_por_tema.yaml` se aplican por requisito (no por tema global): p. ej. representar notacionalmente tetracordos o el Gran Sistema Perfecto asigna de forma imperativa `componente_calculado`.
+- **Resolución previa y registro de fulfillment (`teaching.fulfillment`):**
+  - Antes de invocar al modelo de lenguaje, `generation.service` resuelve los requisitos que no dependen de redacción libre:
+    - Componentes interactivos y cálculos de partitura quedan resueltos y guardados en `result.fulfillment`: `[{requirement_id, ejecutor, estado: 'cumplido'|'pendiente_profesor'|'sin_fuentes', artefacto_id, falta}]`.
+    - Si no existe partitura verificada en el catálogo para una obra solicitada (p. ej. *Epitafio de Seikilos*), el requisito queda en `estado: 'pendiente_profesor'` indicando la falta explícita.
+- **Redacción guiada y cobertura en validación (`agents.pedagogy`):**
+  - Los recursos resueltos se pasan al modelo como `recursos_disponibles` (`id` + qué muestra cada uno) para que el texto remita a ellos y las actividades trabajen directamente sobre sus figuras.
+  - En la validación de `coverage`, cualquier requisito con fulfillment cumplido cuenta automáticamente como `cubierto` sin exigir claims ni citas textuales artificiales, prohibiendo que el validador o el modelo lo degraden a `parcial`.
+- **Pantalla interactiva «He entendido esto» y flujo de regeneración:**
+  - Antes de iniciar la generación (o al pulsar «Regenerar» en una propuesta previa), la interfaz despliega un modal interactivo donde el docente puede:
+    - Modificar la redacción de cada requisito.
+    - Cambiar el ejecutor asignado mediante un selector desplegable con las 6 opciones.
+    - Eliminar o añadir requisitos atómicos.
+    - Importar directamente MusicXML al catálogo docente con título y compositor precargados para requisitos que requieran partitura.
+  - La acción de regenerar preserva íntegra la propuesta anterior en la base de datos y genera una nueva propuesta con identificador `run_id` independiente.
+
 
 
 

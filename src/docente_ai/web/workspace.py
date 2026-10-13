@@ -501,11 +501,34 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 unit_id=data.get('unit') or None,
                 criteria=data.get('criteria', ''), session_date=session_date,
             )
+            if data.get('requirements'):
+                from docente_ai.rag.planning import asignar_ejecutor_requisito
+                reqs_custom = []
+                for idx, r in enumerate(data['requirements'], 1):
+                    item = dict(r)
+                    if 'id' not in item:
+                        item['id'] = f"R{idx}"
+                    reqs_custom.append(asignar_ejecutor_requisito(item))
+                context['requirements'] = reqs_custom
             kwargs.update(subject=context['group']['subject_id'], pedagogy_context=context)
             config_name = 'pedagogy.yaml'
         result = self.ask_function(self.db, rag_settings(self.root / 'config/rag.yaml'),
                                    generation_settings(self.root / 'config' / config_name), question, **kwargs)
         return {'run_id': result['id'], 'status': result['status']}
+
+    def preview_requirements(self, data: dict) -> dict:
+        question = data.get('question') or ''
+        criteria = data.get('criteria') or ''
+        from docente_ai.rag.planning import extract_requirements
+        from docente_ai.teaching.fulfillment import resolver_fulfillment_requisitos
+        reqs = data.get('requirements')
+        if not reqs:
+            reqs = extract_requirements(question, criteria, settings=None, generator_factory=None)
+        fulfillment, recursos = resolver_fulfillment_requisitos(reqs, self.db, evidence=None, root=self.root)
+        return {
+            'requirements': reqs,
+            'fulfillment': fulfillment,
+        }
 
     def review_run(self, run_id: str, data: dict) -> dict:
         action = data.get('action')
@@ -584,6 +607,33 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             rango_compases=compases,
             directorio_destino=dest
         )
+
+    def import_catalog_musicxml(self, data: dict) -> dict:
+        from datetime import datetime, timezone
+        from docente_ai.teaching.score_resolver import importar_transcripcion_musicxml
+        xml_content = data.get('musicxml') or data.get('content') or ''
+        fuente = data.get('fuente') or ''
+        titulo = data.get('titulo') or data.get('work') or ''
+        compositor = data.get('compositor') or data.get('composer') or ''
+        compases = data.get('compases') or '1-12'
+        dest = data.get('directorio_destino') or (self.root / 'data/ejemplos')
+        verificado = data.get('verificado', True)
+        v_por = data.get('verificado_por') or 'profesor'
+        v_en = data.get('verificado_en') or (datetime.now(timezone.utc).isoformat() if verificado else None)
+        req = {'work': titulo, 'composer': compositor}
+        nuevo_ejemplo = importar_transcripcion_musicxml(
+            req,
+            xml_content,
+            fuente=fuente,
+            titulo=titulo,
+            compositor=compositor,
+            verificado=verificado,
+            verificado_por=v_por,
+            verificado_en=v_en,
+            rango_compases=compases,
+            directorio_destino=dest,
+        )
+        return {'status': 'ok', 'ejemplo': nuevo_ejemplo}
 
     def delete_source(self, document_id: str) -> dict:
         from docente_ai.library.service import delete_document as _delete_document

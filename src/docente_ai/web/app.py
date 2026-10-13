@@ -261,6 +261,10 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         count = await run_in_threadpool(ws.batch_update_document_origin, doc_ids, origin)
         return JSONResponse({'updated': count, 'origin': origin})
 
+    async def preview_requirements_endpoint(request):
+        data = await body(request)
+        return JSONResponse(await run_in_threadpool(ws.preview_requirements, data))
+
     async def generation(request):
         data = await body(request)
         await run_in_threadpool(ws.require_provider_consent, data.get('mode'))
@@ -386,6 +390,10 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         run_id = request.path_params['id']
         req_id = request.path_params['req_id']
         return JSONResponse(await run_in_threadpool(ws.import_score_musicxml, run_id, req_id, data))
+
+    async def catalog_import_musicxml(request):
+        data = await body(request)
+        return JSONResponse(await run_in_threadpool(ws.import_catalog_musicxml, data))
 
     async def record_create(request):
         data = await body(request)
@@ -594,7 +602,9 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/documents/{id}/delete', delete_doc, methods=['POST']),
               Route('/api/documents/{id}/metadata', metadata, methods=['POST']),
               Route('/api/documents/batch-origin', batch_origin_route, methods=['POST']),
-              Route('/api/generate', generation, methods=['POST']), Route('/api/runs/{id}', run),
+              Route('/api/generate', generation, methods=['POST']),
+              Route('/api/planning/preview-requirements', preview_requirements_endpoint, methods=['POST']),
+              Route('/api/runs/{id}', run),
               Route('/api/runs/{id}/delete', delete_run_route, methods=['POST']),
               Route('/api/runs/{id}/review', review, methods=['POST']),
               Route('/api/runs/{id}/edit', edit, methods=['POST']),
@@ -609,6 +619,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/runs/{id}/music_requests/{req_id}/discard', discard_score, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/search_open_repos', search_repos, methods=['POST']),
               Route('/api/runs/{id}/music_requests/{req_id}/import_musicxml', import_musicxml, methods=['POST']),
+              Route('/api/catalog/import-musicxml', catalog_import_musicxml, methods=['POST']),
               Route('/api/records', record_create, methods=['POST']),
               Route('/api/records/{id}', record_get),
               Route('/api/records/{id}/progress', record_progress, methods=['POST']),

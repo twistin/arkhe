@@ -248,6 +248,18 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                 result['plan'] = None
             complete(status='abstained', result=result, metrics=metrics)
             return get_run(db, run_id)
+
+        fulfillment = []
+        recursos_disponibles = {}
+        if pedagogy_context is not None:
+            from docente_ai.teaching.fulfillment import resolver_fulfillment_requisitos
+            report('Resolviendo requisitos pedagógicos deterministas antes de redactar')
+            fulfillment, recursos_disponibles = resolver_fulfillment_requisitos(
+                requirements, db_path=db, evidence=retrieved.get('results'), root=db.parent
+            )
+            pedagogy_context['fulfillment'] = fulfillment
+            pedagogy_context['recursos_disponibles'] = recursos_disponibles
+
         bundle = (build_prompt(question, retrieved['results'], settings) if pedagogy_context is None else
                   pedagogy.build_prompt(question, retrieved['results'], settings, pedagogy_context))
         report('Redactando con los pasajes seleccionados')
@@ -344,68 +356,54 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                 report(f'Aviso en resolución de partituras: {res_err}')
 
         if result:
-            from docente_ai.music.didactic import seleccionar_componentes_por_tema, resolver_componente_didactico
+            from docente_ai.music.didactic import resolver_componente_didactico
 
-            raw_d_comps = result.get('didactic_components') or []
-            comps_llm = []
-            if isinstance(raw_d_comps, list):
-                for comp in raw_d_comps:
-                    c_dict = dict(comp)
-                    c_dict['origen'] = 'llm'
-                    comps_llm.append(c_dict)
+            if pedagogy_context is not None:
+                # 1. Actualizar estados finales de fulfillment para requisitos de texto_fuentes
+                cov_map = {item.get('requirement_id'): item for item in (result.get('coverage') or [])}
+                for f_item in fulfillment:
+                    rid = f_item['requirement_id']
+                    if f_item['ejecutor'] == 'texto_fuentes':
+                        c_info = cov_map.get(rid)
+                        if c_info and c_info.get('status') == 'cubierto':
+                            f_item['estado'] = 'cumplido'
+                            f_item['falta'] = None
+                        elif c_info and c_info.get('status') == 'sin_fuentes':
+                            f_item['estado'] = 'sin_fuentes'
+                            if not f_item.get('falta'):
+                                f_item['falta'] = c_info.get('note') or 'Sin fuentes documentales en la biblioteca'
+                result['fulfillment'] = fulfillment
 
-            plan_data = result.get('plan') or {}
-            claims_data = result.get('claims') or []
-            textos_analisis = [
-                str(request.get('original_topic') or ''),
-                str(request.get('question') or ''),
-                str(request.get('display_title') or ''),
-                str(result.get('display_title') or ''),
-                ' '.join(plan_data.get('objectives') or []),
-                ' '.join(
-                    str(act.get('title', '')) + ' ' + str(act.get('instructions', '')) + ' ' + str(act.get('student_task', ''))
-                    for act in (plan_data.get('activities') or [])
-                ),
-                str(plan_data.get('observations') or ''),
-                ' '.join(str(c.get('text', '')) for c in claims_data),
-            ]
-            texto_completo = ' '.join(textos_analisis)
+                # 2. Extraer componentes didácticos resueltos previamente
+                resolved_comps = []
+                for rec in recursos_disponibles.values():
+                    if rec.get('tipo') == 'componente_calculado':
+                        resolved_comps.extend(rec.get('componentes', []))
 
-            comps_regla = seleccionar_componentes_por_tema(texto_completo)
-            tipos_existentes = {c.get('tipo') for c in comps_llm if c.get('tipo')}
-            comps_finales = list(comps_llm)
-            for c_regla in comps_regla:
-                if c_regla.get('tipo') not in tipos_existentes:
-                    comps_finales.append(c_regla)
-                    tipos_existentes.add(c_regla.get('tipo'))
-
-            result['didactic_components'] = comps_finales
-
-            if comps_finales:
-                try:
-                    report('Resolviendo componentes didácticos musicales deterministas')
-                    resolved_comps = []
-                    for comp in comps_finales:
-                        tipo = comp.get('tipo')
-                        parametros = comp.get('parametros') or {}
-                        origen = comp.get('origen', 'regla_tema')
+                # Incorporar componentes solicitados por el LLM si no estaban ya
+                llm_comps = result.get('didactic_components') or []
+                tipos_existentes = {c.get('tipo') for c in resolved_comps}
+                for comp in llm_comps:
+                    tipo = comp.get('tipo')
+                    if tipo and tipo not in tipos_existentes:
                         try:
-                            res = resolver_componente_didactico(
-                                tipo,
-                                parametros,
+                            res_c = resolver_componente_didactico(
+                                tipo, comp.get('parametros', {}),
                                 evidence=bundle.get('evidence'),
                                 claims=result.get('claims'),
                                 visualizaciones=result.get('visualizations'),
                             )
-                            res['origen'] = origen
-                            if comp.get('actividad'):
-                                res['actividad'] = comp.get('actividad')
-                            resolved_comps.append(res)
+                            res_c['origen'] = 'llm'
+                            resolved_comps.append(res_c)
+                            tipos_existentes.add(tipo)
                         except Exception as comp_err:
                             report(f'Aviso en componente didáctico {tipo}: {comp_err}')
-                    result['resolved_didactic_components'] = resolved_comps
-                except Exception as did_err:
-                    report(f'Aviso general en resolución de componentes didácticos: {did_err}')
+
+                result['didactic_components'] = [
+                    {'tipo': c.get('tipo'), 'parametros': c.get('parametros', {}), 'origen': c.get('origen', 'regla_requisito')}
+                    for c in resolved_comps
+                ]
+                result['resolved_didactic_components'] = resolved_comps
 
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         complete(status='draft' if result['status'] == 'answered' else 'abstained',

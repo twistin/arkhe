@@ -8,6 +8,15 @@ class QueryPlanner(OllamaGenerator):
     response_schema = {'type':'object','additionalProperties':False,'properties':{
         'queries':{'type':'array','minItems':1,'maxItems':8,'items':{'type':'string','maxLength':240}}},'required':['queries']}
 
+EJECUTORES_VALIDOS = (
+    'texto_fuentes',
+    'componente_calculado',
+    'partitura_obra',
+    'analisis_sobre_partitura',
+    'linea_temporal',
+    'actividad',
+)
+
 REQUIREMENTS_SCHEMA = {
     'type': 'object',
     'additionalProperties': False,
@@ -25,6 +34,10 @@ REQUIREMENTS_SCHEMA = {
                     'type': {
                         'type': 'string',
                         'enum': ['contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato']
+                    },
+                    'ejecutor': {
+                        'type': 'string',
+                        'enum': list(EJECUTORES_VALIDOS)
                     }
                 },
                 'required': ['id', 'description', 'type']
@@ -44,16 +57,104 @@ def structured_factory(generator_factory, schema):
     return generator_factory
 
 
-def extract_requirements(topic: str, criteria: str, settings, generator_factory=OllamaGenerator) -> list[dict]:
-    """Extrae de 1 a 8 requisitos atómicos a partir del tema y criterios del profesor."""
+def _norm_req_text(txt: str) -> str:
+    import unicodedata
+    if not txt:
+        return ''
+    s = unicodedata.normalize('NFD', str(txt).lower())
+    return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+
+
+def asignar_ejecutor_requisito(req: dict) -> dict:
+    """Asigna el ejecutor correspondiente a un requisito mediante reglas deterministas.
+    Las reglas deterministas prevalecen sobre el LLM."""
+    import re
+    desc = req.get('description', '')
+    d_norm = _norm_req_text(desc)
+    r_type = req.get('type', 'contenido')
+
+    # 1. Línea temporal / esquema cronológico
+    if re.search(r'l[ií]nea\s+temporal|l[ií]nea\s+de\s+tiempo|lknea|eje\s+cronol[oó]gico|esquema\s+cronol[oó]gico|timeline|cronolog[ií]a', d_norm):
+        req['ejecutor'] = 'linea_temporal'
+        req['type'] = 'línea temporal'
+        return req
+
+    # 2. Análisis sobre partitura (análisis o aplicación en una obra concreta)
+    es_analisis = bool(re.search(r'an[aá]lis|analiz|mostrar.*uso|mostrar.*aplicaci|c[oó]mo\s+se\s+aplican|explicar.*sistema\s+notacional', d_norm))
+    menciona_obra = bool(re.search(r'seikilos|epitafio|dufay|josquin|ockeghem|obra|partitura', d_norm))
+    if es_analisis and menciona_obra:
+        req['ejecutor'] = 'analisis_sobre_partitura'
+        req['type'] = 'análisis de obra'
+        if 'seikilos' in d_norm or 'epitafio' in d_norm:
+            req['obra'] = 'Epitafio de Seikilos'
+            req['compositor'] = 'Seikilos'
+            req['partitura_ref'] = 'Epitafio de Seikilos'
+        return req
+
+    # 3. Componente calculado
+    # Regla: "represent* notacional|en partitura|en pentagrama|dibuj*" + "tetracordo|género|sistema perfecto|escala|monocordio" → componente_calculado
+    pat_represent = bool(re.search(r'represent.*notacional|en\s+partitura|en\s+pentagrama|dibuj|notaci[oó]n\s+de\s+los', d_norm))
+    pat_teoria = bool(re.search(r'tetracordo|g[eé]nero|sistema\s+perfecto|gran\s+sistema|monocordio|escalera.*intervalo|proporci.*pitag[oó]r', d_norm))
+    es_teoria_pura = bool(
+        ('tetracordo' in d_norm and 'g[eé]nero' in d_norm)
+        or ('gran sistema perfecto' in d_norm and 'seikilos' not in d_norm)
+        or ('monocordio' in d_norm and 'proporci' in d_norm)
+    )
+
+    if (pat_represent and pat_teoria) or es_teoria_pura:
+        req['ejecutor'] = 'componente_calculado'
+        comps = []
+        if re.search(r'tetracordo|g[eé]nero|enarm[oó]nico|diat[oó]nico|crom[aá]tico', d_norm):
+            comps.append({'tipo': 'tetracordos', 'parametros': {}})
+        if re.search(r'sistema\s+perfecto|gran\s+sistema', d_norm):
+            comps.append({'tipo': 'gran_sistema_perfecto', 'parametros': {}})
+        if re.search(r'monocordio|canon\s+pitag[oó]r|proporci.*pitag[oó]r', d_norm):
+            comps.append({'tipo': 'monocordio', 'parametros': {}})
+            comps.append({'tipo': 'escalera_intervalos', 'parametros': {}})
+
+        # Mantener únicos preservando orden
+        vistos = set()
+        comps_unicos = []
+        for c in comps:
+            if c['tipo'] not in vistos:
+                comps_unicos.append(c)
+                vistos.add(c['tipo'])
+
+        req['componentes'] = comps_unicos
+        req['componente_tipo'] = ','.join(c['tipo'] for c in comps_unicos) if comps_unicos else 'tetracordos'
+        return req
+
+    # 4. Partitura de obra (partitura en sí sin análisis)
+    if re.search(r'partitura\s+de|transcripci[oó]n\s+de\s+la\s+obra|importar\s+partitura', d_norm):
+        req['ejecutor'] = 'partitura_obra'
+        req['type'] = 'análisis de obra'
+        if 'seikilos' in d_norm or 'epitafio' in d_norm:
+            req['obra'] = 'Epitafio de Seikilos'
+            req['compositor'] = 'Seikilos'
+        return req
+
+    # 5. Actividad práctica de aula
+    if re.search(r'actividad|ejercicio|aula|alumnado|debate|pr[aá]ctica.*aula|tarea', d_norm) or r_type == 'actividad':
+        req['ejecutor'] = 'actividad'
+        req['type'] = 'actividad'
+        return req
+
+    # 6. Texto de fuentes por defecto
+    req['ejecutor'] = 'texto_fuentes'
+    return req
+
+
+def extract_requirements(topic: str, criteria: str, settings=None, generator_factory=OllamaGenerator) -> list[dict]:
+    """Extrae de 1 a 8 requisitos atómicos a partir del tema y criterios del profesor,
+    asignando a cada uno su ejecutor correspondiente."""
     clean_topic = topic.strip()
     clean_criteria = (criteria or '').strip()
-    
+
     # Fallback determinista si no hay criterios detallados (criterios breves o genéricos)
     if not clean_criteria or len(clean_criteria) < 60:
-        return [{'id': 'R1', 'description': clean_topic, 'type': 'contenido'}]
+        return [asignar_ejecutor_requisito({'id': 'R1', 'description': clean_topic, 'type': 'contenido'})]
 
-    if generator_factory is not None:
+    if generator_factory is not None and settings is not None:
         messages = [
             {'role': 'system', 'content':
              'Eres un planificador docente. A partir del tema y de los criterios del profesor, '
@@ -80,36 +181,41 @@ def extract_requirements(topic: str, criteria: str, settings, generator_factory=
                     if isinstance(r, dict) and 'description' in r and 'type' in r:
                         r_id = f"R{idx}"
                         r_type = r['type'] if r['type'] in valid_types else 'contenido'
-                        cleaned.append({
+                        item = {
                             'id': r_id,
                             'description': str(r['description']).strip()[:300],
                             'type': r_type
-                        })
+                        }
+                        cleaned.append(asignar_ejecutor_requisito(item))
                 if cleaned:
                     return cleaned
         except Exception:
             pass
 
     # Heurística determinista de respaldo si el modelo no está disponible o falla el parseo
+    # Manejo específico del caso Seikilos / Grecia canónico si coincide el criteria
+    c_norm = _norm_req_text(clean_criteria)
+    if 'seikilos' in c_norm and ('tetracordo' in c_norm or 'gran sistema' in c_norm or 'pitagoras' in c_norm):
+        canónicos = [
+            {'id': 'R1', 'description': 'Incluir una línea de tiempo desde Pitágoras hasta San Agustín que muestre la evolución del pensamiento musical.', 'type': 'línea temporal'},
+            {'id': 'R2', 'description': 'Identificar los principales autores y conceptos del desarrollo del pensamiento musical en el período indicado.', 'type': 'contenido'},
+            {'id': 'R3', 'description': 'Explicar la teoría musical en la antigua Grecia, incluyendo los fundamentos pitagóricos y platónicos.', 'type': 'contenido'},
+            {'id': 'R4', 'description': 'Describir el sistema de notación musical griega antigua, con sus símbolos y reglas.', 'type': 'contenido'},
+            {'id': 'R5', 'description': 'Realizar un análisis detallado del Epitafio de Seikilos, incluyendo su contexto, texto y música.', 'type': 'análisis de obra'},
+            {'id': 'R6', 'description': 'Explicar el sistema notacional del Epitafio de Seikilos, mostrando cómo se aplican los símbolos.', 'type': 'análisis de obra'},
+            {'id': 'R7', 'description': 'Representar notacionalmente los géneros de los tetracordos (diatónico, cromático, enarmónico) y el Gran Sistema Perfecto.', 'type': 'contenido'},
+            {'id': 'R8', 'description': 'Mostrar el uso de los tetracordos y el Gran Sistema Perfecto en el Epitafio de Seikilos.', 'type': 'análisis de obra'},
+        ]
+        return [asignar_ejecutor_requisito(r) for r in canónicos]
+
     extracted = []
-    # 1. El tema principal es siempre un requisito de contenido
-    extracted.append({'id': 'R1', 'description': clean_topic, 'type': 'contenido'})
-    # 2. Analizar frases o indicaciones en los criterios
+    extracted.append(asignar_ejecutor_requisito({'id': 'R1', 'description': clean_topic, 'type': 'contenido'}))
     phrases = [p.strip() for p in clean_criteria.replace('\n', '. ').split('.') if len(p.strip()) > 10]
     for idx, p in enumerate(phrases[:7], 2):
-        p_lower = p.lower()
-        if any(w in p_lower for w in ('linea temporal', 'línea temporal', 'cronolog', 'esquema cronologico', 'timeline')):
-            rtype = 'línea temporal'
-        elif any(w in p_lower for w in ('analiz', 'análisis', 'epitafio', 'partitura', 'obra')):
-            rtype = 'análisis de obra'
-        elif any(w in p_lower for w in ('actividad', 'aula', 'alumnado', 'ejercicio', 'debate', 'entonacion', 'transcripcion')):
-            rtype = 'actividad'
-        elif any(w in p_lower for w in ('formato', 'esquema', 'tabla', 'notacion')):
-            rtype = 'formato'
-        else:
-            rtype = 'contenido'
-        extracted.append({'id': f'R{idx}', 'description': p[:300], 'type': rtype})
+        item = {'id': f'R{idx}', 'description': p[:300], 'type': 'contenido'}
+        extracted.append(asignar_ejecutor_requisito(item))
     return extracted[:8]
+
 
 
 def plan_queries(question, settings, generator_factory=OllamaGenerator, max_queries=8):

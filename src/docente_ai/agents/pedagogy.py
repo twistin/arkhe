@@ -18,14 +18,15 @@ ValidationError = ResponseValidationError
 
 PROMPT_VERSION = 'pedagogy:10'
 SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Fuentes role="programming" son programación didáctica; las demás, contenido técnico. Lagunas documentales van en coverage y observations; nunca inventes ni cites fuentes ausentes.
+Con recursos_disponibles resueltos: remite a ellos en teoría ("en la figura de R7..."), diseña actividades sobre ellos y en coverage márcalos "cubierto" (sin claims obligatorios).
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
 - coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note.
-- claims: 2 a 8 bloques con kind (summary o inference), text (teoría profunda), student_summary (1 a 3 párrafos para el grupo, con ejemplo concreto y referencia gráfica, en 2ª persona sin hablar de fuentes ni 'alumnado' en 3ª persona) y evidence ([{"source_id":"S1","quote":"quote_001"}]).
+- claims: 2 a 8 bloques con kind (summary o inference), text, student_summary (1-3 párrafos, ejemplo concreto, 2ª persona sin meta-fuentes) y evidence ([{"source_id":"S1","quote":"..."}]).
 - plan: objectives (2-5), difficulty, activities (2-5: title, teacher_notes, student_task en 2ª persona, grouping, deliverable, solution, minutes suman duration_minutes, claim_ids), resources (1-5), assessment y observations.
 - visualizations: 0 a 2 esquemas con type, title, items ([{"label":"...","detail":"..."}]), caption y evidence.
-- music_requests: 0 a 4 peticiones con id, composer, work, section, voice, technique, activity_title y description. Prohibido código o notas.
-- didactic_components: 0 a 5 componentes deterministas con tipo ("tetracordos", "gran_sistema_perfecto", "monocordio", "escalera_intervalos", "linea_temporal"), parametros y actividad. Prohibido código SVG o HTML.
+- music_requests: 0 a 4 peticiones con id, composer, work, section, voice, technique, activity_title y description.
+- didactic_components: 0 a 5 componentes ("tetracordos", "gran_sistema_perfecto", "monocordio", "escalera_intervalos", "linea_temporal") con tipo, parametros y actividad.
 Devuelve solo JSON.'''
 
 
@@ -275,6 +276,15 @@ def compact_context(context):
     }
     if context.get('prior_experience'):
         res['prior_experience'] = context['prior_experience']
+    if context.get('recursos_disponibles'):
+        recs = context['recursos_disponibles']
+        if isinstance(recs, dict):
+            res['recursos_disponibles'] = [
+                {'id': rid, 'muestra': rec.get('descripcion_para_llm') or rec.get('tipo', '')}
+                for rid, rec in recs.items()
+            ]
+        elif isinstance(recs, list):
+            res['recursos_disponibles'] = recs
     if isinstance(unit, dict):
         res['unit'] = {k: unit[k] for k in ('title', 'objectives', 'contents') if k in unit}
     return res
@@ -284,11 +294,13 @@ def remote_context(context):
     """Lista permitida: ningún registro, feedback, calendario o identificador personal."""
     group = context.get('group') or {}
     unit = context.get('unit')
-    return {'group': {key: group[key] for key in ('level', 'language') if key in group},
-            'duration_minutes': context.get('duration_minutes'),
-            'teacher_criteria': context.get('teacher_criteria', ''),
-            'requirements': context.get('requirements', []),
-            'unit': {key: unit[key] for key in ('title', 'objectives', 'contents', 'competencies', 'criteria') if key in unit} if isinstance(unit, dict) else None}
+    return {
+        'group': {key: group[key] for key in ('level', 'language') if key in group},
+        'duration_minutes': context.get('duration_minutes'),
+        'teacher_criteria': context.get('teacher_criteria', ''),
+        'requirements': context.get('requirements', []),
+        'unit': {key: unit[key] for key in ('title', 'objectives', 'contents', 'competencies', 'criteria') if key in unit} if isinstance(unit, dict) else None
+    }
 
 
 def normalize_claims(claims):
@@ -574,8 +586,28 @@ def validate(content, evidence, context, *, retry: bool = True):
             c_claims = item.get('claim_ids')
             if not isinstance(c_claims, list) or any(type(cid) is not int or not 1 <= cid <= len(data['claims']) for cid in c_claims):
                 fail(f'coverage[{idx}].claim_ids debe ser una lista de índices de claims válidos (1 a {len(data["claims"])}).')
-            if c_status == 'cubierto' and not c_claims:
-                fail(f'El requisito {rid} está marcado como "cubierto" pero no enlaza ningún claim.')
+
+            # Fulfillment previo del requisito
+            f_map = {f['requirement_id']: f for f in context.get('fulfillment', [])}
+            f_item = f_map.get(rid)
+            r_obj = next((r for r in requirements if r.get('id') == rid), {})
+            es_cumplido_previo = (
+                (f_item and f_item.get('estado') == 'cumplido')
+                or (r_obj.get('ejecutor') in ('componente_calculado', 'linea_temporal') and r_obj.get('estado') != 'pendiente_profesor')
+            )
+
+            # Un requisito con fulfillment cumplido cuenta como cubierto sin claims:
+            # el LLM no puede marcarlo como parcial por falta de cita.
+            if es_cumplido_previo:
+                if c_status == 'parcial':
+                    item['status'] = 'cubierto'
+                    c_status = 'cubierto'
+                    if not item.get('note'):
+                        item['note'] = 'Cubierto mediante recurso didáctico resuelto.'
+            else:
+                if c_status == 'cubierto' and not c_claims:
+                    fail(f'El requisito {rid} está marcado como "cubierto" pero no enlaza ningún claim.')
+
             if c_status == 'sin_fuentes' and c_claims:
                 fail(f'El requisito {rid} está marcado como "sin_fuentes" pero incluye claim_ids.')
             if 'note' in item and (not isinstance(item['note'], str) or len(item['note']) > 500):

@@ -127,7 +127,7 @@ export function sessionOptions(groupId, selectedDate = '') {
   return options.join('');
 }
 
-export function proposalModal(session = null) {
+export function proposalModal(session = null, preset = null) {
   if (!store.state.config.groups.length) {
     modal('Primero, tu grupo', [
       `<p>Para preparar una propuesta útil necesitamos conocer el nivel y la materia `,
@@ -137,13 +137,18 @@ export function proposalModal(session = null) {
     ].join(''));
     return;
   }
-  const group = session?.group_id || draft('proposal-form', 'group', store.state.config.groups[0].id);
-  const duration = session?.duration_minutes || draft('proposal-form', 'duration', '60');
+  const group = preset?.group || session?.group_id ||
+    draft('proposal-form', 'group', store.state.config.groups[0].id);
+  const duration = preset?.duration || session?.duration_minutes ||
+    draft('proposal-form', 'duration', '60');
   const upcoming = proximasSesionesGrupo(group);
   const defaultDate = upcoming[0]?.date || '';
   const draftDate = draft('proposal-form', 'session_date');
-  const sessionDate = session ? store.state.agenda.date : (draftDate !== undefined ? draftDate : defaultDate);
+  const sessionDate = preset?.session_date ||
+    (session ? store.state.agenda.date : (draftDate !== undefined ? draftDate : defaultDate));
   const isCustom = sessionDate && !upcoming.some(s => s.date === sessionDate);
+  const initTopic = preset?.question || draft('proposal-form', 'question');
+  const initCriteria = preset?.criteria || draft('proposal-form', 'criteria');
 
   modal('Preparar una propuesta', [
     `<p>Un punto de partida con objetivos, actividades y tiempos. Tú tendrás la `,
@@ -168,7 +173,7 @@ export function proposalModal(session = null) {
     `<div class="field"><label class="label" for="proposal-topic">Tema `,
     `de la sesión</label><input class="input" id="proposal-topic" name="question" `,
     `maxlength="4000" required placeholder="¿Qué quieres trabajar?" value="`,
-    `${e(draft('proposal-form','question'))}`,
+    `${e(initTopic)}`,
     `"></div><div class="field"><label class="label" for="proposal-unit">Unidad de la `,
     [
       `programación · opcional</label><select id="proposal-unit" name="unit">${unitOptions(group)}`
@@ -176,7 +181,7 @@ export function proposalModal(session = null) {
     `</select></div><div class="field"><label class="label" for="proposal-criteria">`,
     `Tus indicaciones · opcional</label><textarea id="proposal-criteria" `,
     `name="criteria" maxlength="2000" placeholder="Qué priorizar, qué materiales `,
-    `tienes, qué conviene evitar…">${e(draft('proposal-form','criteria'))}`,
+    `tienes, qué conviene evitar…">${e(initCriteria)}`,
     `</textarea></div><p class="field-note">La propuesta combinará la programación `,
     `didáctica de la materia con tus fuentes autorizadas.</p><div `,
     `class="dialog-actions"><button class="button ghost" type="button" `,
@@ -336,18 +341,323 @@ async function accionNewProposal() {
   proposalModal();
 }
 
+const EJECUTORES_OPCIONES = [
+  { valor: 'texto_fuentes', etiqueta: 'Texto basado en fuentes' },
+  { valor: 'componente_calculado', etiqueta: 'Componente visual interactivo' },
+  { valor: 'partitura_obra', etiqueta: 'Partitura de repertorio' },
+  { valor: 'analisis_sobre_partitura', etiqueta: 'Análisis sobre partitura' },
+  { valor: 'linea_temporal', etiqueta: 'Línea temporal' },
+  { valor: 'actividad', etiqueta: 'Actividad didáctica' },
+];
+
+function modalImportarMusicxmlCatalogo({ work, composer, onDone }) {
+  const defWork = work || 'Epitafio de Seikilos';
+  const defComp = composer || 'Anónimo / Grecia antigua';
+
+  modal('Importar transcripción en MusicXML', [
+    `<form class="import-musicxml-catalog-form">`,
+    `  <div class="form-group">`,
+    `    <label><strong>Título de la obra / fragmento:</strong></label>`,
+    `    <input type="text" name="titulo" class="input" value="${e(defWork)}" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Compositor / Época:</strong></label>`,
+    `    <input type="text" name="compositor" class="input" value="${e(defComp)}" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Fuente bibliográfica o procedencia (requerido):</strong></label>`,
+    `    <input type="text" name="fuente" class="input" ` +
+    `placeholder="ej. Transcripción del profesor según NAWM 1, Burkholder" required>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><input type="checkbox" name="verificado" checked> ` +
+    `<strong>Marcar como verificado por el profesor</strong></label>`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>Subir archivo MusicXML (.musicxml o .xml):</strong></label>`,
+    `    <input type="file" name="file" accept=".musicxml,.xml" class="input-file">`,
+    `  </div>`,
+    `  <div class="form-group">`,
+    `    <label><strong>O pegar directamente código MusicXML:</strong></label>`,
+    `    <textarea name="musicxml" class="textarea" rows="8" ` +
+    `placeholder="<?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?>&#10;<score-partwise..."></textarea>`,
+    `  </div>`,
+    `  <div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end;">`,
+    `    <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
+    `    <button type="submit" class="button primary">${icon('upload')}Guardar en el catálogo</button>`,
+    `  </div>`,
+    `</form>`,
+  ].join(''));
+
+  const form = dialog.querySelector('.import-musicxml-catalog-form');
+  if (!form) return;
+  const fileInput = form.querySelector('input[type="file"]');
+  const textArea = form.querySelector('textarea[name="musicxml"]');
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        textArea.value = ev.target.result;
+      };
+      reader.readAsText(file);
+    }
+  });
+
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando e importando…';
+    try {
+      const formData = new FormData(form);
+      const xmlContent = (formData.get('musicxml') || '').trim();
+      const fuenteVal = (formData.get('fuente') || '').trim();
+      const titVal = (formData.get('titulo') || '').trim();
+      const compVal = (formData.get('compositor') || '').trim();
+      const verificadoVal = form.querySelector('input[name="verificado"]')?.checked !== false;
+
+      if (!xmlContent) throw new Error('Debes seleccionar un archivo o pegar el código MusicXML.');
+      if (!fuenteVal) throw new Error('Debes indicar la fuente de la transcripción.');
+
+      await api('/catalog/import-musicxml', {
+        musicxml: xmlContent,
+        fuente: fuenteVal,
+        titulo: titVal,
+        compositor: compVal,
+        verificado: verificadoVal,
+        verificado_por: 'profesor',
+      });
+
+      dialog.close();
+      toast('Transcripción guardada en el catálogo.');
+      if (onDone) await onDone();
+    } catch (err) {
+      toast(`Error al importar: ${err.message}`, 'error');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `${icon('upload')}Guardar en el catálogo`;
+    }
+  });
+}
+
+function renderRequirementRow(r, fulfillment) {
+  const f = (fulfillment || []).find(x => x.requirement_id === r.id) || {};
+  const estado = f.estado || 'pendiente';
+  let badgeHTML = '';
+  let importBtnHTML = '';
+
+  if (estado === 'cumplido') {
+    const artLabel = f.artefacto_id ? ` (${f.artefacto_id})` : '';
+    badgeHTML = `<span class="badge approved" title="Cumplido">${icon('check')} Listo${e(artLabel)}</span>`;
+  } else if (estado === 'sin_fuentes') {
+    badgeHTML = `<span class="badge rejected" title="Sin fuentes en biblioteca">${icon('alert')} Sin fuentes</span>`;
+  } else {
+    const faltaMsg = f.falta || 'Acción requerida';
+    badgeHTML = `<span class="badge pending" title="${e(faltaMsg)}">${icon('clock')} ${e(faltaMsg)}</span>`;
+    const needsScore = r.ejecutor === 'partitura_obra' || r.ejecutor === 'analisis_sobre_partitura' ||
+      (f.falta && f.falta.toLowerCase().includes('partitura'));
+    if (needsScore) {
+      let workHint = '';
+      if (f.falta && f.falta.includes(':')) {
+        workHint = f.falta.split(':')[1].trim();
+      }
+      importBtnHTML = `<button type="button" class="button small ghost req-import-score-btn" ` +
+        `data-work="${e(workHint)}">${icon('upload')} Importar MusicXML</button>`;
+    }
+  }
+
+  return [
+    `<div class="requirement-row" data-id="${e(r.id)}" style="display: flex; flex-direction: column; `,
+    `gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.75rem; `,
+    `background: var(--surface);">`,
+    `  <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">`,
+    `    <span style="font-weight: 600; font-size: 0.85rem; color: var(--muted);">${e(r.id)}</span>`,
+    `    <div style="display: flex; align-items: center; gap: 0.5rem;">`,
+    `      ${badgeHTML}`,
+    `      ${importBtnHTML}`,
+    `      <button type="button" class="icon-button danger req-remove-btn" title="Eliminar requisito">`,
+    `        ${icon('trash')}`,
+    `      </button>`,
+    `    </div>`,
+    `  </div>`,
+    `  <textarea class="input req-description" rows="2" style="width: 100%; resize: vertical;" `,
+    `    placeholder="Descripción del requisito...">${e(r.description || '')}</textarea>`,
+    `  <div style="display: flex; align-items: center; gap: 0.5rem;">`,
+    `    <label style="font-size: 0.85rem; color: var(--muted); font-weight: 500;">Ejecutor:</label>`,
+    `    <select class="select req-ejecutor" style="flex: 1; font-size: 0.85rem;">`,
+    EJECUTORES_OPCIONES.map(opt => option(opt.valor, opt.etiqueta, r.ejecutor || 'texto_fuentes')).join(''),
+    `    </select>`,
+    `  </div>`,
+    `</div>`,
+  ].join('');
+}
+
+export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
+  const reqs = [...(previewData?.requirements || [])];
+  let fulfillment = previewData?.fulfillment || [];
+
+  function construirCuerpo() {
+    return [
+      `<div class="he-entendido-container" style="max-height: 65vh; overflow-y: auto; padding-right: 0.5rem;">`,
+      `  <p class="muted-small" style="margin-bottom: 1rem;">`,
+      `    Revisa y ajusta los requisitos antes de generar la propuesta. Cada requisito tiene un ejecutor `,
+      `    asignado para garantizar su cumplimiento.`,
+      `  </p>`,
+      `  <div id="requirements-list">`,
+      reqs.map(r => renderRequirementRow(r, fulfillment)).join(''),
+      `  </div>`,
+      `  <div style="margin-top: 0.5rem; margin-bottom: 1.5rem;">`,
+      `    <button type="button" class="button small ghost" id="req-add-btn">`,
+      `      ${icon('plus')} Añadir requisito`,
+      `    </button>`,
+      `  </div>`,
+      `</div>`,
+      `<div class="dialog-actions" style="margin-top: 1rem;">`,
+      `  <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
+      `  <button type="button" class="button primary" id="req-confirm-btn">`,
+      `    ${icon('spark')} Generar propuesta`,
+      `  </button>`,
+      `</div>`,
+    ].join('');
+  }
+
+  modal('He entendido esto', construirCuerpo());
+
+  function bindEvents() {
+    const listEl = dialog.querySelector('#requirements-list');
+    const addBtn = dialog.querySelector('#req-add-btn');
+    const confirmBtn = dialog.querySelector('#req-confirm-btn');
+
+    if (addBtn) {
+      addBtn.onclick = () => {
+        const nextIdx = dialog.querySelectorAll('.requirement-row').length + 1;
+        const newReq = {
+          id: `R${nextIdx}`,
+          description: '',
+          ejecutor: 'texto_fuentes',
+        };
+        reqs.push(newReq);
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = renderRequirementRow(newReq, fulfillment);
+        const newRow = tempDiv.firstElementChild;
+        listEl.appendChild(newRow);
+        bindRowEvents(newRow);
+      };
+    }
+
+    function bindRowEvents(row) {
+      const removeBtn = row.querySelector('.req-remove-btn');
+      if (removeBtn) {
+        removeBtn.onclick = () => {
+          row.remove();
+        };
+      }
+      const importBtn = row.querySelector('.req-import-score-btn');
+      if (importBtn) {
+        importBtn.onclick = () => {
+          const workName = importBtn.dataset.work || '';
+          modalImportarMusicxmlCatalogo({
+            work: workName,
+            onDone: async () => {
+              const currentRows = Array.from(dialog.querySelectorAll('.requirement-row'));
+              const currentReqs = currentRows.map((rEl, idx) => ({
+                id: `R${idx + 1}`,
+                description: rEl.querySelector('.req-description')?.value?.trim() || '',
+                ejecutor: rEl.querySelector('.req-ejecutor')?.value || 'texto_fuentes',
+              })).filter(r => r.description.length > 0);
+
+              const refreshed = await api('/planning/preview-requirements', {
+                ...propPayload,
+                requirements: currentReqs,
+              });
+              modalHeEntendidoEsto(propPayload, refreshed, options);
+            },
+          });
+        };
+      }
+    }
+
+    dialog.querySelectorAll('.requirement-row').forEach(bindRowEvents);
+
+    if (confirmBtn) {
+      confirmBtn.onclick = async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Encolando propuesta…';
+        try {
+          const currentRows = Array.from(dialog.querySelectorAll('.requirement-row'));
+          const finalReqs = currentRows.map((rEl, idx) => ({
+            id: `R${idx + 1}`,
+            description: rEl.querySelector('.req-description')?.value?.trim() || '',
+            ejecutor: rEl.querySelector('.req-ejecutor')?.value || 'texto_fuentes',
+          })).filter(r => r.description.length > 0);
+
+          await queue('/generate', {
+            ...propPayload,
+            requirements: finalReqs,
+          });
+          dialog.close();
+          toast('Preparando el borrador con tus fuentes.');
+        } catch (err) {
+          toast(`Error al iniciar generación: ${err.message}`, 'error');
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = `${icon('spark')} Generar propuesta`;
+        }
+      };
+    }
+  }
+
+  bindEvents();
+}
+
+async function accionOpenRegenerateProposal({target}) {
+  const btn = target.closest('[data-regenerate-proposal]');
+  const runId = btn?.dataset.regenerateProposal || target.dataset.regenerateProposal;
+  if (!runId) return;
+  const run = (store.state.runs || []).find(r => r.id === runId) || store.currentRun;
+  if (!run) return;
+  const ctx = run.request?.pedagogy;
+  const propPayload = {
+    mode: 'pedagogy',
+    group: ctx?.group?.id || (store.state.config.groups?.[0]?.id || ''),
+    duration: Number(ctx?.duration_minutes || 60),
+    question: run.original_topic || run.request?.original_topic || run.request?.question || '',
+    criteria: ctx?.teacher_criteria || '',
+    session_date: ctx?.session?.date || null,
+  };
+  const existingReqs = run.result?.requirements || [];
+  toast('Cargando requisitos de la propuesta...');
+  try {
+    const previewData = await api('/planning/preview-requirements', {
+      ...propPayload,
+      requirements: existingReqs.length ? existingReqs : undefined,
+    });
+    modalHeEntendidoEsto(propPayload, previewData, { runId });
+  } catch (err) {
+    toast(`Error al cargar requisitos: ${err.message}`, 'error');
+  }
+}
+
 async function formularioProposal({data}) {
   if (!await ensureRemoteConsent('pedagogy')) return;
   const rawSel = data.session_select;
   const finalDate = rawSel === '__custom__' ? (data.session_date || '') : (rawSel || '');
-  await queue('/generate', {
+  const propPayload = {
     ...data,
     session_date: finalDate || null,
     mode: 'pedagogy',
     duration: Number(data.duration)
-  });
+  };
   dialog.close();
-  toast('Preparando el borrador con tus fuentes.');
+  toast('Analizando requisitos...');
+  try {
+    const previewData = await api('/planning/preview-requirements', propPayload);
+    modalHeEntendidoEsto(propPayload, previewData);
+  } catch (err) {
+    await queue('/generate', propPayload);
+    toast('Preparando el borrador con tus fuentes.');
+  }
 }
 
 async function formularioReject({form, data}) {
@@ -371,6 +681,7 @@ export const actions = {
   'expand-proposal': accionOpenExpandProposal,
   'prepare-session': accionOpenPrepareSession,
   'new-proposal': accionNewProposal,
+  'regenerate-proposal': accionOpenRegenerateProposal,
 };
 
 export const forms = {
@@ -384,6 +695,7 @@ export const clickBindings = [
   {priority: 17, matches: target => target.dataset.reviewReject, action: 'review-reject'},
   {priority: 22, matches: target => target.dataset.expandProposal, action: 'expand-proposal'},
   {priority: 23, matches: target => target.dataset.prepareSession, action: 'prepare-session'},
+  {priority: 24, matches: target => !!target.closest('[data-regenerate-proposal]'), action: 'regenerate-proposal'},
 ];
 
 function checkDateWarning(groupId, dateStr) {

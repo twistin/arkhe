@@ -69,7 +69,9 @@ export function resultHTML(run) {
       `${
         isPedagogy ? [
           `<button class="button small ghost" data-expand-proposal="${e(run.id)}">${icon('spark')}`,
-          `Ampliar</button>`
+          `Ampliar</button>`,
+          `<button class="button small ghost" data-regenerate-proposal="${e(run.id)}" `,
+          `title="Crear una nueva propuesta a partir de esta">${icon('refresh')}Regenerar</button>`
         ].join('') : ''
       }`
     ].join(''),
