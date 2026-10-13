@@ -1,4 +1,56 @@
 schema_version: 1
+
+ambitos_componentes:
+  tetracordos:
+    periodos:
+      - "antigüedad"
+      - "antiguedad"
+      - "grecia"
+      - "grecia_antigua"
+      - "teoria_medieval"
+      - "edad_media"
+      - "medieval"
+    materias:
+      - "historia-i"
+      - "historia-1"
+      - "teoria-antigua"
+  gran_sistema_perfecto:
+    periodos:
+      - "antigüedad"
+      - "antiguedad"
+      - "grecia"
+      - "grecia_antigua"
+      - "teoria_medieval"
+      - "edad_media"
+      - "medieval"
+    materias:
+      - "historia-i"
+      - "historia-1"
+      - "teoria-antigua"
+  monocordio:
+    periodos:
+      - "antigüedad"
+      - "antiguedad"
+      - "grecia"
+      - "grecia_antigua"
+      - "teoria_medieval"
+      - "edad_media"
+      - "medieval"
+    materias:
+      - "historia-i"
+      - "historia-1"
+      - "acustica"
+  escalera_intervalos:
+    periodos:
+      - "*"
+    materias:
+      - "*"
+  linea_temporal:
+    periodos:
+      - "*"
+    materias:
+      - "*"
+
 reglas:
   - patron: "tetracordo|tetracordos|género|genero|géneros|generos|enarmónico|enarmonico|diatónico|diatonico|cromático|cromatico|diesis|díesis"
     componentes:
@@ -6,10 +58,10 @@ reglas:
   - patron: "sistema perfecto|gran sistema|seikilos|epitafio|tonos|proslambanomenos|proslambanómenos"
     componentes:
       - tipo: "gran_sistema_perfecto"
-  - patron: "pitágoras|pitagoras|proporción|proporcion|consonancia|monocordio|canon pitagorico|canon pitagórico"
+  - patron: "monocordio|canon pitagorico|canon pitagórico|pitágoras.*monocordio|monocordio.*pitágoras"
     componentes:
       - tipo: "monocordio"
       - tipo: "escalera_intervalos"
-  - patron: "tratadista|tratadistas|siglo|cronología|cronologia|línea temporal|linea temporal|eje histórico|eje historico|aristóxeno|aristoxeno|ptolomeo|boecio|platón|platon|aristóteles|aristoteles"
+  - patron: "tratadista|tratadistas|línea temporal|linea temporal|eje histórico|eje historico"
     componentes:
       - tipo: "linea_temporal"

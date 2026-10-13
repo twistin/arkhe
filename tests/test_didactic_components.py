@@ -135,7 +135,7 @@ def test_validacion_didactic_components_rechaza_svg_del_modelo():
 
 def test_resolucion_componentes_didacticos():
     """Comprueba la resolución determinista de los 5 componentes didácticos."""
-    calculados = ['tetracordos', 'gran_sistema_perfecto', 'monocordio', 'escalera_intervalos']
+    calculados = ['tetracordos', 'gran_sistema_perfecto', 'monocordio']
     for t in calculados:
         res = resolver_componente_didactico(t)
         assert res['tipo'] == t
@@ -143,6 +143,19 @@ def test_resolucion_componentes_didacticos():
         assert res['verificado'] is True
         assert '<svg' in res['svg']
         assert res['titulo']
+
+    # Escalera de intervalos: requiere parámetros o mostrar_tetracordos explícito
+    res_esc = resolver_componente_didactico('escalera_intervalos', {'mostrar_tetracordos': True})
+    assert res_esc['tipo'] == 'escalera_intervalos'
+    assert res_esc['calculado_teoria'] is True
+    assert res_esc['verificado'] is True
+    assert '<svg' in res_esc['svg']
+
+    # Sin parámetros se descarta rigurosamente
+    res_esc_vacia = resolver_componente_didactico('escalera_intervalos', {})
+    assert res_esc_vacia['estado'] == 'descartado'
+    assert res_esc_vacia['svg'] is None
+    assert 'No se han especificado los intervalos' in res_esc_vacia['motivo_descarte']
 
     # Línea temporal: factual, NO calculada a partir de teoría
     lt = resolver_componente_didactico('linea_temporal')
@@ -629,6 +642,123 @@ def test_glosario_griego_ditono_cents_y_verificacion(tmp_path):
     assert ficha_post['verificado_por'] == 'profesor_test'
     assert 'verificado_en' in ficha_post
     assert is_ficha_verified(ficha_post) is True
+
+
+def test_ambitos_componentes_y_descartes_automaticos():
+    """Verifica que tetracordos, GSP y monocordio pertenezcan exclusivamente a Antigüedad y Edad Media,
+    y que fuera de su ámbito se descarten con motivo explícito."""
+    # 1. En Antigüedad o Edad Media son válidos
+    res_grecia = resolver_componente_didactico('tetracordos', topic='Música en la Grecia Antigua')
+    assert res_grecia['estado'] == 'cumplido'
+    assert res_grecia['verificado'] is True
+
+    res_medieval = resolver_componente_didactico('monocordio', topic='Teoría musical medieval y Boecio')
+    assert res_medieval['estado'] == 'cumplido'
+
+    # 2. En Polifonía del siglo XVI o Renacimiento se descartan
+    res_xvi_tc = resolver_componente_didactico('tetracordos', topic='Polifonía del siglo XVI')
+    assert res_xvi_tc['estado'] == 'descartado'
+    assert 'Antigüedad' in res_xvi_tc['motivo_descarte']
+
+    res_xvi_gsp = resolver_componente_didactico('gran_sistema_perfecto', topic='Polifonía del siglo XVI')
+    assert res_xvi_gsp['estado'] == 'descartado'
+
+    res_xvi_mono = resolver_componente_didactico('monocordio', topic='Polifonía renacentista')
+    assert res_xvi_mono['estado'] == 'descartado'
+
+    # 3. En Ópera barroca (siglo XVII) se descartan
+    res_barroco = resolver_componente_didactico('monocordio', topic='Nacimiento de la ópera barroca en el siglo XVII')
+    assert res_barroco['estado'] == 'descartado'
+
+
+def test_linea_temporal_parametros_y_descartes():
+    """Verifica que linea_temporal valide inicio y fin, descarte rangos inválidos o vacíos,
+    y grafique rangos renacentistas arbitrarios cuando se aportan hitos."""
+    # 1. Inicio posterior a fin -> descartado
+    res_inv = resolver_componente_didactico('linea_temporal', {'inicio': 1600, 'fin': 1500})
+    assert res_inv['estado'] == 'descartado'
+    assert 'posterior' in res_inv['motivo_descarte']
+
+    # 2. Rango 1500–1600 sin hitos -> descartado (no cae a filósofos griegos)
+    res_vacio = resolver_componente_didactico('linea_temporal', {'inicio': 1500, 'fin': 1600})
+    assert res_vacio['estado'] == 'descartado'
+    assert 'No se han encontrado' in res_vacio['motivo_descarte']
+
+    # 3. Rango 1500–1600 con hitos del modelo -> cumplido con eje acorde
+    hitos_xvi = [
+        {'autor': 'Josquin des Prez', 'ano_numerico': 1502, 'obra': 'Missa L’homme armé'},
+        {'autor': 'Giovanni Pierluigi da Palestrina', 'ano_numerico': 1567, 'obra': 'Missa Papae Marcelli'},
+        {'autor': 'Tomás Luis de Victoria', 'ano_numerico': 1585, 'obra': 'Officium Hebdomadae Sanctae'},
+    ]
+    res_ok = resolver_componente_didactico('linea_temporal', {'inicio': 1500, 'fin': 1600, 'hitos': hitos_xvi})
+    assert res_ok['estado'] == 'cumplido'
+    assert len(res_ok['hitos']) == 3
+    assert 'Josquin' in res_ok['svg']
+    assert 'Palestrina' in res_ok['svg']
+    assert 'Victoria' in res_ok['svg']
+    # El SVG debe contener ticks del siglo XVI y no la divisoria de eras de año 0
+    assert '1500' in res_ok['svg']
+    assert '1600' in res_ok['svg']
+    assert 'a. C.' not in res_ok['svg']
+
+
+def test_escalera_intervalos_personalizada_y_descartes():
+    """Verifica que escalera_intervalos valide nombres de intervalos, descarte no reconocidos
+    y calcule razones y cents exactos en afinación justa o pitagórica."""
+    # 1. Intervalos canónicos válidos
+    res_justa = resolver_componente_didactico('escalera_intervalos', {
+        'intervalos': ['unísono', 'tercera mayor', 'quinta justa', 'octava'],
+        'afinacion': 'justa'
+    })
+    assert res_justa['estado'] == 'cumplido'
+    cents_map = {it['nombre']: it['cents'] for it in res_justa['intervalos']}
+    assert cents_map['Unísono'] == 0.0
+    assert abs(cents_map['Tercera mayor'] - 386.31) < 0.1
+    assert abs(cents_map['Quinta justa'] - 701.96) < 0.1
+    assert cents_map['Octava justa'] == 1200.0
+
+    # 2. Afinación pitagórica
+    res_pit = resolver_componente_didactico('escalera_intervalos', {
+        'intervalos': ['tercera mayor'],
+        'afinacion': 'pitagorica'
+    })
+    assert res_pit['estado'] == 'cumplido'
+    assert abs(res_pit['intervalos'][0]['cents'] - 407.82) < 0.1
+
+    # 3. Intervalo desconocido -> descartado
+    res_descon = resolver_componente_didactico('escalera_intervalos', {
+        'intervalos': ['intervalo_inventado_xyz']
+    })
+    assert res_descon['estado'] == 'descartado'
+    assert 'Intervalo no reconocido' in res_descon['motivo_descarte']
+
+    # 4. En tema del siglo XVI sin especificar intervalos -> descartado (no dibuja tetracordos griegos)
+    res_sin_inter = resolver_componente_didactico('escalera_intervalos', {}, topic='Polifonía del siglo XVI')
+    assert res_sin_inter['estado'] == 'descartado'
+    assert 'No se han especificado los intervalos' in res_sin_inter['motivo_descarte']
+
+
+def test_fichas_coherencia_periodo_y_exclusion():
+    """Verifica que polifonia_xv no se asigne a temas del siglo XVI y que funcione la exclusión."""
+    from docente_ai.teaching.fichas import get_ficha_for_topic, listar_fichas_aplicables
+
+    # Polifonía del siglo XVI NO debe recibir polifonia_xv
+    f_xvi = get_ficha_for_topic("La polifonía sacra y profana en el siglo XVI")
+    assert f_xvi is None
+
+    # Polifonía del siglo XV sí recibe polifonia_xv
+    f_xv = get_ficha_for_topic("La polifonía sacra en el siglo XV y Guillaume Dufay")
+    assert f_xv is not None
+    assert f_xv['id'] == 'polifonia_xv'
+
+    # Listar fichas aplicables para Grecia
+    aplicables_grecia = listar_fichas_aplicables("La música en la antigua Grecia")
+    ids_grecia = [f['id'] for f in aplicables_grecia]
+    assert 'glosario_griego' in ids_grecia
+
+    # Exclusión de ficha explícita
+    f_excluida = get_ficha_for_topic("La música en la antigua Grecia", fichas_excluidas=['glosario_griego'])
+    assert f_excluida is None
 
 
 

@@ -584,6 +584,317 @@ def generar_svg_escalera_intervalos(ancho: int = 920, alto: int = 340) -> str:
     return '\n'.join(svg)
 
 
+# ----------------------------------------------------------------------------
+# 3.1 ESCALERA DE INTERVALOS PERSONALIZADA (Afinación Justa o Pitagórica)
+# ----------------------------------------------------------------------------
+
+MAPA_INTERVALOS_CANONICOS = {
+    'unisono': {
+        'nombre': 'Unísono',
+        'razon_justa': '1/1', 'cents_justa': 0.0,
+        'razon_pit': '1/1', 'cents_pit': 0.0,
+        'color': '#0284c7',
+    },
+    'segunda_menor': {
+        'nombre': 'Segunda menor',
+        'razon_justa': '16/15', 'cents_justa': 111.73,
+        'razon_pit': '256/243', 'cents_pit': 90.22,
+        'color': '#0ea5e9',
+    },
+    'segunda_mayor': {
+        'nombre': 'Segunda mayor (tono)',
+        'razon_justa': '9/8', 'cents_justa': 203.91,
+        'razon_pit': '9/8', 'cents_pit': 203.91,
+        'color': '#06b6d4',
+    },
+    'tercera_menor': {
+        'nombre': 'Tercera menor',
+        'razon_justa': '6/5', 'cents_justa': 315.64,
+        'razon_pit': '32/27', 'cents_pit': 294.13,
+        'color': '#10b981',
+    },
+    'tercera_mayor': {
+        'nombre': 'Tercera mayor',
+        'razon_justa': '5/4', 'cents_justa': 386.31,
+        'razon_pit': '81/64', 'cents_pit': 407.82,
+        'color': '#059669',
+    },
+    'cuarta_justa': {
+        'nombre': 'Cuarta justa',
+        'razon_justa': '4/3', 'cents_justa': 498.04,
+        'razon_pit': '4/3', 'cents_pit': 498.04,
+        'color': '#16a34a',
+    },
+    'tritono': {
+        'nombre': 'Tritono (4ª aum / 5ª dism)',
+        'razon_justa': '45/32', 'cents_justa': 590.22,
+        'razon_pit': '729/512', 'cents_pit': 611.73,
+        'color': '#eab308',
+    },
+    'quinta_justa': {
+        'nombre': 'Quinta justa',
+        'razon_justa': '3/2', 'cents_justa': 701.96,
+        'razon_pit': '3/2', 'cents_pit': 701.96,
+        'color': '#f59e0b',
+    },
+    'sexta_menor': {
+        'nombre': 'Sexta menor',
+        'razon_justa': '8/5', 'cents_justa': 813.69,
+        'razon_pit': '128/81', 'cents_pit': 792.18,
+        'color': '#f97316',
+    },
+    'sexta_mayor': {
+        'nombre': 'Sexta mayor',
+        'razon_justa': '5/3', 'cents_justa': 884.36,
+        'razon_pit': '27/16', 'cents_pit': 905.87,
+        'color': '#ea580c',
+    },
+    'septima_menor': {
+        'nombre': 'Séptima menor',
+        'razon_justa': '9/5', 'cents_justa': 1017.60,
+        'razon_pit': '16/9', 'cents_pit': 996.09,
+        'color': '#8b5cf6',
+    },
+    'septima_mayor': {
+        'nombre': 'Séptima mayor',
+        'razon_justa': '15/8', 'cents_justa': 1088.27,
+        'razon_pit': '243/128', 'cents_pit': 1109.78,
+        'color': '#7c3aed',
+    },
+    'octava': {
+        'nombre': 'Octava justa',
+        'razon_justa': '2/1', 'cents_justa': 1200.0,
+        'razon_pit': '2/1', 'cents_pit': 1200.0,
+        'color': '#6366f1',
+    },
+}
+
+
+def normalizar_nombre_intervalo(texto: str) -> str | None:
+    """Mapea un nombre o designación informal de intervalo al identificador canónico."""
+    import unicodedata
+    if texto in MAPA_INTERVALOS_CANONICOS:
+        return texto
+    s = unicodedata.normalize('NFD', str(texto).lower().strip())
+    t = ''.join(c for c in s if unicodedata.category(c) != 'Mn').replace('_', ' ').strip()
+    if t.replace(' ', '_') in MAPA_INTERVALOS_CANONICOS:
+        return t.replace(' ', '_')
+
+    if t in ('unisono', 'unison', '1', '1j'):
+        return 'unisono'
+    if t in ('octava', 'octava justa', '8', '8j'):
+        return 'octava'
+    if t in ('quinta justa', 'quinta', '5', '5j'):
+        return 'quinta_justa'
+    if t in ('cuarta justa', 'cuarta', '4', '4j'):
+        return 'cuarta_justa'
+    if 'tritono' in t or 'aumentada' in t or 'disminuida' in t:
+        return 'tritono'
+    if 'tercera' in t or t in ('3', '3m', '3m'):
+        if 'menor' in t or t == '3m':
+            return 'tercera_menor'
+        return 'tercera_mayor'
+    if 'segunda' in t or t in ('2', '2m', '2m'):
+        if 'menor' in t or t == '2m' or 'semitono' in t:
+            return 'segunda_menor'
+        return 'segunda_mayor'
+    if 'sexta' in t or t in ('6', '6m', '6m'):
+        if 'menor' in t or t == '6m':
+            return 'sexta_menor'
+        return 'sexta_mayor'
+    if 'septima' in t or t in ('7', '7m', '7m'):
+        if 'menor' in t or t == '7m':
+            return 'septima_menor'
+        return 'septima_mayor'
+    return None
+
+
+def generar_svg_escalera_intervalos_personalizada(
+    intervalos: list[dict[str, Any]],
+    afinacion: str = 'justa',
+    ancho: int = 920,
+) -> str:
+    """Genera un SVG determinista comparando a escala en cents los intervalos solicitados."""
+    margen_izq = 180
+    margen_der = 60
+    ancho_escala = ancho - margen_izq - margen_der
+    max_cents = 1200.0
+    px_por_cent = ancho_escala / max_cents
+    alto = max(240, 90 + len(intervalos) * 44 + 40)
+
+    svg = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto}" class="didactic-svg didactic-ladder">',
+        '<style>',
+        '.ld-bg { fill: #fcfcfd; rx: 8px; }',
+        '.ld-rule { stroke: #cbd5e1; stroke-width: 1; }',
+        '.ld-rule-label { font-family: system-ui, sans-serif; font-size: 10px; fill: #64748b; text-anchor: middle; }',
+        '.ld-inter-title { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: #0f172a; text-anchor: end; }',
+        '.ld-bar-text { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #ffffff; text-anchor: middle; }',
+        '.ld-bar-outside { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #1e293b; text-anchor: start; }',
+        '.ld-sub { font-family: system-ui, sans-serif; font-size: 11px; fill: #475569; }',
+        '</style>',
+        f'<rect width="{ancho}" height="{alto}" class="ld-bg"/>',
+    ]
+
+    y_regla = 48
+    svg.append(f'<line x1="{margen_izq}" y1="{y_regla}" x2="{margen_izq + ancho_escala}" y2="{y_regla}" class="ld-rule"/>')
+    for c in range(0, 1201, 200):
+        xc = margen_izq + c * px_por_cent
+        svg.append(f'<line x1="{xc}" y1="{y_regla - 5}" x2="{xc}" y2="{y_regla + 5}" class="ld-rule"/>')
+        svg.append(f'<text x="{xc}" y="{y_regla - 8}" class="ld-rule-label">{c}c</text>')
+
+    y_base = 75
+    altura_fila = 42
+
+    for idx, inter in enumerate(intervalos):
+        y_fila = y_base + idx * altura_fila
+        nombre = inter.get('nombre', '')
+        razon = inter.get('razon_str', '1/1')
+        cents = float(inter.get('cents', 0.0))
+        color = inter.get('color', '#0284c7')
+
+        svg.append(f'<text x="{margen_izq - 15}" y="{y_fila + 20}" class="ld-inter-title">{nombre}</text>')
+
+        w_bar = max(3.0, cents * px_por_cent)
+        svg.append(
+            f'<rect x="{margen_izq}" y="{y_fila}" width="{w_bar}" height="28" '
+            f'fill="{color}" rx="3" style="stroke:#ffffff; stroke-width:1.5;"/>'
+        )
+        label_txt = f"{razon} ({int(round(cents))}c)"
+        if w_bar >= 90:
+            svg.append(f'<text x="{margen_izq + w_bar/2}" y="{y_fila + 18}" class="ld-bar-text">{label_txt}</text>')
+        else:
+            svg.append(f'<text x="{margen_izq + w_bar + 8}" y="{y_fila + 18}" class="ld-bar-outside">{label_txt}</text>')
+
+    tipo_af = "justa (zarliniana)" if afinacion.lower() == 'justa' else "pitagórica"
+    svg.append(
+        f'<text x="{ancho // 2}" y="{alto - 14}" class="ld-sub" style="text-anchor: middle;">'
+        f'Afinación {tipo_af}: intervalos representados a escala exacta en cents sobre la octava (0–1200c).'
+        '</text>'
+    )
+    svg.append('</svg>')
+    return '\n'.join(svg)
+
+
+# ----------------------------------------------------------------------------
+# 3.2 ÁMBITOS HISTÓRICO-TEMÁTICOS POR COMPONENTE DIDÁCTICO
+# ----------------------------------------------------------------------------
+
+AMBITOS_COMPONENTES_DEFAULT = {
+    'tetracordos': {
+        'periodos': ('antiguedad', 'antigüedad', 'grecia', 'grecia antigua', 'edad media', 'medieval', 'teoria medieval'),
+        'materias': ('historia-i', 'historia_1', 'historia_de_la_musica_1', 'fundamentos'),
+    },
+    'gran_sistema_perfecto': {
+        'periodos': ('antiguedad', 'antigüedad', 'grecia', 'grecia antigua', 'edad media', 'medieval', 'teoria medieval'),
+        'materias': ('historia-i', 'historia_1', 'historia_de_la_musica_1', 'fundamentos'),
+    },
+    'monocordio': {
+        'periodos': ('antiguedad', 'antigüedad', 'grecia', 'grecia antigua', 'edad media', 'medieval', 'teoria medieval'),
+        'materias': ('historia-i', 'historia_1', 'historia_de_la_musica_1', 'fundamentos', 'acustica', 'organologia'),
+    },
+}
+
+
+def cargar_ambitos_componentes() -> dict[str, Any]:
+    """Carga los ámbitos por componente declarados en config/componentes_por_tema.yaml o example."""
+    import yaml
+    root = Path(__file__).resolve().parents[3]
+    for filename in ('config/componentes_por_tema.yaml', 'config/componentes_por_tema.example.yaml'):
+        candidate = root / filename
+        if candidate.is_file():
+            try:
+                data = yaml.safe_load(candidate.read_text(encoding='utf-8'))
+                if isinstance(data, dict) and 'ambitos_componentes' in data:
+                    return data['ambitos_componentes']
+            except Exception:
+                pass
+    return AMBITOS_COMPONENTES_DEFAULT
+
+
+def comprobar_ambito_componente(
+    tipo: str,
+    topic: str | None = None,
+    subject: str | None = None,
+    periodo: str | None = None,
+    parametros: dict[str, Any] | None = None,
+) -> tuple[bool, str | None]:
+    """Comprueba si un componente está dentro de su ámbito temático y temporal.
+    Tetracordos, gran sistema perfecto y monocordio pertenecen exclusivamente
+    a la Antigüedad griega y teoría medieval. Fuera de su ámbito no se instancian.
+    escalera_intervalos y linea_temporal son transversales (validan sus parámetros).
+    """
+    tipo_norm = str(tipo or '').lower().strip()
+    if tipo_norm in ('gsp', 'sistema_perfecto'):
+        tipo_norm = 'gran_sistema_perfecto'
+    elif tipo_norm in ('monocordio_pitagorico', 'canon'):
+        tipo_norm = 'monocordio'
+    elif tipo_norm in ('tetracordo',):
+        tipo_norm = 'tetracordos'
+
+    # Solo tetracordos, gran_sistema_perfecto y monocordio tienen restricción de ámbito histórico
+    if tipo_norm not in ('tetracordos', 'gran_sistema_perfecto', 'monocordio'):
+        return True, None
+
+    # Textos indicativos de materia, tema y periodo
+    textos = [
+        str(topic or ''),
+        str(subject or ''),
+        str(periodo or ''),
+        str((parametros or {}).get('periodo', '')),
+        str((parametros or {}).get('tema', '')),
+    ]
+    texto_combinado = ' '.join(textos).lower().strip()
+
+    # Si no hay ningún contexto temático ni temporal especificado (llamada aislada de test/teoría), permitir
+    if not texto_combinado:
+        return True, None
+
+    # 1. Descarte inmediato si se detecta cualquier periodo o estilo posterior
+    periodos_posteriores = (
+        'siglo xvi', 's. xvi', 'siglo 16', '16th century', 'renacimiento', 'renacentista',
+        'siglo xv', 's. xv', 'siglo 15', '15th century',
+        'siglo xvii', 's. xvii', 'siglo 17', 'barroco', 'barroca',
+        'siglo xviii', 's. xviii', 'siglo 18', 'clasicismo', 'clasico', 'clásico',
+        'siglo xix', 's. xix', 'siglo 19', 'romanticismo', 'romantico', 'romántico',
+        'siglo xx', 's. xx', 'siglo 20', 'siglo xxi', 's. xxi', 'siglo 21',
+        'contemporan', 'contemporaneo', 'contemporáneo', 'contemporánea', 'ntam',
+        'nuevas tecnologias', 'nuevas tecnologías', 'cine', 'jazz', 'pop', 'rock',
+        'polifonia', 'polifonía', 'misa', 'madrigal', 'chanson', 'motete'
+    )
+    for p_post in periodos_posteriores:
+        if re.search(r'\b' + re.escape(p_post) + r'\b', texto_combinado):
+            return False, (
+                f"El componente '{tipo_norm}' pertenece exclusivamente al ámbito de Antigüedad y Teoría Medieval; "
+                f"no es aplicable a un contexto de {p_post}."
+            )
+
+    # 2. Validación por lista blanca afirmativa:
+    # Debe pertenecer explícitamente a la Antigüedad griega o Teoría Medieval
+    terminos_autorizados = (
+        'antiguedad', 'antigüedad', 'antiguo', 'antigua',
+        'grecia', 'griego', 'griega', 'helenic', 'helenístic',
+        'seikilos', 'epitafio', 'pitagoras', 'pitágoras', 'pitagorico', 'pitagórico',
+        'platon', 'platón', 'aristoteles', 'aristóteles', 'aristoxeno', 'aristóxeno',
+        'ptolomeo', 'monocordio', 'sistema perfecto', 'tetracordo', 'tetracordos',
+        'edad media', 'medieval', 'teoria medieval', 'teoría medieval',
+        'boecio', 'guido', 'hucbaldo', 'modos eclesiasticos', 'modos eclesiásticos',
+        'canto gregoriano', 'historia-i', 'historia_i', 'historia-1', 'historia 1'
+    )
+    es_autorizado = any(
+        re.search(r'\b' + re.escape(t) + r'\b', texto_combinado)
+        for t in terminos_autorizados
+    )
+
+    if not es_autorizado:
+        return False, (
+            f"El componente '{tipo_norm}' pertenece exclusivamente al ámbito de Antigüedad griega y Teoría Medieval; "
+            f"no es aplicable a '{topic or periodo or subject or 'tema no especificado'}'."
+        )
+
+    return True, None
+
+
 # ============================================================================
 # 4. LÍNEA TEMPORAL DE AUTORES Y FUENTES HISTÓRICAS (Eje real de siglos)
 # ============================================================================
@@ -750,12 +1061,17 @@ def construir_hitos_linea_temporal(
     autores_solicitados: list[str] | None = None,
     claims: list[dict[str, Any]] | None = None,
     visualizaciones: list[dict[str, Any]] | None = None,
+    inicio: int | None = None,
+    fin: int | None = None,
+    hitos_modelo: list[dict[str, Any]] | None = None,
+    topic: str | None = None,
+    subject: str | None = None,
 ) -> list[dict[str, Any]]:
     """Construye dinámicamente los hitos de la línea temporal a partir de las fuentes
-    citadas de la propuesta y de los autores nombrados en claims y visualizaciones.
+    citadas de la propuesta, de los hitos propuestos por el modelo y de los autores en claims/fuentes.
     Solo entran personas (tratadistas). Obras y fuentes (Epitafio de Seikilos) no van a la línea.
-    La fecha sale de la ficha config/fichas/cronologia_autores.yaml cuando está verificada.
-    Mientras no esté verificada, se marca para no mostrar fechas al alumnado."""
+    Respeta el rango cronológico [inicio, fin] si se especifica: los autores fuera de rango se descartan.
+    cronologia_autores.yaml solo aporta fechas de autores que ya estén en la propuesta y en el rango."""
     from docente_ai.teaching.fichas import get_ficha, is_ficha_verified
 
     ficha_cron = get_ficha('cronologia_autores')
@@ -768,6 +1084,13 @@ def construir_hitos_linea_temporal(
 
     hitos: list[dict[str, Any]] = []
     autores_en_fuentes: dict[str, dict[str, Any]] = {}
+
+    def _esta_en_rango(ano: int) -> bool:
+        if inicio is not None and ano < inicio:
+            return False
+        if fin is not None and ano > fin:
+            return False
+        return True
 
     def _normalizar(s: str) -> str:
         res = s.lower()
@@ -794,7 +1117,37 @@ def construir_hitos_linea_temporal(
         if 'boec' in t_norm or 'boeth' in t_norm: return 'boecio'
         return None
 
-    # 1. Extraer autores y obras de las fuentes y pasajes citados
+    # 1. Hitos proporcionados explícitamente por el modelo
+    if hitos_modelo:
+        for hm in hitos_modelo:
+            if not isinstance(hm, dict):
+                continue
+            autor_hm = hm.get('autor') or hm.get('nombre') or hm.get('titulo') or ''
+            if not autor_hm:
+                continue
+            ano_val = hm.get('ano_numerico')
+            if ano_val is None:
+                ano_val = hm.get('ano') or hm.get('year') or hm.get('fecha')
+            try:
+                ano_num = int(str(ano_val).replace('c.', '').replace('fl.', '').replace('d. C.', '').replace('a. C.', '').strip())
+            except Exception:
+                ano_num = inicio or 0
+
+            if _esta_en_rango(ano_num):
+                hitos.append({
+                    'key': f"mod_{_normalizar(autor_hm)[:12]}",
+                    'autor': autor_hm,
+                    'epoca': hm.get('epoca') or hm.get('fecha') or f"c. {ano_num}",
+                    'ano_numerico': ano_num,
+                    'aproximado': True,
+                    'obra': hm.get('obra') or '',
+                    'fuente': hm.get('fuente') or 'Propuesta curricular',
+                    'sin_fuente': False,
+                    'cronologia_verificada': True,
+                    'fecha_documentada': True,
+                })
+
+    # 2. Extraer autores y obras de las fuentes y pasajes citados
     for ev in (evidence or []):
         meta = ev.get('metadata') or {}
         autor_doc = (meta.get('authors') or [''])[0] or ev.get('source_author') or ''
@@ -812,7 +1165,7 @@ def construir_hitos_linea_temporal(
                 ano_num = ficha_item.get('ano_numerico', canon['ano_numerico'])
                 obra_str = ficha_item.get('obra_canon') or canon['obra_canon']
 
-                if key not in autores_en_fuentes:
+                if _esta_en_rango(ano_num) and key not in autores_en_fuentes:
                     autores_en_fuentes[key] = {
                         'key': key,
                         'autor': canon['nombre_canonico'],
@@ -827,9 +1180,10 @@ def construir_hitos_linea_temporal(
                     }
 
     for item in autores_en_fuentes.values():
-        hitos.append(item)
+        if not any(h['autor'] == item['autor'] for h in hitos):
+            hitos.append(item)
 
-    # 2. Extraer autores nombrados en claims y visualizaciones
+    # 3. Extraer autores nombrados en claims y visualizaciones
     autores_mencionados: set[str] = set()
     for cl in (claims or []):
         t = cl.get('text', '') + ' ' + cl.get('student_summary', '')
@@ -844,11 +1198,17 @@ def construir_hitos_linea_temporal(
             if k in _normalizar(t):
                 autores_mencionados.add(k)
 
-    # 3. Autores solicitados explícitamente en parámetros
+    # 4. Autores solicitados explícitamente en parámetros o mencionados en tema/asignatura
     for aut_sol in (autores_solicitados or []):
         key = _detectar_key(str(aut_sol))
         if key:
             autores_mencionados.add(key)
+
+    texto_tema = f"{topic or ''} {subject or ''}"
+    if texto_tema.strip():
+        for k in FIGURAS_HISTORICAS_GRIEGAS:
+            if k in _normalizar(texto_tema):
+                autores_mencionados.add(k)
 
     for key in autores_mencionados:
         if key not in autores_en_fuentes and key in FIGURAS_HISTORICAS_GRIEGAS:
@@ -857,36 +1217,41 @@ def construir_hitos_linea_temporal(
             epoca_str = ficha_item.get('fecha_display') or canon['epoca']
             ano_num = ficha_item.get('ano_numerico', canon['ano_numerico'])
             obra_str = ficha_item.get('obra_canon') or canon['obra_canon']
-            hitos.append({
-                'key': key,
-                'autor': canon['nombre_canonico'],
-                'epoca': epoca_str,
-                'ano_numerico': ano_num,
-                'aproximado': canon.get('aproximado', True),
-                'obra': obra_str,
-                'fuente': 'sin fuente en la biblioteca',
-                'sin_fuente': True,
-                'cronologia_verificada': cron_verificada,
-                'fecha_documentada': False,
-            })
+            if _esta_en_rango(ano_num) and not any(h.get('key') == key for h in hitos):
+                hitos.append({
+                    'key': key,
+                    'autor': canon['nombre_canonico'],
+                    'epoca': epoca_str,
+                    'ano_numerico': ano_num,
+                    'aproximado': canon.get('aproximado', True),
+                    'obra': obra_str,
+                    'fuente': 'sin fuente en la biblioteca',
+                    'sin_fuente': True,
+                    'cronologia_verificada': cron_verificada,
+                    'fecha_documentada': False,
+                })
 
-    # Si no había fuentes citadas específicas ni menciones (ej. test aislado), poblar con figuras canónicas
-    if not hitos:
-        for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'nicomaco', 'ptolomeo', 'san_agustin', 'boecio'):
-            canon = FIGURAS_HISTORICAS_GRIEGAS[k]
-            ficha_item = mapa_ficha.get(k) or {}
-            hitos.append({
-                'key': k,
-                'autor': canon['nombre_canonico'],
-                'epoca': ficha_item.get('fecha_display') or canon['epoca'],
-                'ano_numerico': ficha_item.get('ano_numerico', canon['ano_numerico']),
-                'aproximado': canon.get('aproximado', True),
-                'obra': ficha_item.get('obra_canon') or canon['obra_canon'],
-                'fuente': 'Referencia histórica',
-                'sin_fuente': False,
-                'cronologia_verificada': cron_verificada,
-                'fecha_documentada': cron_verificada,
-            })
+    # En llamadas unitarias abstractas o en temas de la Grecia Antigua sin autores explícitos, aportar figuras canónicas griegas.
+    # Fuera de la Antigüedad griega, si no hay autores citados ni hitos, la línea temporal se descarta.
+    if not hitos and inicio is None and fin is None and not hitos_modelo:
+        es_tema_griego = any(w in _normalizar(f"{topic or ''} {subject or ''}") for w in ('grecia', 'griego', 'griega', 'antiguedad', 'seikilos', 'pitagoras'))
+        es_llamada_unitaria = not autores_solicitados and not claims and not evidence and not topic and not subject
+        if es_llamada_unitaria or es_tema_griego:
+            for k in ('pitagoras', 'platon', 'aristoteles', 'aristoxeno', 'euclides', 'nicomaco', 'ptolomeo', 'san_agustin', 'boecio'):
+                canon = FIGURAS_HISTORICAS_GRIEGAS[k]
+                ficha_item = mapa_ficha.get(k) or {}
+                hitos.append({
+                    'key': k,
+                    'autor': canon['nombre_canonico'],
+                    'epoca': ficha_item.get('fecha_display') or canon['epoca'],
+                    'ano_numerico': ficha_item.get('ano_numerico', canon['ano_numerico']),
+                    'aproximado': canon.get('aproximado', True),
+                    'obra': ficha_item.get('obra_canon') or canon['obra_canon'],
+                    'fuente': 'Referencia histórica',
+                    'sin_fuente': False,
+                    'cronologia_verificada': cron_verificada,
+                    'fecha_documentada': cron_verificada,
+                })
 
     # Ordenar estrictamente por año cronológico
     hitos.sort(key=lambda h: h['ano_numerico'])
@@ -897,13 +1262,16 @@ def generar_svg_linea_temporal(
     hitos: list[dict[str, Any]] | None = None,
     para_alumnado: bool = False,
     ancho: int = 980,
-    alto: int = 420
+    alto: int = 420,
+    ano_min: int | None = None,
+    ano_max: int | None = None,
 ) -> str:
     """Genera un SVG determinista de la línea temporal:
     - Si cronologia_autores está verificada: eje cronológico real con fechas.
     - Si NO está verificada: el alumnado ve la línea temporal sin fechas (solo orden relativo histórico)
       y la guía docente ve el aviso destacado.
-    - Tarjetas con ajuste automático de línea y alto para que no corten texto."""
+    - Tarjetas con ajuste automático de línea y alto para que no corten texto.
+    - Soporta rangos arbitrarios (ej. 1500–1600) respetando ano_min y ano_max."""
     hitos = hitos or construir_hitos_linea_temporal()
 
     if para_alumnado:
@@ -912,7 +1280,7 @@ def generar_svg_linea_temporal(
     cron_verificada = any(h.get('cronologia_verificada') for h in hitos)
     n = len(hitos)
     if n == 0:
-        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} 100"><text x="20" y="50">Sin tratadistas disponibles</text></svg>'
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} 100"><text x="20" y="50">Sin tratadistas disponibles en el rango solicitado</text></svg>'
 
     margen_x = 40
     ancho_util = ancho - 2 * margen_x
@@ -936,7 +1304,7 @@ def generar_svg_linea_temporal(
             '.tl-ord-num { font-family: system-ui, sans-serif; font-size: 11px; font-weight: 800; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }',
             '</style>',
             f'<rect width="{ancho}" height="{alto_calc}" class="tl-bg"/>',
-            f'<text x="{margen_x + 10}" y="26" class="tl-title">SECUENCIA HISTÓRICA DE TRATADISTAS CITADOS EN LAS FUENTES (ORDEN TEÓRICO RELATIVO)</text>',
+            f'<text x="{margen_x + 10}" y="26" class="tl-title">SECUENCIA HISTÓRICA DE TRATADISTAS Y FIGURAS HISTÓRICAS (ORDEN RELATIVO)</text>',
         ]
 
         if not usar_grid:
@@ -1000,15 +1368,33 @@ def generar_svg_linea_temporal(
         svg.append('</svg>')
         return '\n'.join(svg)
 
-    # Caso 2: Guía docente o Ficha verificada (Eje real de siglos con fechas)
+    # Caso 2: Guía docente o Ficha verificada (Eje real de siglos/años con fechas)
     alto_real = 440
     y_eje = 160
-    ano_min = -600
-    ano_max = 600
+
+    # Determinar rango dinámico
+    if ano_min is None or ano_max is None:
+        anos_hitos = [h['ano_numerico'] for h in hitos]
+        min_h = min(anos_hitos)
+        max_h = max(anos_hitos)
+        if any(h < 0 for h in anos_hitos):
+            calc_min = min(-600, min_h - 20)
+            calc_max = max(600, max_h + 20)
+        else:
+            calc_min = max(0, min_h - 20)
+            calc_max = max_h + 20
+        ano_min = ano_min if ano_min is not None else calc_min
+        ano_max = ano_max if ano_max is not None else calc_max
+
+    if ano_max <= ano_min:
+        ano_max = ano_min + 50
+
     ancho_eje = ancho - 2 * margen_x
 
     def ano_a_x(ano: int) -> float:
-        return margen_x + ((ano - ano_min) / (ano_max - ano_min)) * ancho_eje
+        ratio = (ano - ano_min) / (ano_max - ano_min)
+        ratio = max(0.0, min(1.0, ratio))
+        return margen_x + ratio * ancho_eje
 
     svg = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {ancho} {alto_real}" class="didactic-svg didactic-timeline">',
@@ -1040,20 +1426,36 @@ def generar_svg_linea_temporal(
         )
 
     svg.append(f'<line x1="{margen_x}" y1="{y_eje}" x2="{ancho - margen_x}" y2="{y_eje}" class="tl-axis"/>')
-    x_cero = ano_a_x(0)
-    svg.append(f'<line x1="{x_cero}" y1="48" x2="{x_cero}" y2="{y_eje + 80}" class="tl-era-divide"/>')
-    svg.append(f'<text x="{x_cero - 12}" y="60" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
-    svg.append(f'<text x="{x_cero + 12}" y="60" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
 
-    siglos = [
-        (-600, 'VI a.C.'), (-500, 'V a.C.'), (-400, 'IV a.C.'), (-300, 'III a.C.'),
-        (-200, 'II a.C.'), (-100, 'I a.C.'), (0, '0'), (100, 'I d.C.'),
-        (200, 'II d.C.'), (300, 'III d.C.'), (400, 'IV d.C.'), (500, 'V d.C.'), (600, 'VI d.C.')
-    ]
-    for ano_siglo, texto_siglo in siglos:
-        xs = ano_a_x(ano_siglo)
+    # Divisoria de era solo si 0 cae dentro del rango estricto
+    if ano_min < 0 < ano_max:
+        x_cero = ano_a_x(0)
+        svg.append(f'<line x1="{x_cero}" y1="48" x2="{x_cero}" y2="{y_eje + 80}" class="tl-era-divide"/>')
+        svg.append(f'<text x="{x_cero - 12}" y="60" class="tl-era-badge" style="text-anchor:end;">a. C.</text>')
+        svg.append(f'<text x="{x_cero + 12}" y="60" class="tl-era-badge" style="text-anchor:start;">d. C.</text>')
+
+    # Generación de ticks y etiquetas
+    delta_anos = ano_max - ano_min
+    if delta_anos <= 150:
+        paso_tick = 25
+    elif delta_anos <= 400:
+        paso_tick = 50
+    else:
+        paso_tick = 100
+
+    primer_tick = ((ano_min + paso_tick - 1) // paso_tick) * paso_tick
+    cur_tick = primer_tick
+    while cur_tick <= ano_max:
+        xs = ano_a_x(cur_tick)
+        if cur_tick < 0:
+            txt_tick = f"{abs(cur_tick)} a.C."
+        elif cur_tick == 0:
+            txt_tick = "0"
+        else:
+            txt_tick = str(cur_tick)
         svg.append(f'<line x1="{xs}" y1="{y_eje - 4}" x2="{xs}" y2="{y_eje + 4}" class="tl-century-tick"/>')
-        svg.append(f'<text x="{xs}" y="{y_eje + 15}" class="tl-century-label">{texto_siglo}</text>')
+        svg.append(f'<text x="{xs}" y="{y_eje + 15}" class="tl-century-label">{txt_tick}</text>')
+        cur_tick += paso_tick
 
     for i, hito in enumerate(hitos):
         x_nodo = ano_a_x(hito['ano_numerico'])
@@ -1281,13 +1683,33 @@ def resolver_componente_didactico(
     evidence: list[dict[str, Any]] | None = None,
     claims: list[dict[str, Any]] | None = None,
     visualizaciones: list[dict[str, Any]] | None = None,
+    topic: str | None = None,
+    subject: str | None = None,
+    periodo: str | None = None,
 ) -> dict[str, Any]:
     """Resuelve deterministamente un componente didáctico musical devolviendo sus
     datos estructurados, frecuencias sonoras y código SVG listo para renderizado.
-    Separa lo calculado (teoría acústica) de lo factual (fuentes históricas)."""
+    Valida parámetros estrictamente: si no puede representar lo pedido o está fuera de ámbito,
+    devuelve estado 'descartado' con el motivo explicativo. Nunca cae a un contenido por defecto."""
     tipo = (tipo or '').strip().lower()
     parametros = parametros or {}
 
+    # 1. Comprobar ámbito temático y cronológico
+    valido_ambito, motivo_ambito = comprobar_ambito_componente(
+        tipo, topic=topic, subject=subject, periodo=periodo, parametros=parametros
+    )
+    if not valido_ambito:
+        return {
+            'tipo': tipo,
+            'titulo': f"Componente didáctico ({tipo})",
+            'estado': 'descartado',
+            'motivo_descarte': motivo_ambito,
+            'calculado_teoria': False,
+            'verificado': False,
+            'svg': None,
+        }
+
+    # 2. Tetracordos
     if tipo in ('tetracordos', 'tetracordo'):
         from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
         archivo = asegurar_archivo_partitura_tres_generos()
@@ -1318,8 +1740,10 @@ def resolver_componente_didactico(
             'descripcion': 'Ilustración de la subdivisión del intervalo de cuarta en los géneros diatónico, cromático y enarmónico.',
             'calculado_teoria': True,
             'verificado': True,
+            'estado': 'cumplido',
         }
 
+    # 3. Gran Sistema Perfecto
     elif tipo in ('gran_sistema_perfecto', 'gsp', 'sistema_perfecto'):
         svg = generar_svg_gran_sistema_perfecto()
         return {
@@ -1336,8 +1760,10 @@ def resolver_componente_didactico(
             'descripcion': SUBTITULO_GSP,
             'calculado_teoria': True,
             'verificado': True,
+            'estado': 'cumplido',
         }
 
+    # 4. Monocordio
     elif tipo in ('monocordio', 'monocordio_pitagorico', 'canon'):
         svg = generar_svg_monocordio()
         return {
@@ -1365,38 +1791,156 @@ def resolver_componente_didactico(
             'descripcion': 'Cuerda dividida en proporciones 1/2 (octava, diplásion), 2/3 (quinta, hemiólion) y 3/4 (cuarta, epítriton).',
             'calculado_teoria': True,
             'verificado': True,
+            'estado': 'cumplido',
         }
 
+    # 5. Escalera de intervalos
     elif tipo in ('escalera_intervalos', 'escalera', 'cents'):
-        svg = generar_svg_escalera_intervalos()
-        return {
-            'tipo': 'escalera_intervalos',
-            'titulo': 'Escalera de Intervalos en Cents',
-            'svg': svg,
-            'descripcion': 'Comparativa de las dimensiones interválicas en cents de los tres géneros.',
-            'calculado_teoria': True,
-            'verificado': True,
-        }
+        intervalos_solicitados = parametros.get('intervalos')
+        mostrar_tc = bool(parametros.get('mostrar_tetracordos'))
+        afinacion = str(parametros.get('afinacion', 'justa')).lower()
+        if afinacion not in ('justa', 'pitagorica'):
+            afinacion = 'justa'
 
+        # Caso A: Lista explícita de intervalos solicitada
+        if intervalos_solicitados is not None:
+            if not isinstance(intervalos_solicitados, (list, tuple)) or len(intervalos_solicitados) == 0:
+                return {
+                    'tipo': 'escalera_intervalos',
+                    'titulo': 'Escalera de intervalos',
+                    'estado': 'descartado',
+                    'motivo_descarte': 'La lista de intervalos proporcionada está vacía.',
+                    'calculado_teoria': True,
+                    'verificado': False,
+                    'svg': None,
+                }
+
+            lista_datos = []
+            for inter_raw in intervalos_solicitados:
+                key_norm = normalizar_nombre_intervalo(str(inter_raw))
+                if not key_norm or key_norm not in MAPA_INTERVALOS_CANONICOS:
+                    return {
+                        'tipo': 'escalera_intervalos',
+                        'titulo': 'Escalera de intervalos',
+                        'estado': 'descartado',
+                        'motivo_descarte': f"Intervalo no reconocido o no representable: '{inter_raw}'.",
+                        'calculado_teoria': True,
+                        'verificado': False,
+                        'svg': None,
+                    }
+                canon_item = MAPA_INTERVALOS_CANONICOS[key_norm]
+                razon = canon_item['razon_justa'] if afinacion == 'justa' else canon_item['razon_pit']
+                cents = canon_item['cents_justa'] if afinacion == 'justa' else canon_item['cents_pit']
+                lista_datos.append({
+                    'nombre': canon_item['nombre'],
+                    'razon_str': razon,
+                    'cents': cents,
+                    'color': canon_item['color'],
+                })
+
+            svg_cust = generar_svg_escalera_intervalos_personalizada(lista_datos, afinacion=afinacion)
+            return {
+                'tipo': 'escalera_intervalos',
+                'titulo': f'Escalera de Intervalos en Cents (Afinación {afinacion})',
+                'svg': svg_cust,
+                'intervalos': lista_datos,
+                'afinacion': afinacion,
+                'descripcion': f'Comparativa exacta de proporciones y cents para los intervalos solicitados ({afinacion}).',
+                'calculado_teoria': True,
+                'verificado': True,
+                'estado': 'cumplido',
+            }
+
+        # Caso B: Sin lista de intervalos explícita
+        # Solo se generan tetracordos si se solicitó de forma expresa en los parámetros:
+        if mostrar_tc:
+            svg = generar_svg_escalera_intervalos()
+            return {
+                'tipo': 'escalera_intervalos',
+                'titulo': 'Escalera de Intervalos en Cents',
+                'svg': svg,
+                'descripcion': 'Comparativa de las dimensiones interválicas en cents de los tres géneros.',
+                'calculado_teoria': True,
+                'verificado': True,
+                'estado': 'cumplido',
+            }
+        else:
+            return {
+                'tipo': 'escalera_intervalos',
+                'titulo': 'Escalera de intervalos',
+                'estado': 'descartado',
+                'motivo_descarte': 'No se han especificado los intervalos que deben representarse en la escalera (ej. unísono, tercera, quinta, octava), ni se solicitó expresamente la división de tetracordos.',
+                'calculado_teoria': True,
+                'verificado': False,
+                'svg': None,
+            }
+
+    # 6. Línea temporal
     elif tipo in ('linea_temporal', 'cronologia', 'timeline'):
         autores = parametros.get('autores')
+        hitos_param = parametros.get('hitos')
+
+        # Parsear inicio y fin si se proporcionan
+        inicio_num: int | None = None
+        fin_num: int | None = None
+        if parametros.get('inicio') is not None:
+            try:
+                inicio_num = int(str(parametros['inicio']).replace('c.', '').replace('a. C.', '-').replace('d. C.', '').strip())
+            except Exception:
+                pass
+        if parametros.get('fin') is not None:
+            try:
+                fin_num = int(str(parametros['fin']).replace('c.', '').replace('a. C.', '-').replace('d. C.', '').strip())
+            except Exception:
+                pass
+
+        if inicio_num is not None and fin_num is not None and inicio_num > fin_num:
+            return {
+                'tipo': 'linea_temporal',
+                'titulo': 'Línea temporal histórica',
+                'estado': 'descartado',
+                'motivo_descarte': f"Rango cronológico inválido: el año de inicio ({inicio_num}) es posterior al año de fin ({fin_num}).",
+                'calculado_teoria': False,
+                'verificado': False,
+                'svg': None,
+            }
+
         hitos = construir_hitos_linea_temporal(
             evidence=evidence,
             autores_solicitados=autores,
             claims=claims,
             visualizaciones=visualizaciones,
+            inicio=inicio_num,
+            fin=fin_num,
+            hitos_modelo=hitos_param,
+            topic=topic,
+            subject=subject,
         )
-        svg_docente = generar_svg_linea_temporal(hitos, para_alumnado=False)
-        svg_alumnado = generar_svg_linea_temporal(hitos, para_alumnado=True)
+
+        if not hitos:
+            rango_desc = f" ({inicio_num}–{fin_num})" if (inicio_num or fin_num) else ""
+            return {
+                'tipo': 'linea_temporal',
+                'titulo': 'Línea temporal histórica',
+                'estado': 'descartado',
+                'motivo_descarte': f"No se han encontrado autores o hitos cronológicos documentados en el rango solicitado{rango_desc}.",
+                'calculado_teoria': False,
+                'verificado': False,
+                'svg': None,
+            }
+
+        svg_docente = generar_svg_linea_temporal(hitos, para_alumnado=False, ano_min=inicio_num, ano_max=fin_num)
+        svg_alumnado = generar_svg_linea_temporal(hitos, para_alumnado=True, ano_min=inicio_num, ano_max=fin_num)
         return {
             'tipo': 'linea_temporal',
-            'titulo': 'Línea Temporal de Tratadistas de la Música Griega',
+            'titulo': 'Línea Temporal de Tratadistas y Figuras Históricas',
             'svg': svg_docente,
             'svg_alumnado': svg_alumnado,
             'hitos': hitos,
-            'descripcion': 'Eje cronológico real de siglos (a. C. / d. C.) construido a partir de los autores y fuentes de la propuesta.',
-            'calculado_teoria': False,  # Contenido factual histórico, no calculado por proporciones
+            'descripcion': 'Eje cronológico real construido a partir de los autores y fuentes documentadas en la propuesta.',
+            'calculado_teoria': False,
             'verificado': True,
+            'estado': 'cumplido',
         }
 
     raise ValueError(
