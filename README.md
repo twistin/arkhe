@@ -139,9 +139,7 @@ de lo factual:
   del material del alumnado.
 
 Solo los componentes basados en proporciones o estructura llevan el distintivo «✓ Calculado a partir de la teoría».
-La selección de componentes didácticos se realiza además de forma determinista mediante reglas por tema
-(`config/componentes_por_tema.yaml`): tras la generación, el sistema incorpora los componentes necesarios según
-el tema, el plan y las afirmaciones (etiquetando el origen como `regla_tema` o `llm`).
+Cada componente didáctico valida su ámbito cronológico y estilístico (`config/componentes_por_tema.yaml`): los componentes de la Antigüedad (`tetracordos`, `gran_sistema_perfecto`, `monocordio`) se restringen a su periodo histórico y se descartan con motivo visible en la guía docente si se solicitan para periodos posteriores (p. ej. siglo XVI). Asimismo, las fichas temáticas declaran su periodo de aplicación (`periodo`) y la pantalla «He entendido esto» permite al docente revisar y desmarcar fichas aplicables antes de generar.
 Las partituras verificadas y de teoría calculable se integran directamente en el material del alumnado junto a
 la actividad que las utiliza (`activity_title`), mostrando las letras griegas de notación alfabética situadas
 estrictamente sobre las notas cuando el MusicXML contiene una segunda línea de texto (`verse n="2"`).

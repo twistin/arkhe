@@ -985,8 +985,8 @@ Para enriquecer el material del estudiante con gráficos rigurosos sin depender 
   - Los términos técnicos (*phthongos, diastema, systema, díesis, ditono, sinaphe, diazeuxis, proslambanómenos, mese*) se gestionan mediante una ficha temática con `verificado: false`. Mientras no sea verificada por el docente, sus conceptos se muestran exclusivamente en la guía docente (`render_pedagogy`) para su revisión y nunca se publican en el material del alumnado.
 - **Desarrollo analítico de contenidos:**
   - La propiedad `student_summary` se amplía de un esquema sintético a una explicación desarrollada de uno a tres párrafos, conectada con el gráfico didáctico correspondiente y el nivel del grupo.
-- **Selección determinista por tema (`config/componentes_por_tema.yaml`):**
-  - Para asegurar que ninguna propuesta se quede sin gráficos aunque el LLM no los solicite, `generation.service` ejecuta un enriquecimiento post-generación determinista mediante `music.didactic: seleccionar_componentes_por_tema`. Los componentes inyectados por regla se marcan con `origen: 'regla_tema'`, mientras que los solicitados por el modelo conservan `origen: 'llm'`. El campo `didactic_components` es obligatorio en el esquema de respuesta del modelo pedagógico.
+- **Resolución determinista por requisito y ámbito (`config/componentes_por_tema.yaml`):**
+  - La asignación de componentes didácticos actúa estrictamente por requisito en `rag.planning: extract_requirements` y `asignar_ejecutor_requisito`. Se elimina cualquier inyección global post-generación para evitar mezclas de temas. Cada componente valida su ámbito cronológico y estilístico y sus parámetros específicos.
 - **Partituras y teoría integradas en el material del alumnado (`studentDocumentHTML`):**
   - Las peticiones resueltas del catálogo verificadas o calculadas a partir de la teoría se renderizan directamente en la actividad que las utiliza (`activity_title`), mostrando el SVG procesado con Verovio junto a la consigna y entregable.
   - El resolvedor nunca permite que un ejemplo de teoría usurpe una obra concreta (como el Epitafio de Seikilos); las obras concretas no disponibles quedan con `status: 'sin_resolver'` y motivo `'obra concreta no disponible'`.
@@ -1040,6 +1040,22 @@ Para maximizar la claridad didáctica y evitar entregas silenciosas con lagunas 
     - La exportación e impresión a PDF solicita confirmación explícita al docente alertando de los requisitos omitidos.
 - **Contenidos temáticos desacoplados en fichas (`config/fichas/`):**
   - Se eliminan las comprobaciones ad-hoc por tema en la interfaz (`isPolyphony`, `isEgypt`, etc.), gestionándose las audiciones, infografías y conceptos de forma modular desde sus respectivas fichas verificadas.
+
+## Aislamiento de periodos, validación de ámbito por componente y descomposición atómica
+
+Para evitar que propuestas de un periodo histórico incorporen conceptos, autores o artefactos anacrónicos (p. ej. mezclar teoría griega antigua o polifonía del siglo XV en propuestas del Renacimiento tardío o siglo XVI):
+- **Validación de ámbito y parámetros en componentes didácticos (`music.didactic`):**
+  - Cada componente didáctico define un ámbito cronológico y estilístico en `config/componentes_por_tema.yaml`. Los componentes matemáticos de la Antigüedad (`tetracordos`, `gran_sistema_perfecto`, `monocordio`) se restringen exclusivamente a la Antigüedad y Teoría Medieval.
+  - Los resolvedores validan estrictamente sus parámetros: si un componente no puede representar lo pedido o sus parámetros son inválidos (p. ej. intervalos desconocidos), devuelve `estado: 'descartado'` con `motivo_descarte` visible en la guía docente y nunca cae a contenidos por defecto.
+  - `linea_temporal` respeta estrictamente los años de inicio/fin y los hitos del modelo o autores citados en la propuesta dentro de ese rango, sin arrastrar autores clásicos fuera de época.
+  - `escalera_intervalos` resuelve proporciones justas o pitagóricas para listas de intervalos con nombre, sin introducir tetracordos griegos salvo que se soliciten explícitamente.
+- **Supresión de la inyección global post-generación:**
+  - Se elimina cualquier enriquecimiento indiscriminado post-generación por palabras clave globales. La asignación de componentes actúa exclusivamente por requisito previo en `extract_requirements`.
+- **Fichas por periodo y tema declarados (`teaching.fichas`):**
+  - Las fichas temáticas declaran su ámbito cronológico (`periodo`) y tema. Se verifica la compatibilidad mediante límites de palabra (`\b`), evitando que términos como «siglo XV» coincidan erróneamente con «siglo XVI».
+  - La pantalla «He entendido esto» presenta al profesor las fichas temáticas aplicables con casillas interactivas para desmarcarlas antes de generar.
+- **Descomposición atómica de requisitos:**
+  - `extract_requirements` genera un requisito atómico por cada contenido, forma, autor o grupo, contexto y técnica que nombre el profesor, prohibiendo copiar el tema o criterios enteros como descripción. `fulfillment` garantiza un estado cerrado y trazable en todos los requisitos.
 
 
 
