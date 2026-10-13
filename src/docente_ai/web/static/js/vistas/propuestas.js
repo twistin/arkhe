@@ -453,6 +453,9 @@ function renderRequirementRow(r, fulfillment) {
     badgeHTML = `<span class="badge approved" title="Cumplido">${icon('check')} Listo${e(artLabel)}</span>`;
   } else if (estado === 'sin_fuentes') {
     badgeHTML = `<span class="badge rejected" title="Sin fuentes en biblioteca">${icon('alert')} Sin fuentes</span>`;
+  } else if (estado === 'descartado') {
+    const motivo = f.falta || 'Parámetros no válidos o fuera de ámbito';
+    badgeHTML = `<span class="badge rejected" title="${e(motivo)}">${icon('close')} Descartado: ${e(motivo)}</span>`;
   } else {
     const faltaMsg = f.falta || 'Acción requerida';
     badgeHTML = `<span class="badge pending" title="${e(faltaMsg)}">${icon('clock')} ${e(faltaMsg)}</span>`;
@@ -497,8 +500,33 @@ function renderRequirementRow(r, fulfillment) {
 export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
   const reqs = [...(previewData?.requirements || [])];
   let fulfillment = previewData?.fulfillment || [];
+  const fichasAplicables = previewData?.fichas_aplicables || [];
 
   function construirCuerpo() {
+    let fichasHTML = '';
+    if (fichasAplicables.length > 0) {
+      fichasHTML = [
+        `<div class="fichas-preview-box" style="margin-top: 1rem; margin-bottom: 1.25rem; padding: 0.75rem; `,
+        `border: 1px solid var(--border); border-radius: 6px; background: var(--surface);">`,
+        `  <strong style="font-size: 0.85rem; display: block; margin-bottom: 0.25rem;">`,
+        `    Fichas temáticas aplicables:`,
+        `  </strong>`,
+        `  <p class="muted-small" style="margin-bottom: 0.5rem;">`,
+        `    Se incorporará el glosario y materiales de las siguientes fichas correspondientes a este periodo:`,
+        `  </p>`,
+        `  <div style="display: flex; flex-direction: column; gap: 0.4rem;">`,
+        fichasAplicables.map(f => [
+          `    <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">`,
+          `      <input type="checkbox" class="ficha-checkbox" data-ficha-id="${e(f.id)}" checked> `,
+          `      <span><strong>${e(f.tema || f.id)}</strong> (${e(f.periodo || 'Periodo')} · ` +
+          `${f.verificado ? 'Verificada' : 'Sin verificar'})</span>`,
+          `    </label>`,
+        ].join('')).join(''),
+        `  </div>`,
+        `</div>`,
+      ].join('');
+    }
+
     return [
       `<div class="he-entendido-container" style="max-height: 65vh; overflow-y: auto; padding-right: 0.5rem;">`,
       `  <p class="muted-small" style="margin-bottom: 1rem;">`,
@@ -508,11 +536,12 @@ export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
       `  <div id="requirements-list">`,
       reqs.map(r => renderRequirementRow(r, fulfillment)).join(''),
       `  </div>`,
-      `  <div style="margin-top: 0.5rem; margin-bottom: 1.5rem;">`,
+      `  <div style="margin-top: 0.5rem; margin-bottom: 0.5rem;">`,
       `    <button type="button" class="button small ghost" id="req-add-btn">`,
       `      ${icon('plus')} Añadir requisito`,
       `    </button>`,
       `  </div>`,
+      fichasHTML,
       `</div>`,
       `<div class="dialog-actions" style="margin-top: 1rem;">`,
       `  <button type="button" class="button ghost" data-action="close-dialog">Cancelar</button>`,
@@ -593,9 +622,15 @@ export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
             ejecutor: rEl.querySelector('.req-ejecutor')?.value || 'texto_fuentes',
           })).filter(r => r.description.length > 0);
 
+          const fichasCheckboxes = Array.from(dialog.querySelectorAll('.ficha-checkbox'));
+          const fichasExcluidas = fichasCheckboxes
+            .filter(cb => !cb.checked)
+            .map(cb => cb.dataset.fichaId);
+
           await queue('/generate', {
             ...propPayload,
             requirements: finalReqs,
+            fichas_excluidas: fichasExcluidas,
           });
           dialog.close();
           toast('Preparando el borrador con tus fuentes.');

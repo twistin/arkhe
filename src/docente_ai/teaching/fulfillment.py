@@ -164,12 +164,15 @@ def resolver_fulfillment_requisitos(
     db_path: Path | None = None,
     evidence: list[dict[str, Any]] | None = None,
     root: Path | None = None,
+    topic: str | None = None,
+    subject: str | None = None,
+    periodo: str | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Resuelve deterministamente antes del LLM todos los requisitos que no son texto_fuentes:
-    - componentes_calculados: calculados y con SVGs listos
+    - componentes_calculados: calculados y con SVGs listos (o descartados si no son aplicables o parámetros inválidos)
     - partitura_obra: verificadas en el catálogo del profesor
     - analisis_sobre_partitura: computados con music21 solo si la partitura está verificada
-    - linea_temporal: construida con las fuentes y cronologia_autores.yaml
+    - linea_temporal: construida con las fuentes y cronologia_autores.yaml según el rango solicitado
     - texto_fuentes: comprueba disponibilidad de fuentes relevantes en la biblioteca
 
     Devuelve:
@@ -199,17 +202,27 @@ def resolver_fulfillment_requisitos(
                     comps_solicitados.append({'tipo': 'gran_sistema_perfecto'})
                 if 'monocordio' in d_norm:
                     comps_solicitados.append({'tipo': 'monocordio'})
+                if 'escalera' in d_norm:
+                    comps_solicitados.append({'tipo': 'escalera_intervalos'})
 
             resueltos_tipo = []
+            descartes = []
             errores = []
             for c_spec in comps_solicitados:
                 tipo = c_spec.get('tipo')
                 params = c_spec.get('parametros') or {}
                 try:
-                    res = resolver_componente_didactico(tipo, params, evidence=evidence)
+                    topic_ctx = topic or desc
+                    res = resolver_componente_didactico(
+                        tipo, params, evidence=evidence,
+                        topic=topic_ctx, subject=subject, periodo=periodo
+                    )
                     res['origen'] = 'regla_requisito'
                     res['requirement_id'] = r_id
-                    resueltos_tipo.append(res)
+                    if res.get('estado') == 'descartado':
+                        descartes.append(res.get('motivo_descarte') or f"{tipo} descartado")
+                    else:
+                        resueltos_tipo.append(res)
                 except Exception as exc:
                     errores.append(f"{tipo}: {exc}")
 
@@ -229,6 +242,14 @@ def resolver_fulfillment_requisitos(
                     'estado': 'cumplido',
                     'artefacto_id': art_id,
                     'falta': None,
+                })
+            elif descartes:
+                fulfillment.append({
+                    'requirement_id': r_id,
+                    'ejecutor': 'componente_calculado',
+                    'estado': 'descartado',
+                    'artefacto_id': None,
+                    'falta': '; '.join(descartes),
                 })
             else:
                 fulfillment.append({
@@ -307,15 +328,31 @@ def resolver_fulfillment_requisitos(
 
         # 4. LÍNEA TEMPORAL
         elif ejecutor == 'linea_temporal':
-            try:
-                hitos = construir_hitos_linea_temporal(evidence)
-                svg_doc = generar_svg_linea_temporal(hitos, para_alumnado=False)
+            params_lt = req.get('parametros') or {}
+            res_lt = resolver_componente_didactico(
+                'linea_temporal',
+                params_lt,
+                evidence=evidence,
+                topic=topic,
+                subject=subject,
+                periodo=periodo,
+            )
+            if res_lt.get('estado') == 'descartado':
+                fulfillment.append({
+                    'requirement_id': r_id,
+                    'ejecutor': 'linea_temporal',
+                    'estado': 'descartado',
+                    'artefacto_id': None,
+                    'falta': res_lt.get('motivo_descarte') or 'Línea temporal no aplicable al rango solicitado',
+                })
+            else:
+                hitos = res_lt.get('hitos') or []
                 recursos_resueltos[r_id] = {
                     'tipo': 'linea_temporal',
                     'hitos': hitos,
-                    'svg': svg_doc,
+                    'svg': res_lt.get('svg'),
                     'descripcion_para_llm': (
-                        f"Línea temporal con {len(hitos)} tratadistas en orden histórico. "
+                        f"Línea temporal con {len(hitos)} tratadistas o figuras históricas documentadas. "
                         "Remitir al esquema cronológico en la propuesta."
                     ),
                 }
@@ -325,14 +362,6 @@ def resolver_fulfillment_requisitos(
                     'estado': 'cumplido',
                     'artefacto_id': 'componente_linea_temporal',
                     'falta': None,
-                })
-            except Exception as tl_err:
-                fulfillment.append({
-                    'requirement_id': r_id,
-                    'ejecutor': 'linea_temporal',
-                    'estado': 'pendiente_profesor',
-                    'artefacto_id': None,
-                    'falta': f"No se pudo generar la línea temporal: {tl_err}",
                 })
 
         # 5. ACTIVIDAD

@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
+import re
 import sqlite3
 import time
 from typing import Any, Optional
@@ -251,11 +252,14 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
 
         fulfillment = []
         recursos_disponibles = {}
+        topic_req = (request.get('original_topic') or request.get('question') or '') if isinstance(request, dict) else ''
+        subject_req = (request.get('subject') or subject or '') if isinstance(request, dict) else (subject or '')
         if pedagogy_context is not None:
             from docente_ai.teaching.fulfillment import resolver_fulfillment_requisitos
             report('Resolviendo requisitos pedagógicos deterministas antes de redactar')
             fulfillment, recursos_disponibles = resolver_fulfillment_requisitos(
-                requirements, db_path=db, evidence=retrieved.get('results'), root=db.parent
+                requirements, db_path=db, evidence=retrieved.get('results'), root=db.parent,
+                topic=topic_req, subject=subject_req
             )
             pedagogy_context['fulfillment'] = fulfillment
             pedagogy_context['recursos_disponibles'] = recursos_disponibles
@@ -381,9 +385,10 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                     if rec.get('tipo') == 'componente_calculado':
                         resolved_comps.extend(rec.get('componentes', []))
 
-                # Incorporar componentes solicitados por el LLM si no estaban ya
+                # Incorporar componentes solicitados por el LLM si son válidos y están en ámbito
                 llm_comps = result.get('didactic_components') or []
                 tipos_existentes = {c.get('tipo') for c in resolved_comps}
+                descartes_llm = []
                 for comp in llm_comps:
                     tipo = comp.get('tipo')
                     if tipo and tipo not in tipos_existentes:
@@ -393,10 +398,16 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                                 evidence=bundle.get('evidence'),
                                 claims=result.get('claims'),
                                 visualizaciones=result.get('visualizations'),
+                                topic=topic_req,
+                                subject=subject_req,
                             )
                             res_c['origen'] = 'llm'
-                            resolved_comps.append(res_c)
-                            tipos_existentes.add(tipo)
+                            if res_c.get('estado') == 'descartado':
+                                report(f"Componente didáctico '{tipo}' descartado: {res_c.get('motivo_descarte')}")
+                                descartes_llm.append(res_c)
+                            else:
+                                resolved_comps.append(res_c)
+                                tipos_existentes.add(tipo)
                         except Exception as comp_err:
                             report(f'Aviso en componente didáctico {tipo}: {comp_err}')
 
@@ -405,6 +416,11 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                     for c in resolved_comps
                 ]
                 result['resolved_didactic_components'] = resolved_comps
+                if descartes_llm:
+                    result['discarded_didactic_components'] = descartes_llm
+            else:
+                result['fulfillment'] = result.get('fulfillment') or []
+                result['requirements'] = result.get('requirements') or []
 
         metrics.update(estimated_input_bytes=bundle['estimated_input'], omitted_count=len(bundle['omitted']))
         complete(status='draft' if result['status'] == 'answered' else 'abstained',

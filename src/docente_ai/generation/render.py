@@ -1268,6 +1268,26 @@ def render_pedagogy(run: dict) -> str:
                 lines += [f"- ✓ **{plain(tit)}** [Calculado a partir de la teoría]"]
             lines.append('')
 
+        discarded_comps = list(result.get('discarded_didactic_components') or [])
+        fulfillment_items = result.get('fulfillment') or []
+        for fi in fulfillment_items:
+            if fi.get('estado') == 'descartado':
+                desc_disc = fi.get('falta') or 'No aplicable'
+                rid = fi.get('requirement_id')
+                if not any(dc.get('motivo_descarte') == desc_disc for dc in discarded_comps):
+                    discarded_comps.append({
+                        'tipo': rid,
+                        'titulo': f"Requisito {rid} ({fi.get('ejecutor')})",
+                        'motivo_descarte': desc_disc,
+                    })
+        if discarded_comps:
+            lines += ['', '### Componentes didácticos descartados', '']
+            for dc in discarded_comps:
+                tit = dc.get('titulo') or dc.get('tipo')
+                motivo = dc.get('motivo_descarte') or 'Parámetros no válidos o fuera de ámbito'
+                lines += [f"- ⚠️ **{plain(tit)}** [Descartado]: {plain(motivo)}"]
+            lines.append('')
+
 
         lines += ['', '**Observaciones didácticas:** ' + plain(replace_source_references(plan.get('observations', ''), by_id)), '']
 

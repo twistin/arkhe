@@ -519,15 +519,30 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
     def preview_requirements(self, data: dict) -> dict:
         question = data.get('question') or ''
         criteria = data.get('criteria') or ''
+        subject = data.get('subject') or ''
         from docente_ai.rag.planning import extract_requirements
         from docente_ai.teaching.fulfillment import resolver_fulfillment_requisitos
+        from docente_ai.teaching.fichas import listar_fichas_aplicables, is_ficha_verified
         reqs = data.get('requirements')
         if not reqs:
             reqs = extract_requirements(question, criteria, settings=None, generator_factory=None)
-        fulfillment, recursos = resolver_fulfillment_requisitos(reqs, self.db, evidence=None, root=self.root)
+        fulfillment, recursos = resolver_fulfillment_requisitos(
+            reqs, self.db, evidence=None, root=self.root, topic=question, subject=subject
+        )
+        fichas_raw = listar_fichas_aplicables(question, criteria, subject=subject, directory=self.root / 'config/fichas')
+        fichas_info = [
+            {
+                'id': f.get('id'),
+                'tema': f.get('tema') or f.get('id'),
+                'periodo': f.get('periodo', ''),
+                'verificado': is_ficha_verified(f),
+            }
+            for f in fichas_raw
+        ]
         return {
             'requirements': reqs,
             'fulfillment': fulfillment,
+            'fichas_aplicables': fichas_info,
         }
 
     def review_run(self, run_id: str, data: dict) -> dict:

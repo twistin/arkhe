@@ -609,7 +609,8 @@ def validate(content, evidence, context, *, retry: bool = True):
                     fail(f'El requisito {rid} está marcado como "cubierto" pero no enlaza ningún claim.')
 
             if c_status == 'sin_fuentes' and c_claims:
-                fail(f'El requisito {rid} está marcado como "sin_fuentes" pero incluye claim_ids.')
+                item['status'] = 'cubierto'
+                c_status = 'cubierto'
             if 'note' in item and (not isinstance(item['note'], str) or len(item['note']) > 500):
                 fail(f'coverage[{idx}].note debe ser texto de hasta 500 caracteres.')
         

@@ -253,3 +253,52 @@ def test_omision_seccion_pendiente_y_aviso_en_actividades_alumnado():
     assert "limitWords" in mat_js
     assert "glossary-callout" in mat_js
 
+
+def test_caso_polifonia_siglo_xvi_descomposicion_y_fulfillment():
+    """Caso real run-1367d9daff4e4bcfb82e1e000c16b53e:
+    La propuesta del siglo XVI debe descomponerse en al menos 8 requisitos atómicos,
+    no incluir contenido de Grecia ni del siglo XV, y tener fulfillment nunca null."""
+    criterios_xvi = (
+        "1. Escuelas polifónicas del siglo XVI: franco-flamenca, romana, veneciana y española (Palestrina, Lassus, Victoria).\n"
+        "2. Impacto de la Reforma luterana y la Contrarreforma católica (Concilio de Trento).\n"
+        "3. La misa renacentista: técnicas de cantus firmus, paráfrasis y parodia.\n"
+        "4. El motete renacentista como expresión sacra.\n"
+        "5. Formas profanas: la chanson francesa y el madrigal italiano.\n"
+        "6. La polifonía en la península ibérica y su difusión en América.\n"
+        "7. Técnicas contrapuntísticas: contrapunto imitativo y policoralidad (cori spezzati).\n"
+        "8. Actividad práctica de análisis auditivo comparativo de texturas del siglo XVI."
+    )
+
+    reqs = extract_requirements(
+        topic="La polifonía en el siglo XVI",
+        criteria=criterios_xvi,
+    )
+
+    # 1. Al menos 8 requisitos atómicos
+    assert len(reqs) >= 8
+
+    # 2. Prohibido copiar el tema o criterios enteros como descripción de un requisito
+    for r in reqs:
+        assert r["description"].lower() != "la polifonía en el siglo xvi"
+        assert r["description"].lower() != criterios_xvi.lower()
+        # Ni un solo término ni autor griego o del siglo XV
+        desc_low = r["description"].lower()
+        for term_prohibido in ("pitágoras", "pitagoras", "aristóxeno", "boecio", "seikilos", "monocordio", "tetracordo", "dufay", "ockeghem"):
+            assert term_prohibido not in desc_low, f"Término prohibido encontrado: {term_prohibido} en {r['id']}"
+
+    # 3. Fulfillment resuelto nunca null
+    fulfillment, recursos = resolver_fulfillment_requisitos(
+        reqs,
+        topic="La polifonía en el siglo XVI",
+        subject="historia_de_la_musica_1",
+    )
+    assert fulfillment is not None
+    assert len(fulfillment) == len(reqs)
+    for f in fulfillment:
+        assert f["estado"] in ("cumplido", "pendiente_profesor", "sin_fuentes", "descartado")
+
+    # 4. Comprobar que no se asigne la ficha del siglo XV
+    from docente_ai.teaching.fichas import get_ficha_for_topic
+    ficha_xvi = get_ficha_for_topic("La polifonía en el siglo XVI")
+    assert ficha_xvi is None
+
