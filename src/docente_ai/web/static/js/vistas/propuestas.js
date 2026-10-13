@@ -471,6 +471,20 @@ function renderRequirementRow(r, fulfillment) {
     }
   }
 
+  const citaHTML = r.cita_profesor ? [
+    `  <div class="req-quote-box" style="font-size: 0.78rem; color: var(--muted); ` +
+      `font-style: italic; margin-bottom: 0.2rem;">`,
+    `    Fragmento literal del profesor: «${e(r.cita_profesor)}»`,
+    `  </div>`,
+  ].join('') : '';
+
+  const sugsHTML = (r.sugerencias && r.sugerencias.length) ? [
+    `  <div class="req-sugerencias-box" style="font-size: 0.78rem; color: #0284c7; background: #f0f9ff; `,
+    `padding: 0.35rem 0.5rem; border-radius: 4px; margin-top: 0.25rem;">`,
+    `    <strong>💡 Sugerencias del sistema (no pedidas por ti):</strong> ${e(r.sugerencias.join(', '))}`,
+    `  </div>`,
+  ].join('') : '';
+
   return [
     `<div class="requirement-row" data-id="${e(r.id)}" style="display: flex; flex-direction: column; `,
     `gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.75rem; `,
@@ -485,8 +499,10 @@ function renderRequirementRow(r, fulfillment) {
     `      </button>`,
     `    </div>`,
     `  </div>`,
+    citaHTML,
     `  <textarea class="input req-description" rows="2" style="width: 100%; resize: vertical;" `,
     `    placeholder="Descripción del requisito...">${e(r.description || '')}</textarea>`,
+    sugsHTML,
     `  <div style="display: flex; align-items: center; gap: 0.5rem;">`,
     `    <label style="font-size: 0.85rem; color: var(--muted); font-weight: 500;">Ejecutor:</label>`,
     `    <select class="select req-ejecutor" style="flex: 1; font-size: 0.85rem;">`,
@@ -501,8 +517,39 @@ export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
   const reqs = [...(previewData?.requirements || [])];
   let fulfillment = previewData?.fulfillment || [];
   const fichasAplicables = previewData?.fichas_aplicables || [];
+  const errorDescomposicion = previewData?.error;
+  const sugerenciasGlobales = previewData?.sugerencias || [];
 
   function construirCuerpo() {
+    let errorBannerHTML = '';
+    if (errorDescomposicion) {
+      errorBannerHTML = [
+        `<div class="banner-descomposicion-error" style="margin-bottom: 1rem; padding: 0.75rem 1rem; `,
+        `border-left: 4px solid #dc2626; background: #fef2f2; border-radius: 4px; color: #991b1b;">`,
+        `  <strong>⚠️ ${e(errorDescomposicion)}</strong>`,
+        `  <p style="font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 0;">`,
+        `    El sistema no ha podido descomponer tus indicaciones automáticamente. `,
+        `    A continuación tienes el texto dividido por frases para que puedas revisarlo y editarlo como requisitos:`,
+        `  </p>`,
+        `</div>`,
+      ].join('');
+    }
+
+    let sugerenciasGlobalesHTML = '';
+    if (sugerenciasGlobales.length > 0) {
+      sugerenciasGlobalesHTML = [
+        `<div class="sugerencias-box" style="margin-top: 1rem; margin-bottom: 1rem; padding: 0.75rem; `,
+        `border: 1px dashed #0284c7; border-radius: 6px; background: #f0f9ff;">`,
+        `  <strong style="font-size: 0.85rem; color: #0369a1; display: block; margin-bottom: 0.25rem;">`,
+        `    💡 Sugerencias conceptuales de apoyo (opcionales):`,
+        `  </strong>`,
+        `  <ul style="margin: 0.25rem 0 0 1.25rem; font-size: 0.82rem; color: #0c4a6e;">`,
+        sugerenciasGlobales.map(s => `<li>${e(s)}</li>`).join(''),
+        `  </ul>`,
+        `</div>`,
+      ].join('');
+    }
+
     let fichasHTML = '';
     if (fichasAplicables.length > 0) {
       fichasHTML = [
@@ -529,6 +576,7 @@ export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
 
     return [
       `<div class="he-entendido-container" style="max-height: 65vh; overflow-y: auto; padding-right: 0.5rem;">`,
+      errorBannerHTML,
       `  <p class="muted-small" style="margin-bottom: 1rem;">`,
       `    Revisa y ajusta los requisitos antes de generar la propuesta. Cada requisito tiene un ejecutor `,
       `    asignado para garantizar su cumplimiento.`,
@@ -541,6 +589,7 @@ export function modalHeEntendidoEsto(propPayload, previewData, options = {}) {
       `      ${icon('plus')} Añadir requisito`,
       `    </button>`,
       `  </div>`,
+      sugerenciasGlobalesHTML,
       fichasHTML,
       `</div>`,
       `<div class="dialog-actions" style="margin-top: 1rem;">`,

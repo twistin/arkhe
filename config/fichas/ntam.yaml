@@ -3,6 +3,16 @@ tema: Nuevas Tecnologías Aplicadas a la Música
 periodo: "Música contemporánea"
 verificado: false
 
+patrones:
+  - "ntam"
+  - "nuevas tecnologias"
+  - "nuevas tecnologías"
+  - "novas tecnoloxias"
+  - "novas tecnoloxías"
+  - "audio digital"
+  - "sintesis"
+  - "síntesis"
+
 infografia:
   titulo: "Tecnología musical y flujo de producción en el aula"
   subtitulo: "Cadena de señal de audio, MIDI, síntesis y DAW"

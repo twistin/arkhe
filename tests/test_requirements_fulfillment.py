@@ -302,3 +302,64 @@ def test_caso_polifonia_siglo_xvi_descomposicion_y_fulfillment():
     ficha_xvi = get_ficha_for_topic("La polifonía en el siglo XVI")
     assert ficha_xvi is None
 
+
+def test_cita_profesor_literal_y_rechazo_si_no_coincide():
+    """Verifica que un requisito con cita_profesor que no existe en el texto se rechaza."""
+    from docente_ai.rag.planning import _verificar_cita_profesor
+
+    texto = "Quiero ver la forma sonata y el desarrollo temático en Haydn y Mozart."
+    assert _verificar_cita_profesor("forma sonata", texto)
+    assert _verificar_cita_profesor("desarrollo temático", texto)
+    assert _verificar_cita_profesor("desarrollo tematico", texto)  # tolera tilde
+    # Cita inventada que no está en el texto
+    assert not _verificar_cita_profesor("Epitafio de Seikilos", texto)
+    assert not _verificar_cita_profesor("misa cíclica", texto)
+
+
+def test_fallback_a_frases_sin_plantillas_ante_fallo_llm():
+    """Simula fallo completo del LLM y comprueba aviso de error y troceado por frases sin plantillas."""
+    class FakeBrokenGenerator:
+        def generate(self, prompt, **kwargs):
+            return "Esto no es un JSON válido en absoluto."
+
+    topic = "La síntesis FM y el diseño de sonido digital en los años 80"
+    criteria = "Explicar oscilador portador y modulador; índice de modulación; espectro no armónico; DX7 de Yamaha"
+
+    reqs = extract_requirements(
+        topic=topic,
+        criteria=criteria,
+        generator_factory=lambda _: FakeBrokenGenerator(),
+    )
+
+    # Debe marcar el error en el contenedor
+    assert getattr(reqs, "error", None) == "No he podido descomponer tus indicaciones"
+    # Debe tener requisitos troceados del texto
+    assert len(reqs) >= 3
+    # Cada uno debe tener su cita_profesor literal del texto original
+    texto_completo = f"{topic} {criteria}"
+    for r in reqs:
+        assert r.get("cita_profesor")
+        assert r["cita_profesor"].lower() in texto_completo.lower()
+        # Prohibido cualquier residuo de plantillas fijas (Seikilos, etc.)
+        for forbidden in ("seikilos", "monocordio", "tetracordo", "dufay", "ockeghem", "palestrina"):
+            assert forbidden not in r["description"].lower()
+
+
+def test_caso_xvi_texto_informal_con_erratas_del_profesor():
+    """Prueba con el texto real del profesor (informal, sin espacios tras comas):
+    los requisitos deben basarse en sus palabras y no inventar autores como requisitos obligatorios."""
+    topic = "Quiero trabajar la polifonia Renacentista del siglo XVI: generaciones 3,4 y 5 de compositores, escuelas europeas Reforma y contrarreforma,Misa,chanson y Madrigales"
+    criteria = "Priorizar formas musicales, compositores, cambios en el contexto social, politico y economico (america, Reforma, contrarreforma), tecnicas de composicion"
+
+    reqs = extract_requirements(topic=topic, criteria=criteria)
+    assert len(reqs) >= 4
+
+    texto_total = f"{topic} {criteria}"
+    for r in reqs:
+        cita = r.get("cita_profesor") or ""
+        assert cita, f"Requisito {r['id']} no tiene cita_profesor"
+        # La cita debe estar presente en el texto
+        from docente_ai.rag.planning import _verificar_cita_profesor
+        assert _verificar_cita_profesor(cita, texto_total), f"Cita '{cita}' no encontrada en el texto del profesor"
+
+

@@ -1117,4 +1117,12 @@ El módulo `docente_ai.music` proporciona un conjunto de herramientas musicales 
      ```
    - La aplicación funciona plenamente sin este grupo; las funciones que lo requieran comprueban su disponibilidad y la interfaz informa de su estado sin bloquear ninguna operación docente.
 
+## Extracción transparente de requisitos docentes
+
+- **Derivación estricta del texto del docente:** Los requisitos de aula se extraen exclusivamente del texto y criterios facilitados por el profesor, erradicando listas fijas y plantillas prefijadas.
+- **Cita obligatoria (`cita_profesor`):** Cada requisito descompuesto incluye como evidencia la subcadena literal del texto original de la que surge. Si la cita no se halla en las indicaciones del docente, el requisito se descarta.
+- **Sugerencias desacopladas:** Cualquier enriquecimiento conceptual o propuesta de autores sugerida por el LLM se presenta aislada en un bloque diferenciado de sugerencias opcionales para aprobación explícita en «He entendido esto».
+- **Robustez y fallback por frases:** En caso de respuesta incompleta o error de formato, el sistema ejecuta un reintento correctivo con registro en logs. Si la descomposición automática no es posible, la interfaz divide el texto en frases para edición directa por el docente con el aviso *«No he podido descomponer tus indicaciones»*.
+
+
 

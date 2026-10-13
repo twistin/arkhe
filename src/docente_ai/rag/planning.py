@@ -18,6 +18,10 @@ EJECUTORES_VALIDOS = (
     'actividad',
 )
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 REQUIREMENTS_SCHEMA = {
     'type': 'object',
     'additionalProperties': False,
@@ -25,7 +29,7 @@ REQUIREMENTS_SCHEMA = {
         'requirements': {
             'type': 'array',
             'minItems': 1,
-            'maxItems': 8,
+            'maxItems': 12,
             'items': {
                 'type': 'object',
                 'additionalProperties': False,
@@ -36,17 +40,33 @@ REQUIREMENTS_SCHEMA = {
                         'type': 'string',
                         'enum': ['contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato']
                     },
+                    'cita_profesor': {'type': 'string', 'minLength': 1, 'maxLength': 300},
                     'ejecutor': {
                         'type': 'string',
                         'enum': list(EJECUTORES_VALIDOS)
+                    },
+                    'sugerencias': {
+                        'type': 'array',
+                        'items': {'type': 'string', 'maxLength': 150}
                     }
                 },
-                'required': ['id', 'description', 'type']
+                'required': ['id', 'description', 'type', 'cita_profesor']
             }
+        },
+        'sugerencias_adicionales': {
+            'type': 'array',
+            'items': {'type': 'string', 'maxLength': 200}
         }
     },
     'required': ['requirements']
 }
+
+class RequirementsList(list):
+    """Lista de requisitos con soporte para metadatos de error y sugerencias."""
+    def __init__(self, items=(), error=None, sugerencias=None):
+        super().__init__(items)
+        self.error = error
+        self.sugerencias = sugerencias or []
 
 class RequirementsExtractor(OllamaGenerator):
     response_schema = REQUIREMENTS_SCHEMA
@@ -66,10 +86,31 @@ def _norm_req_text(txt: str) -> str:
     return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
 
 
+def _verificar_cita_profesor(cita: str, texto_profesor: str) -> bool:
+    """Valida que cita_profesor sea un fragmento literal del texto del profesor.
+    Si no aparece en el texto del profesor, el requisito se rechaza."""
+    if not cita or not isinstance(cita, str):
+        return False
+    c = ' '.join(cita.strip().split())
+    t = ' '.join(texto_profesor.strip().split())
+    if not c or not t:
+        return False
+    if c.lower() in t.lower():
+        return True
+    import unicodedata
+    def _strip(s: str) -> str:
+        s_norm = unicodedata.normalize('NFD', s.lower())
+        return ''.join(ch for ch in s_norm if unicodedata.category(ch) != 'Mn')
+    c_clean = re.sub(r'[^\w\s]', '', _strip(c))
+    t_clean = re.sub(r'[^\w\s]', '', _strip(t))
+    if c_clean and c_clean in t_clean:
+        return True
+    return False
+
+
 def asignar_ejecutor_requisito(req: dict) -> dict:
     """Asigna el ejecutor correspondiente a un requisito mediante reglas deterministas.
     Las reglas deterministas prevalecen sobre el LLM."""
-    import re
     desc = req.get('description', '')
     d_norm = _norm_req_text(desc)
     r_type = req.get('type', 'contenido')
@@ -82,23 +123,21 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
 
     # 2. Análisis sobre partitura (análisis o aplicación en una obra concreta)
     es_analisis = bool(re.search(r'an[aá]lis|analiz|mostrar.*uso|mostrar.*aplicaci|c[oó]mo\s+se\s+aplican|explicar.*sistema\s+notacional', d_norm))
-    menciona_obra = bool(re.search(r'seikilos|epitafio|dufay|josquin|ockeghem|obra|partitura', d_norm))
+    menciona_obra = bool(re.search(r'obra|partitura|composici[oó]n|pieza|motete|misa|canci[oó]n|chanson|madrigal|himno|estela|epitafio', d_norm))
     if es_analisis and menciona_obra:
         req['ejecutor'] = 'analisis_sobre_partitura'
         req['type'] = 'análisis de obra'
-        if 'seikilos' in d_norm or 'epitafio' in d_norm:
-            req['obra'] = 'Epitafio de Seikilos'
-            req['compositor'] = 'Seikilos'
-            req['partitura_ref'] = 'Epitafio de Seikilos'
+        if not req.get('obra'):
+            m_comillas = re.search(r'["«\']([^"»\']+)["»\']', desc)
+            req['obra'] = m_comillas.group(1).strip() if m_comillas else (req.get('cita_profesor') or desc)
         return req
 
     # 3. Componente calculado
-    # Regla: "represent* notacional|en partitura|en pentagrama|dibuj*" + "tetracordo|género|sistema perfecto|escala|monocordio" → componente_calculado
     pat_represent = bool(re.search(r'represent.*notacional|en\s+partitura|en\s+pentagrama|dibuj|notaci[oó]n\s+de\s+los', d_norm))
     pat_teoria = bool(re.search(r'tetracordo|g[eé]nero|sistema\s+perfecto|gran\s+sistema|monocordio|escalera.*intervalo|proporci.*pitag[oó]r', d_norm))
     es_teoria_pura = bool(
         ('tetracordo' in d_norm and 'g[eé]nero' in d_norm)
-        or ('gran sistema perfecto' in d_norm and 'seikilos' not in d_norm)
+        or ('gran sistema perfecto' in d_norm)
         or ('monocordio' in d_norm and 'proporci' in d_norm)
     )
 
@@ -113,7 +152,6 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
             comps.append({'tipo': 'monocordio', 'parametros': {}})
             comps.append({'tipo': 'escalera_intervalos', 'parametros': {}})
 
-        # Mantener únicos preservando orden
         vistos = set()
         comps_unicos = []
         for c in comps:
@@ -129,9 +167,9 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
     if re.search(r'partitura\s+de|transcripci[oó]n\s+de\s+la\s+obra|importar\s+partitura', d_norm):
         req['ejecutor'] = 'partitura_obra'
         req['type'] = 'análisis de obra'
-        if 'seikilos' in d_norm or 'epitafio' in d_norm:
-            req['obra'] = 'Epitafio de Seikilos'
-            req['compositor'] = 'Seikilos'
+        if not req.get('obra'):
+            m_comillas = re.search(r'["«\']([^"»\']+)["»\']', desc)
+            req['obra'] = m_comillas.group(1).strip() if m_comillas else (req.get('cita_profesor') or desc)
         return req
 
     # 5. Actividad práctica de aula
@@ -145,148 +183,168 @@ def asignar_ejecutor_requisito(req: dict) -> dict:
     return req
 
 
-def descomponer_criterios_determinista(topic: str, criteria: str) -> list[dict]:
-    """Descompone deterministamente el texto de criterios en requisitos atómicos
-    (uno por contenido, forma, autor/grupo, contexto o técnica), prohibiendo
-    copiar el tema o criterios enteros como requisitos individuales."""
-    c_norm = _norm_req_text(criteria)
-    t_norm = _norm_req_text(topic)
+def dividir_indicaciones_por_frases(topic: str, criteria: str) -> list[dict]:
+    """Divide las indicaciones del profesor en frases atómicas sin inventar contenidos.
+    Cada requisito contiene obligatoriamente su cita_profesor literal."""
+    texto = (criteria or '').strip() or (topic or '').strip()
+    if not texto:
+        return []
 
-    # 1. Caso canónico Seikilos / Grecia
-    if 'seikilos' in c_norm and ('tetracordo' in c_norm or 'gran sistema' in c_norm or 'pitagoras' in c_norm):
-        canónicos_grecia = [
-            {'id': 'R1', 'description': 'Incluir una línea de tiempo desde Pitágoras hasta San Agustín que muestre la evolución del pensamiento musical.', 'type': 'línea temporal'},
-            {'id': 'R2', 'description': 'Identificar los principales autores y conceptos del desarrollo del pensamiento musical en el período indicado.', 'type': 'contenido'},
-            {'id': 'R3', 'description': 'Explicar la teoría musical en la antigua Grecia, incluyendo los fundamentos pitagóricos y platónicos.', 'type': 'contenido'},
-            {'id': 'R4', 'description': 'Describir el sistema de notación musical griega antigua, con sus símbolos y reglas.', 'type': 'contenido'},
-            {'id': 'R5', 'description': 'Realizar un análisis detallado del Epitafio de Seikilos, incluyendo su contexto, texto y música.', 'type': 'análisis de obra'},
-            {'id': 'R6', 'description': 'Explicar el sistema notacional del Epitafio de Seikilos, mostrando cómo se aplican los símbolos.', 'type': 'análisis de obra'},
-            {'id': 'R7', 'description': 'Representar notacionalmente los géneros de los tetracordos (diatónico, cromático, enarmónico) y el Gran Sistema Perfecto.', 'type': 'contenido'},
-            {'id': 'R8', 'description': 'Mostrar el uso de los tetracordos y el Gran Sistema Perfecto en el Epitafio de Seikilos.', 'type': 'análisis de obra'},
-        ]
-        return [asignar_ejecutor_requisito(r) for r in canónicos_grecia]
-
-    # 2. Caso Polifonía del siglo XVI (descomposición en al menos 8 aspectos atómicos)
-    texto_combinado = f"{t_norm} {c_norm}"
-    es_polifonia_xvi = (
-        ('siglo xvi' in texto_combinado or '16' in texto_combinado or 'renacimiento' in texto_combinado) and
-        ('polifon' in texto_combinado or 'misa' in texto_combinado or 'madrigal' in texto_combinado or
-         'chanson' in texto_combinado or 'palestrina' in texto_combinado or 'escuela' in texto_combinado or
-         'trento' in texto_combinado or 'contrarreforma' in texto_combinado or 'reforma' in texto_combinado)
-    )
-    if es_polifonia_xvi:
-        canónicos_xvi = [
-            {'id': 'R1', 'description': 'Generaciones de compositores franco-flamencos y europeos del siglo XVI (Josquin, Gombert, Clemens, Palestrina, Lassus, Victoria y Byrd).', 'type': 'contenido'},
-            {'id': 'R2', 'description': 'Escuelas polifónicas europeas (romana, veneciana, franco-flamenca, española e inglesa).', 'type': 'contenido'},
-            {'id': 'R3', 'description': 'Impacto de la Reforma luterana y la música litúrgica coral vernácula.', 'type': 'contenido'},
-            {'id': 'R4', 'description': 'Contrarreforma católica y directrices del Concilio de Trento sobre inteligibilidad del texto y austeridad.', 'type': 'contenido'},
-            {'id': 'R5', 'description': 'La misa renacentista y sus técnicas: cantus firmus, paráfrasis y misa parodia.', 'type': 'contenido'},
-            {'id': 'R6', 'description': 'Formas profanas vocales del siglo XVI: la chanson francesa y el desarrollo del madrigal italiano.', 'type': 'contenido'},
-            {'id': 'R7', 'description': 'Contexto socioeconómico y difusión de la polifonía hacia América (catedrales virreinales y polifonía colonial).', 'type': 'contenido'},
-            {'id': 'R8', 'description': 'Técnicas de composición contrapuntística: textura imitativa continua, consonancias preparadas y policoralidad.', 'type': 'contenido'},
-        ]
-        return [asignar_ejecutor_requisito(r) for r in canónicos_xvi]
-
-    # 3. Descomposición analítica a partir de listas numeradas o cláusulas
-    lineas = []
-    for raw_l in criteria.split('\n'):
-        l = raw_l.strip()
-        if not l:
+    candidatos = []
+    # 1. Separar por líneas si hay saltos
+    for l in texto.split('\n'):
+        l_str = l.strip()
+        if not l_str:
             continue
-        # Limpiar numeración inicial (1., 2), viñetas (- , * )
-        l_clean = re.sub(r'^(?:\d+[\.\)]|\-|\*)\s*', '', l).strip()
-        if len(l_clean) >= 15:
-            lineas.append(l_clean)
+        l_clean = re.sub(r'^(?:\d+[\.\)]|\-|\*)\s*', '', l_str).strip()
+        if l_clean:
+            candidatos.append((l_clean, l_str))
 
-    if not lineas or len(lineas) <= 1:
-        # Dividir por punto y coma, puntos o comas que separan conceptos
-        bloque = criteria if not lineas else lineas[0]
-        candidatos = re.split(r'[;\n]|\.(?:\s+|$)', bloque)
-        partes = []
-        for cand in candidatos:
-            cand = cand.strip()
-            if not cand:
-                continue
-            subpartes = re.split(r',\s*|\s+y\s+(?=[a-záéíóúA-ZÁÉÍÓÚ]{4,})', cand)
-            for sp in subpartes:
-                sp_clean = re.sub(r'^(?:\d+[\.\)]|\-|\*)\s*', '', sp).strip()
-                if len(sp_clean) >= 12:
-                    partes.append(sp_clean)
-        if len(partes) > len(lineas):
-            lineas = partes
+    # 2. Si solo había una línea o bloque, separar por punto o punto y coma
+    if len(candidatos) <= 1:
+        bloque = candidatos[0][0] if candidatos else texto
+        partes = re.split(r'[;\n]|\.(?:\s+|$)', bloque)
+        nuevos = []
+        for p in partes:
+            p_clean = re.sub(r'^(?:\d+[\.\)]|\-|\*)\s*', '', p).strip()
+            if len(p_clean) >= 4:
+                nuevos.append((p_clean, p_clean))
+        if len(nuevos) > 1:
+            candidatos = nuevos
 
-    if not lineas and topic.strip():
-        lineas = [f"Contenido conceptual y fundamentos de {topic.strip()}"]
+    # 3. Si aún así queda todo en una sola frase larga, separar por comas respetando paréntesis
+    if len(candidatos) <= 1 and texto:
+        bloque = candidatos[0][0] if candidatos else texto
+        partes = re.split(r',\s*(?![^\(]*\))', bloque)
+        if len(partes) > 1:
+            candidatos = []
+            for p in partes:
+                p_clean = re.sub(r'^(?:\d+[\.\)]|\-|\*)\s*', '', p).strip()
+                if len(p_clean) >= 4:
+                    candidatos.append((p_clean, p_clean))
+
+    if not candidatos:
+        candidatos = [(texto, texto)]
 
     reqs = []
-    for idx, desc_item in enumerate(lineas[:8], 1):
+    for idx, (desc_txt, cita_txt) in enumerate(candidatos[:12], 1):
         item = {
             'id': f'R{idx}',
-            'description': desc_item[:300],
+            'description': desc_txt[:300],
             'type': 'contenido',
+            'cita_profesor': cita_txt[:300],
+            'modo_edicion': True,
         }
         reqs.append(asignar_ejecutor_requisito(item))
+    return reqs
 
-    return reqs[:8]
 
-
-def extract_requirements(topic: str, criteria: str, settings=None, generator_factory=OllamaGenerator) -> list[dict]:
-    """Extrae de 1 a 8 requisitos atómicos a partir del tema y criterios del profesor,
-    asignando a cada uno su ejecutor correspondiente. Prohíbe copiar el tema o criterios
-    completos como requisitos individuales."""
-    clean_topic = topic.strip()
+def extract_requirements(topic: str, criteria: str, settings=None, generator_factory=OllamaGenerator) -> RequirementsList:
+    """Extrae de 1 a 12 requisitos atómicos a partir del tema y criterios del profesor,
+    asignando a cada uno su ejecutor correspondiente.
+    Si el LLM falla tras el reintento, registra el error y divide el texto por frases
+    para que el profesor lo edite, sin plantillas fijas."""
+    clean_topic = (topic or '').strip()
     clean_criteria = (criteria or '').strip()
+    texto_profesor = f"{clean_topic}\n{clean_criteria}".strip()
+    valid_types = {'contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato'}
 
-    if generator_factory is not None and settings is not None and clean_criteria and len(clean_criteria) >= 40:
+    if settings is None and generator_factory is not None:
+        from docente_ai.generation.settings import GenerationSettings
+        settings = GenerationSettings(model='default', num_ctx=4096, max_output_tokens=2048)
+
+    if generator_factory is not None and settings is not None and clean_criteria and len(clean_criteria) >= 20:
+        system_msg = (
+            'Eres un planificador docente riguroso. A partir del tema y de los criterios del profesor, '
+            'extrae una lista de requisitos ATÓMICOS (de 3 a 12).\n'
+            'REGLAS ESTRICTAS E INQUEBRANTABLES:\n'
+            '1. Todo requisito debe derivar ÚNICAMENTE del texto explícito del profesor.\n'
+            '2. PROHIBIDO inventar o añadir compositores, obras, tratados, términos o conceptos que el profesor NO haya escrito.\n'
+            '3. Cada requisito DEBE incluir obligatoriamente "cita_profesor": el fragmento literal (subcadena exacta) del texto del profesor del que surge.\n'
+            '4. Si consideras conveniente sugerir algún compositor, obra o concepto relevante no mencionado para enriquecer la unidad, '
+            'colócalo ÚNICAMENTE en la lista "sugerencias" del requisito o en "sugerencias_adicionales". JAMÁS lo incluyas en "description" ni en "cita_profesor".\n'
+            '5. Asigna a cada requisito: "id" ("R1", "R2", ...), "description" (concisa), "type" (uno de: ["contenido", "análisis de obra", "línea temporal", "actividad", "formato"]), y "cita_profesor".\n'
+            'Devuelve solo JSON con la clave "requirements".'
+        )
+        user_content = json.dumps({'topic': clean_topic, 'criteria': clean_criteria}, ensure_ascii=False)
         messages = [
-            {'role': 'system', 'content':
-             'Eres un planificador docente riguroso. A partir del tema y de los criterios del profesor, '
-             'extrae una lista de requisitos ATÓMICOS (de 1 a 8). '
-             'REGLA ESTRICTA: Genera exactamente un requisito por cada contenido, forma musical, autor o grupo de autores, '
-             'contexto histórico y técnica compositiva que nombre el profesor. '
-             'PROHIBIDO copiar el tema completo o los criterios enteros como un solo requisito. '
-             'Asigna a cada requisito un id secuencial ("R1", "R2", ...), una descripción concisa '
-             'y un tipo que debe ser exactamente uno de: '
-             '["contenido", "análisis de obra", "línea temporal", "actividad", "formato"]. '
-             'Devuelve solo JSON con la clave "requirements".'},
-            {'role': 'user', 'content': json.dumps({
-                'topic': clean_topic,
-                'criteria': clean_criteria
-            }, ensure_ascii=False)}
+            {'role': 'system', 'content': system_msg},
+            {'role': 'user', 'content': user_content}
         ]
         factory = structured_factory(generator_factory, RequirementsExtractor.response_schema)
-        try:
-            with factory(replace(settings, num_ctx=4096, max_output_tokens=512)) as model:
-                result = model.generate(messages)
-            data = json.loads(result['content'])
-            reqs = data.get('requirements')
-            valid_types = {'contenido', 'análisis de obra', 'línea temporal', 'actividad', 'formato'}
-            if isinstance(reqs, list) and 1 <= len(reqs) <= 8:
-                cleaned = []
-                for idx, r in enumerate(reqs, 1):
-                    if isinstance(r, dict) and 'description' in r and 'type' in r:
-                        r_id = f"R{idx}"
-                        r_desc = str(r['description']).strip()[:300]
-                        # Prohibido copiar el tema completo o criterios enteros como descripción
-                        if r_desc.lower() == clean_topic.lower() or r_desc.lower() == clean_criteria.lower():
-                            continue
-                        r_type = r['type'] if r['type'] in valid_types else 'contenido'
-                        item = {
-                            'id': r_id,
-                            'description': r_desc,
-                            'type': r_type
-                        }
-                        cleaned.append(asignar_ejecutor_requisito(item))
-                if len(cleaned) >= 3:
-                    # Renumerar
-                    for i, it in enumerate(cleaned, 1):
-                        it['id'] = f"R{i}"
-                    return cleaned
-        except Exception:
-            pass
 
-    # Descomposición determinista garantizada
-    return descomponer_criterios_determinista(clean_topic, clean_criteria)
+        def _procesar_candidatos(raw_text: str) -> tuple[list[dict], list[str]]:
+            data = json.loads(raw_text)
+            reqs_raw = data.get('requirements')
+            sug_raw = data.get('sugerencias_adicionales') or []
+            if not isinstance(reqs_raw, list) or len(reqs_raw) == 0:
+                raise ValueError("La respuesta no contiene una lista 'requirements' válida.")
+            validos = []
+            for idx, r in enumerate(reqs_raw, 1):
+                if not isinstance(r, dict):
+                    continue
+                r_desc = str(r.get('description', '')).strip()[:300]
+                r_cita = str(r.get('cita_profesor', '')).strip()[:300]
+                if not r_desc:
+                    continue
+                if not r_cita or not _verificar_cita_profesor(r_cita, texto_profesor):
+                    logger.warning(f"Requisito rechazado por cita no literal: '{r_cita}' no hallada en texto del profesor.")
+                    continue
+                if r_desc.lower() == clean_topic.lower() or r_desc.lower() == clean_criteria.lower():
+                    continue
+                r_type = r.get('type') if r.get('type') in valid_types else 'contenido'
+                item = {
+                    'id': f'R{idx}',
+                    'description': r_desc,
+                    'type': r_type,
+                    'cita_profesor': r_cita,
+                }
+                if r.get('sugerencias'):
+                    item['sugerencias'] = [str(s)[:150] for s in r['sugerencias'] if s]
+                validos.append(asignar_ejecutor_requisito(item))
+            if not validos:
+                raise ValueError("Ningún requisito superó la validación de cita literal del profesor.")
+            for i, it in enumerate(validos, 1):
+                it['id'] = f'R{i}'
+            return validos, [str(s)[:200] for s in sug_raw if s]
+
+        # Intento 1
+        raw_output = ''
+        try:
+            with factory(replace(settings, num_ctx=4096, max_output_tokens=2048)) as model:
+                result = model.generate(messages)
+            raw_output = result.get('content', '')
+            reqs_ok, sugs_ok = _procesar_candidatos(raw_output)
+            return RequirementsList(reqs_ok, sugerencias=sugs_ok)
+        except Exception as err_intento1:
+            logger.warning("Fallo en extracción de requisitos (intento 1): %s", err_intento1)
+
+            # Reintento (intento 2)
+            try:
+                messages_retry = messages + [
+                    {'role': 'assistant', 'content': raw_output},
+                    {
+                        'role': 'user',
+                        'content': (
+                            f"El resultado anterior fue inválido: {err_intento1}. "
+                            "Por favor, corrige el formato y devuelve exactamente un objeto JSON con la clave 'requirements'. "
+                            "Cada requisito debe contener obligatoriamente 'id', 'description', 'type' y 'cita_profesor'. "
+                            "'cita_profesor' debe ser una subcadena EXACTA y literal del texto del profesor."
+                        )
+                    }
+                ]
+                with factory(replace(settings, num_ctx=4096, max_output_tokens=2048)) as model:
+                    retry_result = model.generate(messages_retry)
+                reqs_ok, sugs_ok = _procesar_candidatos(retry_result.get('content', ''))
+                return RequirementsList(reqs_ok, sugerencias=sugs_ok)
+            except Exception as err_intento2:
+                logger.error("Fallo definitivo en extracción de requisitos tras reintento: %s", err_intento2)
+                frases_fallback = dividir_indicaciones_por_frases(clean_topic, clean_criteria)
+                return RequirementsList(frases_fallback, error="No he podido descomponer tus indicaciones")
+
+    # Modo determinista sin LLM (o criteria corto)
+    frases = dividir_indicaciones_por_frases(clean_topic, clean_criteria)
+    return RequirementsList(frases)
 
 
 

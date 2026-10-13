@@ -3,6 +3,20 @@ tema: Música en el Antiguo Egipto
 periodo: "Antigüedad"
 verificado: false
 
+patrones:
+  - "egipto"
+  - "egipcio"
+  - "egipcios"
+  - "egipcia"
+  - "hathor"
+  - "sistro"
+  - "sistrum"
+  - "menat"
+  - "quironimia"
+  - "nebamun"
+  - "tutankamon"
+  - "tutankamón"
+
 infografia:
   titulo: "Marco histórico, funciones y organología del Antiguo Egipto"
   subtitulo: "Láminas didácticas de contexto, funciones sociales, organología, quironimia y fuentes de estudio"

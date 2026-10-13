@@ -1054,8 +1054,14 @@ Para evitar que propuestas de un periodo histórico incorporen conceptos, autore
 - **Fichas por periodo y tema declarados (`teaching.fichas`):**
   - Las fichas temáticas declaran su ámbito cronológico (`periodo`) y tema. Se verifica la compatibilidad mediante límites de palabra (`\b`), evitando que términos como «siglo XV» coincidan erróneamente con «siglo XVI».
   - La pantalla «He entendido esto» presenta al profesor las fichas temáticas aplicables con casillas interactivas para desmarcarlas antes de generar.
-- **Descomposición atómica de requisitos:**
+- **Descomposición atómica de requisitos y cita literal obligatoria:**
   - `extract_requirements` genera un requisito atómico por cada contenido, forma, autor o grupo, contexto y técnica que nombre el profesor, prohibiendo copiar el tema o criterios enteros como descripción. `fulfillment` garantiza un estado cerrado y trazable en todos los requisitos.
+  - Se eliminan por completo las listas fijas de requisitos escritas a mano (plantillas Seikilos/XVI). Ningún requisito contiene compositores, obras o conceptos no solicitados por el profesor en su texto.
+  - Cada requisito incluye obligatoriamente `cita_profesor`: fragmento literal (subcadena exacta) del texto del profesor del que surge. Si el fragmento no aparece en el texto del profesor, el requisito se rechaza.
+  - Si el modelo de lenguaje sugiere compositores o conceptos adicionales para enriquecer la unidad, estos se aíslan como «sugerencias» opcionales separadas y el docente decide si incorporarlos en «He entendido esto».
+  - Extracción con LLM robusta: presupuesto ampliado (`max_output_tokens >= 1500`), reintento automático con mensaje correctivo si el JSON es inválido y registro explícito de error en logs.
+  - Ante fallo definitivo del LLM tras el reintento, el sistema no recurre a plantillas inventadas: la pantalla «He entendido esto» despliega el aviso «No he podido descomponer tus indicaciones» con el texto del docente dividido por frases para su edición interactiva.
+
 
 
 

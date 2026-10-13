@@ -3,6 +3,22 @@ tema: Música en la Grecia Antigua
 periodo: "Antigüedad"
 verificado: false
 
+patrones:
+  - "grecia"
+  - "griego"
+  - "griegos"
+  - "griega"
+  - "seikilos"
+  - "epitafio"
+  - "tetracordo"
+  - "tetracordos"
+  - "aristoxeno"
+  - "aristóxeno"
+  - "ptolomeo"
+  - "monocordio"
+  - "sistema perfecto"
+  - "gran sistema"
+
 conceptos:
   - termino: "Phthongos (φθόγγος)"
     categoria: "TÉRMINO GRIEGO"

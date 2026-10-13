@@ -262,7 +262,7 @@ def resolver_fulfillment_requisitos(
 
         # 2. PARTITURA DE OBRA
         elif ejecutor == 'partitura_obra':
-            obra = req.get('obra') or ('Epitafio de Seikilos' if 'seikilos' in d_norm else desc)
+            obra = req.get('obra') or desc
             ej_verificado = buscar_partitura_verificada(obra, root=base_root)
             if ej_verificado:
                 recursos_resueltos[r_id] = {
@@ -288,7 +288,7 @@ def resolver_fulfillment_requisitos(
 
         # 3. ANÁLISIS SOBRE PARTITURA
         elif ejecutor == 'analisis_sobre_partitura':
-            obra = req.get('obra') or ('Epitafio de Seikilos' if 'seikilos' in d_norm else desc)
+            obra = req.get('obra') or desc
             ej_verificado = buscar_partitura_verificada(obra, root=base_root)
             if ej_verificado and ej_verificado.get('path'):
                 try:

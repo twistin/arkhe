@@ -524,8 +524,14 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         from docente_ai.teaching.fulfillment import resolver_fulfillment_requisitos
         from docente_ai.teaching.fichas import listar_fichas_aplicables, is_ficha_verified
         reqs = data.get('requirements')
+        err_msg = None
+        sugs = []
         if not reqs:
-            reqs = extract_requirements(question, criteria, settings=None, generator_factory=None)
+            generator_factory = data.get('generator_factory')
+            settings = data.get('settings')
+            reqs = extract_requirements(question, criteria, settings=settings, generator_factory=generator_factory)
+            err_msg = getattr(reqs, 'error', None)
+            sugs = getattr(reqs, 'sugerencias', [])
         fulfillment, recursos = resolver_fulfillment_requisitos(
             reqs, self.db, evidence=None, root=self.root, topic=question, subject=subject
         )
@@ -540,9 +546,11 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             for f in fichas_raw
         ]
         return {
-            'requirements': reqs,
+            'requirements': list(reqs),
             'fulfillment': fulfillment,
             'fichas_aplicables': fichas_info,
+            'error': err_msg,
+            'sugerencias': sugs,
         }
 
     def review_run(self, run_id: str, data: dict) -> dict:

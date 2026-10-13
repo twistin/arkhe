@@ -8,37 +8,8 @@ import yaml
 FICHAS_DEFAULT_DIR = Path('data/fichas')
 FICHAS_CONFIG_DIR = Path('config/fichas')
 
-# Reglas estrictas de coincidencia: requieren coherencia de periodo y materia.
-# Prohibido usar palabras sueltas como 'polifonía' que causan cruces de periodos.
-_PERIODOS_INCOMPATIBLES_SIGLO_XV = re.compile(
-    r'\bsiglo\s*xvi\b|\bs\.\s*xvi\b|\b16th\s*century\b|\brenacimiento\b|\brenacentista\b|'
-    r'\bpalestrina\b|\blassus\b|\bvictoria\b|\bmorales\b|\bguerrero\b',
-    re.IGNORECASE
-)
-
-_POLYPHONY_XV_REGEXES = (
-    re.compile(r'\bsiglo\s*xv\b|\bs\.\s*xv\b|\b15th\s*century\b', re.IGNORECASE),
-    re.compile(r'\bdu\s*fay\b|\bdufay\b|\bockeghem\b|\bbinchois\b|\bbusno[iy]s\b', re.IGNORECASE),
-    re.compile(r'\bse\s+la\s+face\s+ay\s+pale\b', re.IGNORECASE),
-)
-
-_EGYPT_REGEXES = (
-    re.compile(r'\begipto\b|\begipci[ao]s?\b', re.IGNORECASE),
-    re.compile(r'\bhathor\b|\bsistro\b|\bsistrum\b|\bmenat\b', re.IGNORECASE),
-    re.compile(r'\bquironimia\b|\bnebamun\b|\btutankam[oó]n\b', re.IGNORECASE),
-)
-
-_NTAM_REGEXES = (
-    re.compile(r'\bntam\b', re.IGNORECASE),
-    re.compile(r'\bnuevas\s+tecnolog[ií]as\b|\bnovas\s+tecnolox[ií]as\b', re.IGNORECASE),
-)
-
-_GREECE_REGEXES = (
-    re.compile(r'\bgrecia\b|\bgrieg[ao]s?\b', re.IGNORECASE),
-    re.compile(r'\bseikilos\b|\bepitafio\b', re.IGNORECASE),
-    re.compile(r'\btetracordo\b|\barist[oó]xeno\b|\bptolomeo\b', re.IGNORECASE),
-    re.compile(r'\bmonocordio\b|\bsistema\s+perfecto\b', re.IGNORECASE),
-)
+# Búsqueda desacoplada: cada ficha declara en su YAML sus propios patrones
+# y periodos incompatibles para evitar cruces indebidos de materias.
 
 
 def _resolve_fichas_dirs(directory: Path | str | None = None) -> list[Path]:
@@ -76,6 +47,11 @@ def load_all_fichas(directory: Path | str | None = None) -> list[dict[str, Any]]
                 if f_id not in fichas_by_id:
                     data['_source_file'] = str(yaml_file)
                     fichas_by_id[f_id] = data
+                else:
+                    existente = fichas_by_id[f_id]
+                    for key in ('patrones', 'periodos_incompatibles', 'audiciones'):
+                        if not existente.get(key) and data.get(key):
+                            existente[key] = data.get(key)
 
     return list(fichas_by_id.values())
 
@@ -130,59 +106,50 @@ def listar_fichas_aplicables(
     subject: str = "",
     directory: Path | str | None = None,
 ) -> list[dict[str, Any]]:
-    """Lista todas las fichas temáticas aplicables a un tema y periodo específicos.
-    Permite que la UI muestre al profesor las fichas que se utilizarán, con opción de quitarlas."""
+    """Lista todas las fichas temáticas aplicables evaluando los patrones y periodos
+    declarados en cada ficha YAML, sin listas codificadas por tema en Python."""
     if not topic:
         return []
     texto_eval = f"{topic} {criteria} {subject}".strip()
 
-    candidatas = []
-    # 1. Polifonía del siglo XV
-    if not _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
-        if any(rx.search(texto_eval) for rx in _POLYPHONY_XV_REGEXES):
-            f = get_ficha('polifonia_xv', directory)
-            if f:
-                candidatas.append(f)
-
-    # 2. Antiguo Egipto
-    if any(rx.search(texto_eval) for rx in _EGYPT_REGEXES):
-        f = get_ficha('egipto', directory)
-        if f:
-            candidatas.append(f)
-
-    # 3. NTAM
-    if any(rx.search(texto_eval) for rx in _NTAM_REGEXES):
-        f = get_ficha('ntam', directory)
-        if f:
-            candidatas.append(f)
-
-    # 4. Grecia Antigua
-    if any(rx.search(texto_eval) for rx in _GREECE_REGEXES):
-        f = get_ficha('glosario_griego', directory)
-        if f:
-            candidatas.append(f)
-
-    # 5. Coincidencia declarada en otras fichas por tema exacto con límites de palabra
     fichas = load_all_fichas(directory)
-    vistas = {c['id'] for c in candidatas}
-    periodos_defecto = {
-        'polifonia_xv': 'Siglo XV',
-        'egipto': 'Antigüedad',
-        'ntam': 'Música contemporánea',
-        'glosario_griego': 'Antigüedad',
-        'cronologia_autores': 'Antigüedad a Edad Media',
-    }
+    candidatas = []
+    vistas = set()
+
     for f in fichas:
         fid = f.get('id')
-        if fid in vistas or fid == 'cronologia_autores':
+        if not fid or fid in vistas or fid == 'cronologia_autores':
             continue
-        if fid == 'polifonia_xv' and _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
+
+        # 1. Comprobar periodos incompatibles declarados en la propia ficha
+        incompatibles = f.get('periodos_incompatibles') or []
+        es_incompatible = False
+        for inc in incompatibles:
+            if re.search(rf'\b{re.escape(str(inc))}\b', texto_eval, re.IGNORECASE):
+                es_incompatible = True
+                break
+        if es_incompatible:
             continue
-        f_tema = str(f.get('tema') or '').strip().lower()
-        f_periodo = str(f.get('periodo') or periodos_defecto.get(fid, '')).strip().lower()
-        if 'siglo xv' in f_periodo and _PERIODOS_INCOMPATIBLES_SIGLO_XV.search(texto_eval):
-            continue
-        if f_tema and re.search(rf'\b{re.escape(f_tema)}\b', texto_eval, re.IGNORECASE):
+
+        # 2. Comprobar patrones declarados en la ficha
+        patrones = f.get('patrones') or []
+        coincide = False
+        for pat in patrones:
+            pat_str = str(pat).strip()
+            if not pat_str:
+                continue
+            regex_str = pat_str if pat_str.startswith(r'\b') else rf'\b{re.escape(pat_str)}\b'
+            if re.search(regex_str, texto_eval, re.IGNORECASE):
+                coincide = True
+                break
+
+        # 3. Comprobar tema exacto declarado en la ficha
+        if not coincide:
+            f_tema = str(f.get('tema') or '').strip()
+            if f_tema and len(f_tema) >= 4 and re.search(rf'\b{re.escape(f_tema)}\b', texto_eval, re.IGNORECASE):
+                coincide = True
+
+        if coincide:
             candidatas.append(f)
             vistas.add(fid)
 

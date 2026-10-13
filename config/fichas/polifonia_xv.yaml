@@ -4,6 +4,27 @@ periodo: "Siglo XV"
 verificado: false
 revisado_con: "Revisión docente del 11-10-2026. Josquin y el siglo XVI se tratan en la sesión siguiente."
 
+patrones:
+  - "siglo xv"
+  - "15th century"
+  - "du fay"
+  - "dufay"
+  - "ockeghem"
+  - "binchois"
+  - "busnois"
+  - "se la face ay pale"
+
+periodos_incompatibles:
+  - "siglo xvi"
+  - "16th century"
+  - "renacimiento"
+  - "renacentista"
+  - "palestrina"
+  - "lassus"
+  - "victoria"
+  - "morales"
+  - "guerrero"
+
 # Puntos que el profesor debe cotejar en Atlas / Reese antes de marcar verificado: true
 cotejar:
   - "Ockeghem, Missa Fors seulement, y Obrecht, Missa Fortuna desperata: confirmar en Atlas qué voces de la chanson modelo toman."
