@@ -29,6 +29,83 @@ export function formatPedagogyResource(r) {
   return e(texto || meta);
 }
 
+export function renderFulfillmentAlertPanel(run) {
+  const fulfillment = run.result?.fulfillment || [];
+  const reqs = run.result?.requirements || run.request?.pedagogy?.requirements ||
+    run.request?.requirements || [];
+  const covs = run.result?.coverage || [];
+  const plan = run.result?.plan;
+  const activities = plan?.activities || [];
+
+  const unmet = [];
+  for (const f of fulfillment) {
+    if (f.estado === 'pendiente_profesor' || f.estado === 'sin_fuentes') {
+      unmet.push(f);
+    }
+  }
+  if (!unmet.length && !fulfillment.length) {
+    for (const c of covs) {
+      if (c.status === 'sin_fuentes' || c.status === 'pendiente_profesor') {
+        unmet.push({
+          requirement_id: c.requirement_id,
+          ejecutor: 'texto_fuentes',
+          estado: c.status,
+          falta: c.note || 'Sin fuentes documentales suficientes'
+        });
+      }
+    }
+  }
+
+  if (!unmet.length) return '';
+
+  return [
+    '    <div class="notice error fulfillment-unmet-panel" role="alert">\n',
+    '      <div class="fulfillment-unmet-header">\n',
+    '        <strong>⚠️ Esta propuesta no cumple los siguientes requisitos:</strong>\n',
+    '      </div>\n',
+    '      <ul class="unmet-requirements-list">\n',
+    unmet.map(u => {
+      const rid = u.requirement_id || 'R?';
+      const reqObj = reqs.find(r => r.id === rid);
+      const faltaDesc = u.falta || reqObj?.description || 'Requisito pendiente de resolver';
+      const isScore = u.ejecutor === 'partitura_obra' || u.ejecutor === 'analisis_sobre_partitura' ||
+        /musicxml|partitura/i.test(faltaDesc);
+      const importBtn = isScore ? [
+        ` <button type="button" class="button small secondary import-musicxml-btn" `,
+        `data-run-id="${e(run.id)}" data-req-id="${e(rid)}" data-work="Epitafio de Seikilos">`,
+        `[Importar MusicXML]</button>`
+      ].join('') : '';
+
+      const affected = activities.filter(a => {
+        if (a.requirement_id && a.requirement_id === rid) return true;
+        if (a.music_request_id && (isScore || /seikilos|partitura/i.test(faltaDesc))) return true;
+        const t = (a.title || '').toLowerCase();
+        if (isScore && (t.includes('partitura') || t.includes('notacion') || t.includes('seikilos'))) {
+          return true;
+        }
+        return false;
+      });
+
+      return [
+        `        <li><strong>${e(rid)}</strong> — ${e(faltaDesc)}${importBtn}`,
+        renderAffectedActivities(affected),
+        `</li>\n`
+      ].join('');
+    }).join(''),
+    '      </ul>\n',
+    '    </div>\n'
+  ].join('');
+}
+
+export function renderAffectedActivities(activities) {
+  if (!activities || !activities.length) return '';
+  return [
+    ' <span class="unmet-affected-text">(afecta a: ',
+    activities.map(a => `«${e(a.title)}»`).join(' '),
+    ')</span>'
+  ].join('');
+}
+
 export function resultHTML(run) {
   const isPedagogy = !!run.request.pedagogy;
   const review = run.review;
@@ -206,6 +283,7 @@ export function resultHTML(run) {
 
   if (plan) {
     let elapsed = 0;
+    content += renderFulfillmentAlertPanel(run);
     content += [
       `\n    <div class="proposal-outline" aria-label="Mapa de la propuesta">\n      `,
       `<span><strong>01</strong> Objetivos</span>\n      <span><strong>02</strong> `,

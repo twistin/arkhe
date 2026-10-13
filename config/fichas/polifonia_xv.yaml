@@ -283,3 +283,66 @@ ejemplos_musicales:
     atribucion: "Josquin Research Project (CC BY-NC 4.0)"
     verificado: false
 
+audiciones:
+  - index: 1
+    composer: "Guillaume Du Fay"
+    title: "Missa Se la face ay pale"
+    subtitle: "Kyrie y Gloria · Misa de cantus firmus secular a 4 voces sobre su propia chanson balada"
+    performer: "Early Music Consort of London, dir. David Munrow"
+    anthology: "Allan Atlas (Antología Norton, nº 14) / Gustave Reese"
+    links:
+      - label: "Escuchar el Kyrie en YouTube"
+        url: "https://www.youtube.com/watch?v=izy4bDPp23k"
+      - label: "Escuchar el Gloria en YouTube"
+        url: "https://www.youtube.com/watch?v=McyAlOZ4JjQ"
+    teacher_note: "Son especialmente útiles porque pertenecen a la misma grabación y mantienen una interpretación homogénea."
+    points:
+      - "Identificar la entrada del Tenor en valores aumentados (proporción 3:1 en el Gloria)."
+      - "Observar el contraste tímbrico entre las notas sostenidas del Tenor y el contrapunto ágil de Superius y Altus."
+      - "Detectar la articulación cadencial Landini (salto melódico de sexta a octava)."
+  - index: 2
+    composer: "Gilles Binchois"
+    title: "De plus en plus se renouvelle"
+    subtitle: "Chanson cortesana borgoñona a 3 voces (Forme Fixe: Rondeau)"
+    performer: "Ensemble Gilles Binchois, dir. Dominique Vellard"
+    anthology: "Allan Atlas (Antología Norton, nº 11) / Gustave Reese"
+    links:
+      - label: "Escuchar De plus en plus en YouTube"
+        url: "https://www.youtube.com/watch?v=cw_V53noTUg"
+    teacher_note: "Esta versión me parece particularmente apropiada para apreciar el carácter lírico de la chanson y la claridad de las tres voces."
+    points:
+      - "Seguir la melodía lírica y transparente del Superius en ritmo ternario suave."
+      - "Apreciar la sonoridad dulce de terceras y sextas imperfectas (contenance angloise)."
+      - "Distinguir la claridad meridiana de las frases musicales delimitadas por cadencias nítidas."
+  - index: 3
+    composer: "Johannes Ockeghem"
+    title: "Missa L'homme armé"
+    subtitle: "Kyrie y Agnus Dei · Misa de cantus firmus a 4 voces sobre la popular melodía borgoñona"
+    performer: "Oxford Camerata, dir. Jeremy Summerly"
+    anthology: "Manuscrito Chigi C.VIII.234 (Vaticano) / Gustave Reese"
+    links:
+      - label: "Escuchar el Kyrie en YouTube"
+        url: "https://www.youtube.com/watch?v=KgV3cxc1NEI"
+      - label: "Escuchar el Agnus Dei en YouTube"
+        url: "https://www.youtube.com/watch?v=xDFKOKWzpI0"
+    teacher_note: "También aquí tienes la ventaja de utilizar la misma interpretación para ambos movimientos."
+    points:
+      - "Percibir el registro vocal más profundo y homogéneo (el Bassus desciende a graves inusuales en Du Fay)."
+      - "Comprobar cómo las frases se solapan en un flujo polifónico continuo sin pausas colectivas."
+      - "Escuchar los apéndices ornamentales añadidos al cantus firmus en el Tenor."
+  - index: 4
+    composer: "Johannes Ockeghem"
+    title: "Mort, tu as navré (Déploration sur la mort de Binchois)"
+    subtitle: "Motete-chanson funerario bilingüe a 4 voces (1460)"
+    performer: "Graindelavoix, dir. Björn Schmelzer"
+    anthology: "Allan Atlas (Cap. XI-XII) / Gustave Reese"
+    links:
+      - label: "Escuchar Mort, tu as navré en YouTube"
+        url: "https://www.youtube.com/watch?v=R9tcg1VfKPs"
+    teacher_note: "Esta grabación funciona muy bien para clase por el contraste con las audiciones anteriores y por el carácter expresivo y sombrío de la obra."
+    points:
+      - "Reconocer la textura bilingüe: Superius canta en francés la balada y el Tenor canta en latín el Pie Jhesu Domine."
+      - "Identificar la paráfrasis litúrgica del canto llano del Dies Irae en el Tenor."
+      - "Sentir el austero diatonicismo modal y el clima sombrío de homenaje al maestro borgoñón."
+
+

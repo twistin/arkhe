@@ -784,3 +784,82 @@
   margin-top: 2px;
 }
 
+/* Recuadro lateral de glosario dentro de la sección */
+.glossary-callout {
+  background: #fdfbf7;
+  border: 1px solid #fed7aa;
+  border-left: 4px solid #f97316;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  font-size: 0.9rem;
+}
+.glossary-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.glossary-callout-badge {
+  background: #ffedd5;
+  color: #c2410c;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+.glossary-callout p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.45;
+}
+
+/* Aviso de material pendiente que entregará el profesor */
+.activity-resource-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+/* Panel rojo en propuesta del profesor */
+.fulfillment-unmet-panel {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  border-left: 6px solid #dc2626;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.08);
+}
+.fulfillment-unmet-header {
+  color: #991b1b;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.unmet-requirements-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #1f2937;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.unmet-affected-text {
+  color: #64748b;
+  font-size: 0.88rem;
+  font-style: italic;
+}
+
+

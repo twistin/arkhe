@@ -373,6 +373,7 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                             if not f_item.get('falta'):
                                 f_item['falta'] = c_info.get('note') or 'Sin fuentes documentales en la biblioteca'
                 result['fulfillment'] = fulfillment
+                result['requirements'] = requirements
 
                 # 2. Extraer componentes didácticos resueltos previamente
                 resolved_comps = []

@@ -280,3 +280,23 @@ def test_prioridad_fichas_data_gana_sobre_config(tmp_path, monkeypatch):
     assert ficha.get('verificado') is False
     assert ficha.get('revisado_con') == 'profesor'
 
+
+def test_audiciones_en_fichas_polifonia_y_egipto():
+    """Comprueba que las audiciones se han movido a las fichas en config/fichas."""
+    config_dir = Path('config/fichas')
+    f_poly = get_ficha('polifonia_xv', directory=config_dir)
+    assert f_poly is not None
+    auds_poly = f_poly.get('audiciones', [])
+    assert len(auds_poly) == 4
+    assert any('Du Fay' in a.get('composer', '') for a in auds_poly)
+    assert any('Binchois' in a.get('composer', '') for a in auds_poly)
+    assert any('Ockeghem' in a.get('composer', '') for a in auds_poly)
+
+    f_egypt = get_ficha('egipto', directory=config_dir)
+    assert f_egypt is not None
+    auds_egypt = f_egypt.get('audiciones', [])
+    assert len(auds_egypt) == 5
+    assert any('Michael Levy' in a.get('composer', '') for a in auds_egypt)
+    assert any('Tutankhamun' in a.get('title', '') for a in auds_egypt)
+
+

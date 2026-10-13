@@ -199,6 +199,9 @@ HTML_SEGURO = frozenset(
         "renderMonocordio",
         "renderEscaleraIntervalos",
         "renderLineaTemporal",
+        "renderFulfillmentAlertPanel",
+        "renderAffectedActivities",
+        "renderFichaInfographic",
     }
 )
 

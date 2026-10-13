@@ -1023,6 +1023,24 @@ Para garantizar que cada indicación del profesor se resuelva deterministamente 
     - Importar directamente MusicXML al catálogo docente con título y compositor precargados para requisitos que requieran partitura.
   - La acción de regenerar preserva íntegra la propuesta anterior en la base de datos y genera una nueva propuesta con identificador `run_id` independiente.
 
+## Estructura del material del alumnado por requisitos y límites de extensión
+
+Para maximizar la claridad didáctica y evitar entregas silenciosas con lagunas de contenido:
+- **Estructura del documento del alumnado (`studentDocumentHTML`):**
+  - El cuerpo se genera en el orden exacto de los requisitos del profesor (`run.result.requirements`).
+  - Cada requisito constituye una sección pedagógica numerada con su título en lenguaje de alumno, su artefacto visual (componente SVG calculado, partitura Verovio o línea temporal), 2–3 frases de texto explicativo (máximo 60 palabras) y la cita correspondiente.
+  - Desaparecen las secciones fijas antiguas («Contenido teórico de las fuentes», «Esquema gráfico y estructuras», «Conceptos obligatorios»). El glosario verificado se integra como recuadro lateral dentro de la sección donde se emplean los términos.
+- **Límite de 60 palabras por bloque:**
+  - El modelo sintetiza cada claim en un `student_summary` directo de máximo 60 palabras; la versión íntegra queda preservada para la guía docente.
+- **Transparencia y control de requisitos no cumplidos:**
+  - Si un requisito está en `pendiente_profesor` o `sin_fuentes`:
+    - La vista del docente muestra un panel rojo de advertencia superior detallando los requisitos faltantes (con acceso directo a «Importar MusicXML» si falta partitura) y las actividades de clase afectadas.
+    - El material del alumnado omite la sección incompleta en lugar de generar texto genérico de relleno.
+    - Las actividades asociadas a recursos pendientes se marcan para el alumnado como «Material que te entregará el profesor».
+    - La exportación e impresión a PDF solicita confirmación explícita al docente alertando de los requisitos omitidos.
+- **Contenidos temáticos desacoplados en fichas (`config/fichas/`):**
+  - Se eliminan las comprobaciones ad-hoc por tema en la interfaz (`isPolyphony`, `isEgypt`, etc.), gestionándose las audiciones, infografías y conceptos de forma modular desde sus respectivas fichas verificadas.
+
 
 
 

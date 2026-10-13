@@ -151,20 +151,13 @@ El sistema de exportación a PDF e impresión garantiza que todos los renderizad
 estén completamente finalizados mediante `Promise.all` antes de emitir el documento.
 Las definiciones conceptuales factuales se articulan mediante fichas temáticas: el **glosario de términos griegos**
 reside en `config/fichas/glosario_griego.yaml` con `verificado: false`, mostrándose únicamente en la guía docente
-para revisión del profesor y publicándose al alumnado solo tras su validación explícita.
-Asimismo, el material del estudiante ofrece explicaciones teóricas desarrolladas (uno a tres párrafos por concepto)
-adecuadas al nivel del grupo, con referencias a los modelos visuales interactivos.
-
-
-Los esquemas especializados, infografías complejas y baterías de ejercicios fijos
-se organizan en fichas modulares (`config/fichas/` y `data/fichas/`, con prioridad para
-las ediciones locales del docente en `data/fichas/`) con control de verificación (`verificado: false` inicial).
-Mientras no cuenten con revisión y verificación del profesor, estos contenidos se exhiben
-únicamente en la guía docente con avisos de revisión; el material del alumnado queda rigurosamente libre
-de cualquier contenido no verificado, códigos internos de fuentes (`Fuente: S12`, `(S8, S10)`), referencias a rutas
-internas o estados pendientes. Los recursos a preparar se estructuran por tipo:
-la guía docente, el Markdown y el PDF los presentan formalmente («recurso — pendiente, tipo»),
-mientras que el material del alumnado redacta partituras («partitura que te entregará el profesor»),
+para revisión del profesor y publicándose al alumnado como recuadros laterales de sección solo tras su validación explícita.
+El material del alumnado se estructura por secciones siguiendo estrictamente el orden de los requisitos indicados por el docente,
+presentando en cada una su artefacto visual correspondiente (componente, partitura o línea temporal), un texto sintetizado
+de máximo 60 palabras por bloque que remite a la figura y las citas autorizadas. Si algún requisito queda en estado
+`pendiente_profesor` o `sin_fuentes`, la vista del docente despliega un panel superior de aviso en rojo («Esta propuesta no cumple…»)
+con enlace directo para importar MusicXML, el material del alumno omite limpiamente las secciones incompletas y la exportación
+a PDF solicita confirmación explícita. Las actividades asociadas a recursos pendientes se señalan al alumnado como «Material que te entregará el profesor».
 grabaciones («grabación que escucharemos en clase») o textos («texto que te entregará el profesor»),
 omitiendo por completo datos numéricos o fechas pendientes. La bibliografía del alumnado se genera de forma estrictamente
 dinámica según las fuentes citadas en la sesión. La decisión de respaldo bibliográfico se centraliza en el servidor

@@ -249,6 +249,9 @@ export const EGYPT_LISTENINGS = [{
 }];
 
 export function getRunListenings(run) {
+  if (run?.ficha?.audiciones && Array.isArray(run.ficha.audiciones) && run.ficha.audiciones.length > 0) {
+    return run.ficha.audiciones;
+  }
   if (is15thCenturyPolyphony(run)) {
     return POLYPHONY_LISTENINGS;
   }

@@ -22,7 +22,7 @@ Con recursos_disponibles resueltos: remite a ellos en teoría ("en la figura de 
 Estructura obligatoria JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
 - coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note.
-- claims: 2 a 8 bloques con kind (summary o inference), text, student_summary (1-3 párrafos, ejemplo concreto, 2ª persona sin meta-fuentes) y evidence ([{"source_id":"S1","quote":"..."}]).
+- claims: 2 a 8 bloques con kind (summary o inference), text, student_summary (máx 60 palabras, 2-3 frases directas, 2ª persona sin meta-fuentes) y evidence ([{"source_id":"S1","quote":"..."}]).
 - plan: objectives (2-5), difficulty, activities (2-5: title, teacher_notes, student_task en 2ª persona, grouping, deliverable, solution, minutes suman duration_minutes, claim_ids), resources (1-5), assessment y observations.
 - visualizations: 0 a 2 esquemas con type, title, items ([{"label":"...","detail":"..."}]), caption y evidence.
 - music_requests: 0 a 4 peticiones con id, composer, work, section, voice, technique, activity_title y description.

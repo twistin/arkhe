@@ -1,25 +1,19 @@
 import { request, token, api } from '../api.js';
 import { switchEgyptTab, renderEgyptInfographic } from '../infografias/egipto.js';
+import { renderStudentInfographic } from '../infografias/musica.js';
 import { store } from '../state.js';
 import {
   render, toast, dialog, e, formatMarkdown, icon, modal,
   normalizeAuthorDisplay, normalizeAuthorsDisplay
 } from '../ui.js';
 import {
-  POLYPHONY_LISTENINGS,
   getRunListenings,
-  is15thCenturyPolyphony,
-  isAncientEgypt,
-  isNTAMSubject,
   normalizeTopic,
-  renderEgyptListeningsHTML,
   renderListeningCardItem,
-  renderStudentDiscographySection,
 } from './audiciones.js';
-import { renderStudentInfographic } from '../infografias/musica.js';
 import { initScorePreviews } from './partituras.js';
 import { renderDidacticComponent, initDidacticInteractions } from './didacticos/index.js';
-// Módulo local: responsabilidad separada sin alterar el contenido.
+// Módulo local: material para el alumnado estructurado por requisitos.
 
 export function cleanStudentText(text, isConsigna = false) {
   if (!text) return '';
@@ -37,6 +31,26 @@ export function cleanStudentText(text, isConsigna = false) {
   }
   res = res.replace(/\(\s*\)/g, '').replace(/ {2,}/g, ' ').trim();
   return res;
+}
+
+export function limitWords(text, maxWords = 60) {
+  if (!text) return '';
+  const trimmed = String(text).trim();
+  const words = trimmed.split(/\s+/);
+  if (words.length <= maxWords) return trimmed;
+  return words.slice(0, maxWords).join(' ') + '…';
+}
+
+export function formatStudentRequirementTitle(req, index) {
+  if (!req) return `Sección ${index + 1}`;
+  if (req.student_title) return req.student_title;
+  let desc = String(req.description || '').trim();
+  desc = desc.replace(
+    /^(?:explicar|exponer|presentar|analizar|describir|comprender|incluir|representar|citar|distinguir|resumir)\s+/i,
+    ''
+  ).replace(/^(?:los|las|el|la|un|una|a\s+los|a\s+las)\s+/i, '');
+  if (!desc) return `Tema ${index + 1}`;
+  return desc.charAt(0).toUpperCase() + desc.slice(1);
 }
 
 export function formatStudentResource(item) {
@@ -70,6 +84,34 @@ export function formatStudentResource(item) {
   return cleanStudentText(String(item), true);
 }
 
+export function renderStudentScoreBox(score, runId) {
+  const ej = score.ejemplo;
+  if (!ej) return '';
+  const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
+  const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Partitura verificada';
+  const obraStr = ej.obra || score.request?.work || 'Obra musical';
+  const secStr = ej.seccion || score.request?.section || '';
+  const scoreTitle = obraStr + (secStr ? ' · ' + secStr : '');
+  const compStr = ej.compositor || score.request?.composer || 'Anónimo';
+  return [
+    `\n          <div class="student-score-box score-card-verified score-candidate-item" `,
+    `data-candidate-id="${e(ej.id)}" data-run-id="${e(runId)}">\n`,
+    `            <div class="score-card-head">\n              <div>\n`,
+    `                <span class="badge info">${badgeText}</span>\n`,
+    `                <h4>${e(scoreTitle)} — ${e(compStr)}</h4>\n`,
+    `                <small class="score-meta">Compases ${e(ej.compases || '1-3')} · `,
+    `Fuente: ${e(ej.fuente || 'Catálogo')}</small>\n`,
+    `              </div>\n            </div>\n`,
+    `            <div class="score-preview-container">\n`,
+    `              <div class="score-preview-box" data-candidate-id="${e(ej.id)}" `,
+    `data-run-id="${e(runId)}" data-current-mode="svg">\n`,
+    `                <div class="score-loading"><span class="spinner"></span> `,
+    `Renderizando partitura con Verovio…</div>\n`,
+    `              </div>\n            </div>\n`,
+    `          </div>\n`
+  ].join('');
+}
+
 export function renderDidacticSection(run, options = {}) {
   const comps = run.result?.resolved_didactic_components || [];
   if (!comps.length) return '';
@@ -90,26 +132,38 @@ export function renderDidacticSection(run, options = {}) {
   ].join('');
 }
 
+export function renderFichaInfographic(run) {
+  if (!run?.ficha?.verificado || !run?.ficha?.infografia) return '';
+  const infog = run.ficha.infografia;
+  if (infog.organologia || run.ficha.id === 'egipto') {
+    return renderEgyptInfographic(run);
+  }
+  if (infog.modelos_misa || run.ficha.id === 'polifonia_xv') {
+    return renderStudentInfographic(run);
+  }
+  return '';
+}
+
 export function studentDocumentHTML(run) {
   const context = run.request?.pedagogy || {},
     plan = run.result?.plan || {},
-    claims = run.result?.claims || [];
+    claims = run.result?.claims || [],
+    coverage = run.result?.coverage || [],
+    fulfillment = run.result?.fulfillment || [];
   const session = context.session;
   const sources = [...new Map((run.evidence || []).map(item => [item.document_id, item.metadata])).values()];
   const rawQuestion = (run.original_topic || run.request?.original_topic || run.request?.question || '').trim();
   const normalizedQuestion = normalizeTopic(rawQuestion);
   const rawTitle = (run.display_title || run.title || run.request?.display_title || '').trim();
   const title = rawTitle || (normalizedQuestion.charAt(0).toLocaleUpperCase('es') + normalizedQuestion.slice(1));
-  const visuals = run.result?.visualizations || [];
-  const isNTAM = isNTAMSubject(run);
-  const isPolyphony = is15thCenturyPolyphony(run);
-  const isEgypt = isAncientEgypt(run);
-  const listenings = isPolyphony ? POLYPHONY_LISTENINGS : getRunListenings(run);
-  const isFichaVerified = Boolean(run.ficha?.verificado === true);
-  const timelineComp = (run.result?.resolved_didactic_components || []).find(c => c.tipo === 'linea_temporal');
-  let timelineRendered = false;
-  const section2Title = isPolyphony ? 'MODELOS Y ANÁLISIS DE TEXTURAS' : 'ESQUEMA CONCEPTUAL Y ESTRUCTURAS';
-  const hasFichaConceptos = Boolean(run.ficha?.conceptos?.length);
+  const listenings = getRunListenings(run);
+  const isFichaVerified = Boolean(
+    run.ficha?.verificado === true && run.ficha?.verificado_por && run.ficha?.verificado_en
+  );
+  const fichaConceptos = isFichaVerified ? (run.ficha?.conceptos || []) : [];
+  const requirements = run.result?.requirements || run.request?.pedagogy?.requirements ||
+    run.request?.requirements || [];
+  const resolvedComps = run.result?.resolved_didactic_components || [];
   const resolvedScores = (run.result?.resolved_music_requests || []).filter(item => {
     if (item.status !== 'resuelto_catalogo' || !item.ejemplo) return false;
     const ej = item.ejemplo;
@@ -118,26 +172,13 @@ export function studentDocumentHTML(run) {
     const hasUiVerification = Boolean(ej.verificado_por && ej.verificado_en);
     return isTheory || (Boolean(item.verificado) && hasUiVerification);
   });
+
+  const renderedArtifacts = new Set();
+  const usedGlossaryTerms = new Set();
+  const renderedClaimIndices = new Set();
   let elapsed = 0;
 
-  // Extraer autores citados realmente
-  const citedAuthors = [];
-  for (const s of sources) {
-    for (const a of (s?.authors || [])) {
-      const norm = normalizeAuthorDisplay(a);
-      if (norm && !citedAuthors.includes(norm)) citedAuthors.push(norm);
-    }
-  }
-  let authorsSubtitle = '';
-  if (citedAuthors.length === 1) {
-    authorsSubtitle = ` (${citedAuthors[0]})`;
-  } else if (citedAuthors.length === 2) {
-    authorsSubtitle = ` (${citedAuthors[0]} y ${citedAuthors[1]})`;
-  } else if (citedAuthors.length > 2) {
-    authorsSubtitle = ` (${citedAuthors.slice(0, -1).join(', ')} y ${citedAuthors[citedAuthors.length - 1]})`;
-  }
-
-  // Fuentes deduplicadas por autor
+  // Fuentes deduplicadas por autor para el pie
   const seenAuthors = new Set();
   const studentSources = [];
   for (const s of sources) {
@@ -149,7 +190,23 @@ export function studentDocumentHTML(run) {
     studentSources.push(s);
   }
 
-  return [
+  // Identificar requisitos no cumplidos para omitirlos y saber qué actividades quedan afectadas
+  const unmetReqIds = new Set();
+  for (const f of fulfillment) {
+    if (f.estado === 'pendiente_profesor' || f.estado === 'sin_fuentes') {
+      unmetReqIds.add(f.requirement_id);
+    }
+  }
+  if (!fulfillment.length) {
+    for (const c of coverage) {
+      if (c.status === 'sin_fuentes' || c.status === 'pendiente_profesor') {
+        unmetReqIds.add(c.requirement_id);
+      }
+    }
+  }
+
+  // --- 1. PORTADA Y ENCABEZADO ---
+  const headerHtml = [
     `<article class="student-handout">\n    <header class="student-cover">\n      `,
     `<div class="student-brand">\n        <span class="student-pill">ARKHÉ · `,
     `MATERIAL DE CLASE</span>\n        <span class="student-topic-tag">CUADERNO `,
@@ -157,220 +214,305 @@ export function studentDocumentHTML(run) {
     `      <div class="student-meta">\n        <strong>${e(context.group?.name || 'Grupo')}</strong>\n` +
     `        <span>${e(context.group?.level || 'Conservatorio')}</span>\n` +
     `        <span>⏱ ${e(context.duration_minutes || 60)} minutos</span>\n` +
-    `        ${session ? `<span>📅 ${e(session.date)}</span>` : ''}\n      </div>\n    </header>\n\n`,
+    `        ${session ? `<span>📅 ${e(session.date)}</span>` : ''}\n      </div>\n    </header>\n\n`
+  ].join('');
+
+  // --- 2. QUÉ VAMOS A APRENDER ---
+  const introHtml = [
     `    <!-- OBJETIVOS DIDÁCTICOS -->\n    <section class="student-section section-intro">\n`,
     `      <div class="student-section-header">\n        <span class="student-section-number">🎯</span>\n`,
     `        <div>\n          <h2>Qué vamos a aprender</h2>\n          <p class="student-section-intro">`,
     `Objetivos y competencias formativas que desarrollaremos a lo largo de la sesión.</p>\n`,
     `        </div>\n      </div>\n      <ol class="student-objectives">\n        `,
     `${(plan.objectives || []).map(item => `<li>${e(cleanStudentText(item, true))}</li>`).join('')}`,
-    `\n      </ol>\n    </section>\n\n`,
-    `    <!-- SECCIÓN 01: CONTENIDO TEÓRICO DE LAS FUENTES -->\n`,
-    `    <section class="student-section section-theory">\n      <div class="student-section-header">\n`,
-    `        <span class="student-section-number">01</span>\n        <div>\n`,
-    `          <h2>Contenido teórico de las fuentes</h2>\n`,
-    `          <p class="student-section-intro">Análisis musicológico e histórico basado en las fuentes `,
-    `documentales autorizadas${e(authorsSubtitle)}.</p>\n        </div>\n      </div>\n`,
-    `      <div class="theory-claims-list">\n`,
-    claims.map((claim, index) => {
-      const ev0 = claim.evidence?.[0];
-      let sourceBadge = '';
-      if (ev0) {
-        const src = (run.evidence || []).find(it => it.source_id === ev0.source_id);
-        const author = normalizeAuthorDisplay(src?.metadata?.authors?.[0]?.split(',')[0]?.trim());
-        const pIdx = src?.locator?.pdf_page_index;
-        const loc = pIdx ? ('pág. ' + String(pIdx)) : '';
-        const badgeLabel = author ? (loc ? (author + ', ' + loc) : author) : '';
-        if (badgeLabel) {
-          sourceBadge = `<div class="claim-source-badge"><span>📖 ${e(badgeLabel)}</span></div>`;
+    `\n      </ol>\n    </section>\n\n`
+  ].join('');
+
+  // --- 3. CUERPO ESTRUCTURADO POR REQUISITOS ---
+  let sectionsHtml = '';
+  let sectionIndex = 0;
+
+  if (requirements.length > 0) {
+    for (const req of requirements) {
+      const reqId = req.id;
+      // Requisito no cumplido: nunca se entrega en silencio ni se rellena con genérico, se omite
+      if (unmetReqIds.has(reqId)) {
+        continue;
+      }
+
+      sectionIndex += 1;
+      const secNum = String(sectionIndex).padStart(2, '0');
+      const secTitle = formatStudentRequirementTitle(req, sectionIndex);
+
+      // (a) Artefactos resueltos para este requisito
+      let artifactsHtml = '';
+
+      // Componentes calculados
+      for (const dc of resolvedComps) {
+        const matchesReq = dc.requirement_id === reqId ||
+          (req.ejecutor === 'componente_calculado' && req.description?.toLowerCase().includes(dc.tipo)) ||
+          (req.ejecutor === 'linea_temporal' && dc.tipo === 'linea_temporal');
+        if (matchesReq && !renderedArtifacts.has(dc.tipo)) {
+          renderedArtifacts.add(dc.tipo);
+          artifactsHtml += renderDidacticComponent(dc);
         }
       }
-      return [
-        `\n          <div class="student-content theory-claim-card">\n`,
-        `            <span class="claim-index-badge">${e(String(index + 1).padStart(2, '0'))}</span>\n`,
-        `            <div class="claim-body">\n`,
-        `              ${formatMarkdown(cleanStudentText(claim.student_summary || claim.text, false))}\n`,
-        `              ${sourceBadge}\n`,
-        `            </div>\n          </div>\n        `
-      ].join('');
-    }).join(''),
-    `\n      </div>\n    </section>\n\n`,
-    `    <!-- SECCIÓN 02: ESQUEMA GRÁFICO -->\n    <section class="student-section section-infographic">\n`,
-    `      <div class="student-section-header">\n        <span class="student-section-number">02</span>\n`,
-    `        <div>\n          <h2>Esquema gráfico y estructuras</h2>\n`,
-    `          <p class="student-section-intro">Estructuras formales y esquemas conceptuales para el aula.</p>\n`,
-    `        </div>\n      </div>\n`,
-    (isFichaVerified ?
-      (isEgypt ? renderEgyptInfographic(run) : (isPolyphony ? renderStudentInfographic(run) : '')) : '') || (
-      visuals.length ? [
-        `\n        <div class="infographic-poster">\n`,
-        `          <div class="visual-items">\n`,
-        visuals.map(v => {
-          const isChronological = v.type === 'timeline' ||
-            /cronolog|tiempo|hist[oó]ric|siglo/i.test(v.title || '') ||
-            (v.items || []).some(it => /a\.\s*c\.|d\.\s*c\.|siglo|\b\d{3,4}\b/i.test(it.label || ''));
-          if (isChronological && timelineComp) {
-            timelineRendered = true;
-            return renderDidacticComponent(timelineComp);
-          }
-          return [
-            `            <div class="visual-card">\n              <h3>${e(v.title)}</h3>\n`,
-            v.caption ? `              <p class="visual-caption">${e(v.caption)}</p>\n` : '',
-            `              <div class="visual-items">\n`,
-            (v.items || []).map(it => [
-              `                <div class="visual-item">\n                  <strong>${e(it.label)}</strong>\n`,
-              `                  <span>${e(it.detail)}</span>\n                </div>\n`
-            ].join('')).join(''),
-            `              </div>\n            </div>\n`
-          ].join('');
-        }).join(''),
-        `          </div>\n        </div>\n`
-      ].join('') : [
-        `\n        <div class="infographic-poster">\n`,
-        `          <div class="visual-items">\n`,
-        claims.slice(0, 4).map((c, i) => [
-          `            <div class="visual-item"><strong>Eje ${e(i + 1)}</strong>`,
-          `<span>${e(cleanStudentText(c.text.slice(0, 180), false))}…</span></div>\n`
-        ].join('')).join(''),
-        `          </div>\n        </div>\n`
-      ].join('')
-    ),
-    `\n    </section>\n\n`,
-    renderDidacticSection(run, { skipTimeline: timelineRendered }),
-    (hasFichaConceptos && isFichaVerified) ? [
-      `    <!-- SECCIÓN 03: CONCEPTOS OBLIGATORIOS PARA APRENDER -->\n`,
-      `    <section class="student-section section-concepts">\n      <div class="student-section-header">\n`,
-      `        <span class="student-section-number">03</span>\n        <div>\n`,
-      `          <h2>Conceptos obligatorios para aprender</h2>\n`,
-      `          <p class="student-section-intro">Vocabulario técnico y conceptos analíticos indispensables.</p>\n`,
-      `        </div>\n      </div>\n`,
-      `      <div class="concept-grid">\n`,
-      run.ficha.conceptos.map(c => [
-        `\n        <div class="concept-card">\n          <div class="concept-head">`,
-        `<span class="concept-badge">${e(c.categoria || (isFichaVerified ? 'CONCEPTO' : 'REVISIÓN'))}</span>`,
-        `<strong>${e(c.termino)}</strong></div>\n          <p>${e(c.definicion)}</p>\n        </div>\n`
-      ].join('')).join(''),
-      `\n      </div>\n    </section>\n\n`
-    ].join('') : '',
-    `${(isNTAM || (!isEgypt && !isPolyphony && (!listenings || !listenings.length))) ? '' : [
-      `<!-- SECCIÓN 04: RELACIÓN DE AUDICIONES COMENTADAS -->\n`,
-      `    <section class="student-section section-listenings">\n`,
-      `      <div class="student-section-header">\n`,
-      `        <span class="student-section-number">04</span>\n`,
-      `        <div>\n          <h2>Relación de audiciones comentadas</h2>\n`,
-      `          <p class="student-section-intro">Obras y repertorio de audición activa con análisis formal.</p>\n`,
-      `        </div>\n      </div>\n      <div class="listening-grid">\n        `,
-      `${
-        isEgypt ? renderEgyptListeningsHTML(false) : isPolyphony ? POLYPHONY_LISTENINGS.map(l =>
-          renderListeningCardItem(l, false)).join('') : (listenings?.length ? listenings.map(l =>
-          renderListeningCardItem(l, false)).join('') : '')
-      }`,
-      `\n      </div>\n    </section>\n\n`
-    ].join('')}`,
-    `<!-- SECCIÓN 05: TRABAJOS PARA EL ALUMNADO (Única lista unificada de tareas) -->\n`,
-    `    <section class="student-section section-assignments">\n`,
-    `      <div class="student-section-header">\n`,
-    `        <span class="student-section-number">05</span>\n        <div>\n`,
-    `          <h2>Trabajos para el alumnado</h2>\n`,
-    `          <p class="student-section-intro">Secuencia de actividades prácticas y análisis desarrolladas `,
-    `en la sesión de clase.</p>\n        </div>\n      </div>\n\n`,
-    `      <div class="assignment-grid">\n`,
-    (() => {
-      const renderedScoreKeys = new Set();
-      return (plan.activities || []).map((activity, index) => {
-        const mins = Number(activity.minutes) || 0;
-        const start = elapsed;
-        elapsed += mins;
-        const taskText = cleanStudentText(activity.student_task || activity.instructions || '', true);
-        const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
 
-        const actScores = resolvedScores.filter(m => {
-          const key = m.ejemplo?.id || m.request_id || m.request?.work || '';
-          if (key && renderedScoreKeys.has(key)) return false;
-          let match = false;
-          if (m.request?.activity_title && m.request.activity_title === activity.title) {
-            match = true;
-          } else if (m.request_id && activity.music_request_id === m.request_id) {
-            match = true;
-          } else {
-            const obra = m.ejemplo?.obra || m.request?.work || '';
-            if (obra && activity.title && activity.title.toLowerCase().includes(obra.toLowerCase())) {
-              match = true;
-            } else if (resolvedScores.length === 1 && (
-              activity.title?.toLowerCase().includes('notacion') ||
-              activity.title?.toLowerCase().includes('seikilos')
-            )) {
-              match = true;
+      // Partituras Verovio verificadas
+      if (req.ejecutor === 'partitura_obra' || req.ejecutor === 'analisis_sobre_partitura' ||
+          /partitura|seikilos/i.test(req.description || '')) {
+        for (const sc of resolvedScores) {
+          const scKey = sc.ejemplo?.id || sc.request_id || 'score';
+          if (!renderedArtifacts.has(scKey)) {
+            renderedArtifacts.add(scKey);
+            artifactsHtml += renderStudentScoreBox(sc, run.id);
+          }
+        }
+      }
+
+      // Infografía de ficha verificada (si aplica al tema o primer requisito)
+      if (run.ficha?.verificado && run.ficha?.infografia && !renderedArtifacts.has('ficha_infografia')) {
+        const infogRegex = /infograf|l[aá]mina|esquema|organolog|instrument|marco|misa|t[eé]cnica|egipto/i;
+        const matchesInfog = infogRegex.test(req.description || '') || (requirements.indexOf(req) === 0);
+        if (matchesInfog) {
+          renderedArtifacts.add('ficha_infografia');
+          artifactsHtml += renderFichaInfographic(run);
+        }
+      }
+
+      // (b) Texto de 2–3 frases que remite a la figura y citas
+      const covItem = coverage.find(c => c.requirement_id === reqId);
+      const reqClaimIds = covItem?.claim_ids || [];
+      const assignedClaims = [];
+
+      for (let i = 0; i < claims.length; i++) {
+        const cNum = i + 1;
+        if (reqClaimIds.includes(cNum) && !renderedClaimIndices.has(i)) {
+          assignedClaims.push({ claim: claims[i], index: i });
+          renderedClaimIndices.add(i);
+        }
+      }
+
+      // Si no tenía claim_ids directos, buscar claim temático afín
+      if (!assignedClaims.length) {
+        const reqDescLower = (req.description || '').toLowerCase();
+        for (let i = 0; i < claims.length; i++) {
+          if (!renderedClaimIndices.has(i)) {
+            const cText = (claims[i].text || '').toLowerCase();
+            if (reqDescLower.split(/\s+/).filter(w => w.length > 5).some(w => cText.includes(w))) {
+              assignedClaims.push({ claim: claims[i], index: i });
+              renderedClaimIndices.add(i);
+              break;
             }
           }
-          if (match) {
-            if (key) renderedScoreKeys.add(key);
-            return true;
+        }
+      }
+
+      let textBlocksHtml = '';
+      let sectionCombinedText = '';
+
+      for (const { claim } of assignedClaims) {
+        const rawText = cleanStudentText(claim.student_summary || claim.text, false);
+        const limitedText = limitWords(rawText, 60);
+        sectionCombinedText += ' ' + rawText;
+
+        const ev0 = claim.evidence?.[0];
+        let sourceBadge = '';
+        if (ev0) {
+          const src = (run.evidence || []).find(it => it.source_id === ev0.source_id);
+          const author = normalizeAuthorDisplay(src?.metadata?.authors?.[0]?.split(',')[0]?.trim());
+          const pIdx = src?.locator?.pdf_page_index;
+          const loc = pIdx ? ('pág. ' + String(pIdx)) : '';
+          const badgeLabel = author ? (loc ? (author + ', ' + loc) : author) : '';
+          if (badgeLabel) {
+            sourceBadge = `<div class="claim-source-badge"><span>📖 ${e(badgeLabel)}</span></div>`;
           }
-          return false;
-        });
+        }
 
-        const scoreBoxesHtml = actScores.map(m => {
-          const ej = m.ejemplo;
-          const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría';
-          const badgeText = isTheory ? '✓ Calculado a partir de la teoría' : '✓ Partitura verificada';
-          const obraStr = ej.obra || m.request?.work || 'Obra musical';
-          const secStr = ej.seccion || m.request?.section || '';
-          const scoreTitle = obraStr + (secStr ? ' · ' + secStr : '');
-          const compStr = ej.compositor || m.request?.composer || 'Anónimo';
-          return [
-            `\n          <div class="student-score-box score-card-verified score-candidate-item" ` +
-            `data-candidate-id="${e(ej.id)}" data-run-id="${e(run.id)}">\n`,
-            `            <div class="score-card-head">\n              <div>\n`,
-            `                <span class="badge info">${badgeText}</span>\n`,
-            `                <h4>${e(scoreTitle)} — ${e(compStr)}</h4>\n`,
-            `                <small class="score-meta">Compases ${e(ej.compases || '1-3')} · ` +
-            `Fuente: ${e(ej.fuente || 'Catálogo')}</small>\n`,
-            `              </div>\n            </div>\n`,
-            `            <div class="score-preview-container">\n`,
-            `              <div class="score-preview-box" data-candidate-id="${e(ej.id)}" ` +
-            `data-run-id="${e(run.id)}" data-current-mode="svg">\n`,
-            `                <div class="score-loading"><span class="spinner"></span> ` +
-            `Renderizando partitura con Verovio…</div>\n`,
-            `              </div>\n            </div>\n`,
-            `          </div>\n`
-          ].join('');
-        }).join('');
-
-        return [
-          `\n        <div class="assignment-card">\n          <div class="assign-head">\n`,
-          `            <span class="assign-tag">${start}–${elapsed} min</span>\n`,
-          `            <strong>${e(index + 1)}. ${e(activity.title)}${groupTag}</strong>\n`,
-          `          </div>\n`,
-          taskText ? `          <p class="activity-task"><strong>Tarea:</strong> ${e(taskText)}</p>\n` : '',
-          activity.deliverable ? [
-            `          <p class="activity-deliverable"><strong>Entregable:</strong> `,
-            `${e(cleanStudentText(activity.deliverable, true))}</p>\n`
-          ].join('') : '',
-          scoreBoxesHtml,
-          `        </div>\n`
+        textBlocksHtml += [
+          `\n          <div class="theory-claim-card">\n`,
+          `            <div class="claim-body">\n`,
+          `              ${formatMarkdown(limitedText)}\n`,
+          `              ${sourceBadge}\n`,
+          `            </div>\n          </div>\n`
         ].join('');
-      }).join('');
-    })(),
-    (isFichaVerified && run.ficha?.tareas_adicionales_casa?.length) ? [
-      `\n      <div class="homework-tasks-block">\n`,
-      `        <h3 class="homework-title">🏠 Tareas adicionales para casa</h3>\n`,
-      run.ficha.tareas_adicionales_casa.map(t => [
-        `        <div class="assignment-card homework-card">\n          <div class="assign-head">\n`,
-        `            <span class="assign-tag">${e(t.tag || 'CASA')}</span>\n`,
-        `            <strong>${e(t.titulo)}</strong>\n          </div>\n`,
-        `          <p><strong>Objetivo:</strong> ${e(t.objetivo)}</p>\n`,
+      }
+
+      // Si no hubo claim pero hay artefacto, descripción sintética breve
+      if (!textBlocksHtml && artifactsHtml) {
+        textBlocksHtml = [
+          `\n          <div class="theory-claim-card">\n`,
+          `            <div class="claim-body">\n`,
+          `              <p>Observa con atención el modelo musical y las proporciones representadas arriba.</p>\n`,
+          `            </div>\n          </div>\n`
+        ].join('');
+      }
+
+      // (c) Glosario verificado como recuadro lateral dentro de la sección
+      let glossaryHtml = '';
+      if (fichaConceptos.length > 0) {
+        const fullSecStr = (secTitle + ' ' + sectionCombinedText + ' ' + (req.description || '')).toLowerCase();
+        for (const conc of fichaConceptos) {
+          const term = (conc.termino || '').toLowerCase();
+          if (term && fullSecStr.includes(term) && !usedGlossaryTerms.has(conc.termino)) {
+            usedGlossaryTerms.add(conc.termino);
+            glossaryHtml += [
+              `\n          <aside class="glossary-callout">\n`,
+              `            <div class="glossary-callout-header">\n`,
+              `              <span class="glossary-callout-badge">GLOSARIO</span>\n`,
+              `              <strong>${e(conc.termino)}</strong>\n`,
+              `            </div>\n`,
+              `            <p>${e(limitWords(conc.definicion, 60))}</p>\n`,
+              `          </aside>\n`
+            ].join('');
+          }
+        }
+      }
+
+      sectionsHtml += [
+        `    <!-- SECCIÓN REQUISITO ${e(secNum)}: ${e(secTitle)} -->\n`,
+        `    <section class="student-section section-theory section-req-${e(reqId.toLowerCase())}">\n`,
+        `      <div class="student-section-header">\n`,
+        `        <span class="student-section-number">${e(secNum)}</span>\n`,
+        `        <div>\n`,
+        `          <h2>${e(secTitle)}</h2>\n`,
+        `        </div>\n`,
+        `      </div>\n`,
+        artifactsHtml ? `      <div class="requirement-artifacts-box">\n${artifactsHtml}\n      </div>\n` : '',
+        `      <div class="theory-claims-list">\n`,
+        textBlocksHtml,
+        glossaryHtml,
+        `      </div>\n`,
+        `    </section>\n\n`
+      ].join('');
+    }
+  } else {
+    // Modo fallback para propuestas antiguas sin requisitos explícitos
+    const infographicHtml = renderFichaInfographic(run);
+    sectionsHtml += [
+      `    <section class="student-section section-theory">\n`,
+      `      <div class="student-section-header">\n`,
+      `        <span class="student-section-number">01</span>\n`,
+      `        <div>\n`,
+      `          <h2>Contenido y fundamentos</h2>\n`,
+      `        </div>\n`,
+      `      </div>\n`,
+      `      <div class="theory-claims-list">\n`,
+      claims.map((claim, index) => {
+        const limitedText = limitWords(cleanStudentText(claim.student_summary || claim.text, false), 60);
+        return [
+          `          <div class="theory-claim-card">\n`,
+          `            <span class="claim-index-badge">${e(String(index + 1).padStart(2, '0'))}</span>\n`,
+          `            <div class="claim-body">\n`,
+          `              ${formatMarkdown(limitedText)}\n`,
+          `            </div>\n`,
+          `          </div>\n`
+        ].join('');
+      }).join(''),
+      `      </div>\n`,
+      `    </section>\n\n`,
+      infographicHtml ? [
+        `    <section class="student-section section-infographic">\n`,
+        `      <div class="student-section-header">\n`,
+        `        <span class="student-section-number">02</span>\n`,
+        `        <div>\n`,
+        `          <h2>Esquema gráfico y estructuras</h2>\n`,
+        `        </div>\n`,
+        `      </div>\n`,
+        infographicHtml,
+        `\n    </section>\n\n`
+      ].join('') : '',
+      renderDidacticSection(run)
+    ].join('');
+  }
+
+  // --- 4. AUDICIONES COMENTADAS (si existen en la ficha o criterios) ---
+  let listeningsHtml = '';
+  if (listenings && listenings.length > 0) {
+    sectionIndex += 1;
+    const secNum = String(sectionIndex).padStart(2, '0');
+    listeningsHtml = [
+      `    <!-- AUDICIONES COMENTADAS -->\n`,
+      `    <section class="student-section section-listenings">\n`,
+      `      <div class="student-section-header">\n`,
+      `        <span class="student-section-number">${e(secNum)}</span>\n`,
+      `        <div>\n`,
+      `          <h2>Relación de audiciones comentadas</h2>\n`,
+      `          <p class="student-section-intro">Obras y repertorio de audición activa con análisis formal.</p>\n`,
+      `        </div>\n`,
+      `      </div>\n`,
+      `      <div class="listening-grid">\n`,
+      listenings.map(l => renderListeningCardItem(l, false)).join(''),
+      `\n      </div>\n`,
+      `    </section>\n\n`
+    ].join('');
+  }
+
+  // --- 5. TRABAJOS PARA EL ALUMNADO ---
+  sectionIndex += 1;
+  const assignSecNum = String(sectionIndex).padStart(2, '0');
+  const assignmentsHtml = [
+    `    <!-- TRABAJOS PARA EL ALUMNADO -->\n`,
+    `    <section class="student-section section-assignments">\n`,
+    `      <div class="student-section-header">\n`,
+    `        <span class="student-section-number">${e(assignSecNum)}</span>\n`,
+    `        <div>\n`,
+    `          <h2>Trabajos para el alumnado</h2>\n`,
+    `          <p class="student-section-intro">Secuencia de actividades prácticas y análisis desarrolladas `,
+    `en la sesión de clase.</p>\n`,
+    `        </div>\n`,
+    `      </div>\n\n`,
+    `      <div class="assignment-grid">\n`,
+    (plan.activities || []).map((activity, index) => {
+      const mins = Number(activity.minutes) || 0;
+      const start = elapsed;
+      elapsed += mins;
+      const taskText = cleanStudentText(activity.student_task || activity.instructions || '', true);
+      const groupTag = activity.grouping ? ` [${e(activity.grouping)}]` : '';
+
+      // Comprobar si la actividad trabaja un requisito pendiente
+      const isPendingResource = (activity.requirement_id && unmetReqIds.has(activity.requirement_id)) ||
+        (activity.music_request_id && unmetReqIds.size > 0 &&
+          [...unmetReqIds].some(rid => rid.toLowerCase().includes('score') || rid.toLowerCase().includes('r8') ||
+            rid.toLowerCase().includes('obra') || rid.toLowerCase().includes('seikilos')));
+
+      const pendingBadge = isPendingResource ? [
+        `\n          <div class="activity-resource-pending">\n`,
+        `            <span>⚠️ Material que te entregará el profesor</span>\n`,
+        `          </div>\n`
+      ].join('') : '';
+
+      return [
+        `\n        <div class="assignment-card">\n          <div class="assign-head">\n`,
+        `            <span class="assign-tag">${start}–${elapsed} min</span>\n`,
+        `            <strong>${e(index + 1)}. ${e(activity.title)}${groupTag}</strong>\n`,
+        `          </div>\n`,
+        taskText ? `          <p class="activity-task"><strong>Tarea:</strong> ${e(taskText)}</p>\n` : '',
+        activity.deliverable ? [
+          `          <p class="activity-deliverable"><strong>Entregable:</strong> `,
+          `${e(cleanStudentText(activity.deliverable, true))}</p>\n`
+        ].join('') : '',
+        pendingBadge,
         `        </div>\n`
-      ].join('')).join(''),
-      `      </div>\n`
-    ].join('') : '',
-    `\n      </div>\n    </section>\n\n`,
-    `    <!-- SECCIÓN 06: FUENTES Y BIBLIOGRAFÍA DE CONSULTA -->\n`,
-    `    <section class="student-section section-sources">\n      <div class="student-section-header">\n`,
-    `        <span class="student-section-number">06</span>\n        <div>\n`,
+      ].join('');
+    }).join(''),
+    `\n      </div>\n    </section>\n\n`
+  ].join('');
+
+  // --- 6. FUENTES Y BIBLIOGRAFÍA DE CONSULTA ---
+  sectionIndex += 1;
+  const sourcesSecNum = String(sectionIndex).padStart(2, '0');
+  const sourcesHtml = [
+    `    <!-- FUENTES Y BIBLIOGRAFÍA DE CONSULTA -->\n`,
+    `    <section class="student-section section-sources">\n`,
+    `      <div class="student-section-header">\n`,
+    `        <span class="student-section-number">${e(sourcesSecNum)}</span>\n`,
+    `        <div>\n`,
     `          <h2>Fuentes y antologías de consulta</h2>\n`,
     `          <p class="student-section-intro">Bibliografía autorizada utilizada para elaborar este material.</p>\n`,
-    `        </div>\n      </div>\n      <div class="sources-pills-list">\n`,
+    `        </div>\n`,
+    `      </div>\n`,
+    `      <div class="sources-pills-list">\n`,
     studentSources.map(meta => [
       `\n        <div class="source-pill-card">\n          <span class="source-pill-icon">📖</span>\n`,
       `          <div>\n            <strong>${e(meta.title || 'Fuente documental')}</strong>\n`,
@@ -379,9 +521,26 @@ export function studentDocumentHTML(run) {
     ].join('')).join(''),
     `\n      </div>\n    </section>\n  </article>`
   ].join('');
+
+  return headerHtml + introHtml + sectionsHtml + listeningsHtml + assignmentsHtml + sourcesHtml;
 }
 
-export async function printStudentDocument() {
+export async function printStudentDocument(run) {
+  const targetRun = run || store.currentStudentRun || store.currentRun;
+  const fulfillment = targetRun?.result?.fulfillment || [];
+  const unmet = fulfillment.filter(f => f.estado === 'pendiente_profesor' || f.estado === 'sin_fuentes');
+
+  if (unmet.length > 0) {
+    const listStr = unmet.map(u => `• ${u.requirement_id}: ${u.falta || 'Pendiente'}`).join('\n');
+    const confirmed = window.confirm(
+      'Esta propuesta no cumple todos los requisitos del profesor:\n\n' +
+      listStr + '\n\n' +
+      'El material del alumnado omite las secciones no resueltas.\n' +
+      '¿Deseas imprimir de todos modos?'
+    );
+    if (!confirmed) return;
+  }
+
   const handout = document.querySelector('.student-dialog .student-handout');
   if (!handout) {
     document.body.classList.add('student-printing');
@@ -396,19 +555,13 @@ export async function printStudentDocument() {
   const boxes = Array.from(document.querySelectorAll('.student-dialog .score-preview-box'));
   await Promise.all(boxes.map(b => b._renderPromise || Promise.resolve()));
 
-  // Clone handout content so the on-screen modal stays intact
   const clone = handout.cloneNode(true);
-
-  // For Ancient Egypt sheets: remove interactive tabs and show both sheets sequentially
   clone.querySelectorAll('.egypt-sheet-tabs').forEach(el => el.remove());
   clone.querySelectorAll('.egypt-sheet').forEach(el => {
     el.style.display = 'block';
   });
-
-  // Remove buttons and interactive elements
   clone.querySelectorAll('.button, button, [data-action], .score-loading').forEach(el => el.remove());
 
-  // Use an isolated hidden iframe for 100% clean, non-modal browser printing
   let iframe = document.getElementById('student-print-frame');
   if (iframe) iframe.remove();
 
@@ -432,7 +585,6 @@ export async function printStudentDocument() {
     ' · Arkhé</title></head><body class="print-isolated-body"></body></html>');
   doc.close();
 
-  // Copy all style elements and stylesheets so custom typography, colors, and layout apply
   document.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
     doc.head.appendChild(node.cloneNode(true));
   });
@@ -460,6 +612,7 @@ export async function studentMaterialModal(id) {
   const run = await api('/runs/' + encodeURIComponent(id));
   if (!run.request?.pedagogy || !run.result?.plan) throw new Error(
     'Esta propuesta todavía no tiene material válido para el alumnado.');
+  store.currentStudentRun = run;
   modal('Material para el alumnado', [
     `${studentDocumentHTML(run)}`,
     `<div class="student-share-actions"><div><strong>Listo para compartir</strong><p>`,
@@ -518,7 +671,7 @@ async function accionEgyptTab({target}) {
 }
 
 async function accionPrintStudent() {
-  printStudentDocument();
+  printStudentDocument(store.currentStudentRun || store.currentRun);
 }
 
 export const actions = {

@@ -231,3 +231,25 @@ def test_regenerar_crea_nueva_propuesta_y_conserva_anterior(tmp_path):
     run_intacto = get_run(ws.db, "run-original-123")
     assert run_intacto["id"] == "run-original-123"
     assert run_intacto["result"]["requirements"] == reqs_previos
+
+
+def test_fulfillment_panel_rojo_en_vista_profesor():
+    """Verifica el Punto 3: panel rojo en vista de profesor con botón de importar y actividades afectadas."""
+    # Comprobar que documentos.js incluye renderFulfillmentAlertPanel y el panel de aviso
+    docs_js = Path("src/docente_ai/web/static/js/componentes/documentos.js").read_text(encoding="utf-8")
+    assert "renderFulfillmentAlertPanel" in docs_js
+    assert "fulfillment-unmet-panel" in docs_js
+    assert "import-musicxml-btn" in docs_js
+    assert "unmet-affected-text" in docs_js
+
+
+def test_omision_seccion_pendiente_y_aviso_en_actividades_alumnado():
+    """Verifica el Punto 1, 3 y 4: omisión de requisitos no cumplidos y aviso en actividades."""
+    mat_js = Path("src/docente_ai/web/static/js/componentes/material-alumnado.js").read_text(encoding="utf-8")
+    # Estructura por requisitos
+    assert "unmetReqIds.has(reqId)" in mat_js
+    assert "activity-resource-pending" in mat_js
+    assert "Material que te entregará el profesor" in mat_js
+    assert "limitWords" in mat_js
+    assert "glossary-callout" in mat_js
+
