@@ -48,13 +48,13 @@ def synthetic_ui(tmp_path, monkeypatch):
     config.mkdir()
     (config / 'rag.yaml').write_text('schema_version: 1\nembeddings:\n  model: embed:1\n')
     for name in ('generation', 'pedagogy'):
-        (config / f'{name}.yaml').write_text('schema_version: 1\ngeneration:\n  model: gen:1\n  num_ctx: 8192\n  max_output_tokens: 1536\n')
+        (config / f'{name}.yaml').write_text('schema_version: 1\ngeneration:\n  model: gen:1\n  num_ctx: 10240\n  max_output_tokens: 1536\n')
     path = tmp_path / 'fuente-sintetica.txt'
     path.write_text(TEXT)
     doc = import_document(db, path, category='documental', subjects=['historia-i'],
                           values={'title': 'El pulso musical · Fuente sintética', 'authors': ['Autora de prueba']})
     authorize_document(db, doc['document_id'], enabled=True)
-    rag, generation = RagSettings(model='embed:1'), GenerationSettings(model='gen:1', num_ctx=8192, max_output_tokens=1536)
+    rag, generation = RagSettings(model='embed:1'), GenerationSettings(model="gen:1", num_ctx=10240, max_output_tokens=1536)
     index_library(db, rag, FakeEmbedder())
     run = ask(db, rag, generation, 'La música en el Antiguo Egipto', subject='historia-i',
               pedagogy_context=context_for(db, 'historia-3gp', 30), embedder_factory=FakeEmbedder,

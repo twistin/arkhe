@@ -1,28 +1,215 @@
 import { refresh } from '../componentes/trabajos.js';
-import { dialog, toast, e, header, icon, modal, option, primary } from '../ui.js';
+import { dialog, toast, e, header, icon, modal, option, primary, render, subjectStyle } from '../ui.js';
 import { api, request } from '../api.js';
 import { store } from '../state.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
+let currentViewMode = 'planner';
+
 export function diary() {
   const records = store.state.records || [];
-  return header('ESPACIO DEL PROFESOR', 'Diario docente.',
-      'Registra lo que ocurrió en el aula. Tu feedback orientará las próximas propuestas.', primary(
-        'Registrar otra sesión', 'new-feedback', 'record')) + [
-      `<section class="folder-banner diary-folder"><div class="folder-symbol">${icon('folder')}`,
-      `</div><div class="folder-copy"><h3>Material de sesiones ordenado por fecha</h3>`,
-      `<p>Guías, material del alumnado, anexos y feedback se guardan en 03 Diario `,
-      `docente.</p></div><button class="button ghost" data-action="reveal-diary">Abrir carpeta `,
-      `${icon('external')}</button></section>`
-    ].join('') +
-    (records.length ? `<div class="diary-list">${records.map(entradaDiario).join('')}</div>` : [
-      [
-        `<section class="empty-library diary-empty"><div class="onboarding-mark">${icon('record')}`
-      ].join(''),
-      `</div><h2>Tu experiencia también forma parte del sistema.</h2><p>Después de cada `,
-      `clase, anota qué funcionó, qué cambiarías y por dónde continuar.</p>`,
-      `${primary('Registrar la primera sesión','new-feedback','record')}</section>`
-    ].join(''));
+  const planner = store.state.planner;
+
+  const modeTabs = [
+    `<nav class="planner-mode-tabs" aria-label="Modo de vista">`,
+    `  <button class="planner-tab-btn ${currentViewMode === 'planner' ? 'active' : ''}" ` +
+      `data-action="set-planner-mode" data-mode="planner">`,
+    `    ${icon('document')} Planificador semanal`,
+    `  </button>`,
+    `  <button class="planner-tab-btn ${currentViewMode === 'history' ? 'active' : ''}" ` +
+      `data-action="set-planner-mode" data-mode="history">`,
+    `    ${icon('record')} Historial de registros (${e(records.length)})`,
+    `  </button>`,
+    `</nav>`
+  ].join('');
+
+  const bodyContent = currentViewMode === 'planner'
+    ? renderPlannerWeek(planner)
+    : renderHistoryList(records);
+
+  return header('ESPACIO DEL PROFESOR', 'Planificador y diario docente.',
+      'Organiza tus sesiones semanales, vincula propuestas y registra lo ocurrido en el aula.', primary(
+        'Registrar otra sesión', 'new-feedback', 'record')) +
+    modeTabs +
+    bodyContent;
+}
+
+function renderHistoryList(records) {
+  return [
+    `<section class="folder-banner diary-folder"><div class="folder-symbol">${icon('folder')}`,
+    `</div><div class="folder-copy"><h3>Material de sesiones ordenado por fecha</h3>`,
+    `<p>Guías, material del alumnado, anexos y feedback se guardan en 03 Diario `,
+    `docente.</p></div><button class="button ghost" data-action="reveal-diary">Abrir carpeta `,
+    `${icon('external')}</button></section>`
+  ].join('') +
+  (records.length ? `<div class="diary-list">${records.map(entradaDiario).join('')}</div>` : [
+    `<section class="empty-library diary-empty"><div class="onboarding-mark">${icon('record')}</div>`,
+    `<h2>Tu experiencia también forma parte del sistema.</h2><p>Después de cada `,
+    `clase, anota qué funcionó, qué cambiarías y por dónde continuar.</p>`,
+    `${primary('Registrar la primera sesión','new-feedback','record')}</section>`
+  ].join(''));
+}
+
+function renderPlannerWeek(planner) {
+  if (!planner || !planner.days || !planner.days.length) {
+    return [
+      `<section class="empty-library diary-empty">`,
+      `<div class="onboarding-mark">${icon('record')}</div>`,
+      `<h2>Sin horario configurado para esta semana.</h2>`,
+      `<p>Define tus grupos y reglas de horario en Ajustes para ver la planificación semanal.</p>`,
+      `</section>`
+    ].join('');
+  }
+
+  const navBar = [
+    `<div class="planner-nav-bar">`,
+    `  <div class="planner-nav-left">`,
+    `    <button class="button small ghost" data-action="planner-prev" ` +
+      `data-date="${e(planner.prev_week)}" title="Semana anterior">`,
+    `      ${icon('arrowleft')} Anterior`,
+    `    </button>`,
+    `    <button class="button small ghost" data-action="planner-today" title="Ir a la semana actual">`,
+    `      Hoy`,
+    `    </button>`,
+    `    <button class="button small ghost" data-action="planner-next" ` +
+      `data-date="${e(planner.next_week)}" title="Semana siguiente">`,
+    `      Siguiente ${icon('arrow')}`,
+    `    </button>`,
+    `  </div>`,
+    `  <div class="planner-nav-center">`,
+    `    <h3 class="planner-week-title">${e(planner.week_label)}</h3>`,
+    `  </div>`,
+    `  <div class="planner-nav-right">`,
+    `    <label class="planner-date-picker-label" title="Saltar a una fecha concreta">`,
+    `      <span>Ir a:</span>`,
+    `      <input type="date" class="input input-small planner-date-input" ` +
+      `data-action="planner-jump-date" value="${e(planner.selected_date)}">`,
+    `    </label>`,
+    `    <button class="button small ghost" data-action="download-calendar" ` +
+      `title="Descargar horario completo en formato iCalendar (.ics)">`,
+    `      ${icon('download')} Horario .ics`,
+    `    </button>`,
+    `  </div>`,
+    `</div>`
+  ].join('');
+
+  const daysHTML = planner.days.map(renderPlannerDay).join('');
+
+  return [
+    `<section class="planner-section">`,
+    navBar,
+    `<div class="planner-week-grid">${daysHTML}</div>`,
+    `</section>`
+  ].join('');
+}
+
+function renderPlannerDay(day) {
+  const isTodayClass = day.is_today ? ' is-today' : '';
+  const eventsHTML = (day.events || []).map(ev => [
+    `<div class="planner-event-card priority-${e(ev.prioridad || 'normal')}">`,
+    `<span class="planner-event-time">${e(ev.hora || 'Evento')}</span>`,
+    `<strong class="planner-event-title">${e(ev.titulo)}</strong>`,
+    `</div>`
+  ].join('')).join('');
+
+  const sessionsHTML = (day.sessions && day.sessions.length)
+    ? day.sessions.map(renderPlannerSessionCard).join('')
+    : `<div class="planner-empty-day"><span class="muted-small">Sin clases</span></div>`;
+
+  return [
+    `<div class="planner-day-col${isTodayClass}">`,
+    `  <div class="planner-day-header">`,
+    `    <span class="planner-day-name">${e(day.weekday_name)}</span>`,
+    `    <strong class="planner-day-num">${e(day.day_label)}</strong>`,
+    `    ${day.is_today ? '<span class="today-chip">Hoy</span>' : ''}`,
+    `  </div>`,
+    eventsHTML ? `<div class="planner-day-events">${eventsHTML}</div>` : '',
+    `  <div class="planner-day-sessions">${sessionsHTML}</div>`,
+    `</div>`
+  ].join('');
+}
+
+function renderPlannerSessionCard(s) {
+  const start = new Date(s.start);
+  const end = new Date(s.end);
+  const tStart = start.toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
+  const tEnd = end.toLocaleTimeString('es', {hour: '2-digit', minute: '2-digit'});
+  const timeStr = `${tStart} – ${tEnd}`;
+  const subjId = s.subject_id || 'none';
+  const styleStr = subjectStyle(subjId);
+
+  let proposalBlock = '';
+  if (s.proposal) {
+    const isReady = s.proposal.status !== 'draft';
+    const obrasBadge = s.proposal.music_examples_count
+      ? `<span class="resource-badge" title="${e(s.proposal.music_examples_count)} obras">` +
+        `${icon('document')}${e(s.proposal.music_examples_count)}</span>`
+      : '';
+    const compBadge = s.proposal.components_count
+      ? `<span class="resource-badge" title="Componente interactivo">${icon('spark')}</span>`
+      : '';
+    proposalBlock = [
+      `<div class="planner-card-proposal">`,
+      `  <div class="planner-prop-head">`,
+      `    <span class="badge ${isReady ? 'ready' : 'pending'}">${isReady ? 'Guía lista' : 'Borrador'}</span>`,
+      `    ${obrasBadge}`,
+      `    ${compBadge}`,
+      `  </div>`,
+      `  <strong class="planner-prop-title" title="${e(s.proposal.title)}">${e(s.proposal.title)}</strong>`,
+      `  <div class="planner-prop-actions">`,
+      `    <button class="button small ghost" data-expand-proposal="${e(s.proposal.id)}">Guía docente</button>`,
+      `    <button class="button small ghost" data-student-run="${e(s.proposal.id)}">Alumnado</button>`,
+      `  </div>`,
+      `</div>`
+    ].join('');
+  } else {
+    const unitTitle = s.curriculum_unit ? `Programación: ${s.curriculum_unit.title}` : 'Sin propuesta preparada';
+    proposalBlock = [
+      `<div class="planner-card-proposal-empty">`,
+      `  <small class="muted-small planner-unit-hint" title="${e(unitTitle)}">${e(unitTitle)}</small>`,
+      `  <button class="button small primary planner-prepare-btn" data-prepare-session="${e(s.id)}">`,
+      `    ${icon('spark')} Preparar sesión`,
+      `  </button>`,
+      `</div>`
+    ].join('');
+  }
+
+  let recordBlock = '';
+  if (s.record) {
+    const noteText = s.record.what_worked || s.record.next_session_note || s.record.topic || 'Feedback registrado';
+    recordBlock = [
+      `<div class="planner-card-record recorded">`,
+      `  <div class="planner-record-head">`,
+      `    <span class="badge badge-success">✓ En diario</span>`,
+      `    <button class="icon-button small" data-session-record="${e(s.record.id)}" ` +
+        `title="Editar feedback" aria-label="Editar feedback">${icon('edit')}</button>`,
+      `  </div>`,
+      `  <p class="planner-record-snippet">${e(noteText)}</p>`,
+      `</div>`
+    ].join('');
+  } else {
+    recordBlock = [
+      `<div class="planner-card-record empty">`,
+      `  <button class="button small ghost planner-feedback-btn" data-feedback-session="${e(s.id)}">`,
+      `    ${icon('record')} Anotar clase`,
+      `  </button>`,
+      `</div>`
+    ].join('');
+  }
+
+  return [
+    `<article class="planner-session-card subject-colored" style="${e(styleStr)}" data-session-id="${e(s.id)}">`,
+    `  <div class="planner-session-top">`,
+    `    <span class="planner-session-time">${e(timeStr)}${s.room ? ' · ' + e(s.room) : ''}</span>`,
+    `  </div>`,
+    `  <div class="planner-session-info">`,
+    `    <h4 class="planner-session-subject" title="${e(s.subject)}">${e(s.subject)}</h4>`,
+    `    <span class="planner-session-group" title="${e(s.group)}">${e(s.group)}</span>`,
+    `  </div>`,
+    proposalBlock,
+    recordBlock,
+    `</article>`
+  ].join('');
 }
 
 export function recordModal(runId, run) {
@@ -249,6 +436,52 @@ async function formularioFeedback({form, data}) {
   toast(`Feedback guardado en el diario de ${result.session_date}.`);
 }
 
+async function accionPlannerPrev({target}) {
+  const btn = target.closest('[data-date]');
+  const dateStr = btn?.dataset.date;
+  if (!dateStr) return;
+  toast('Cargando semana anterior...');
+  const res = await api('/planner?date=' + encodeURIComponent(dateStr));
+  store.state.planner = res;
+  render();
+}
+
+async function accionPlannerNext({target}) {
+  const btn = target.closest('[data-date]');
+  const dateStr = btn?.dataset.date;
+  if (!dateStr) return;
+  toast('Cargando semana siguiente...');
+  const res = await api('/planner?date=' + encodeURIComponent(dateStr));
+  store.state.planner = res;
+  render();
+}
+
+async function accionPlannerToday() {
+  toast('Cargando semana actual...');
+  const res = await api('/planner');
+  store.state.planner = res;
+  render();
+}
+
+async function accionPlannerJumpDate({target}) {
+  const isInput = target.classList?.contains('planner-date-input');
+  const input = isInput ? target : target.querySelector?.('.planner-date-input');
+  const dateVal = input?.value || target.value;
+  if (!dateVal) return;
+  toast('Cargando semana...');
+  const res = await api('/planner?date=' + encodeURIComponent(dateVal));
+  store.state.planner = res;
+  render();
+}
+
+function accionSetPlannerMode({target}) {
+  const btn = target.closest('[data-mode]');
+  if (btn && btn.dataset.mode) {
+    currentViewMode = btn.dataset.mode;
+    render();
+  }
+}
+
 export const actions = {
   'record-run': accionOpenRecordRun,
   'feedback-session': accionOpenFeedbackSession,
@@ -256,6 +489,11 @@ export const actions = {
   'reveal-record': accionOpenRevealRecord,
   'new-feedback': accionNewFeedback,
   'reveal-diary': accionRevealDiary,
+  'planner-prev': accionPlannerPrev,
+  'planner-next': accionPlannerNext,
+  'planner-today': accionPlannerToday,
+  'planner-jump-date': accionPlannerJumpDate,
+  'set-planner-mode': accionSetPlannerMode,
 };
 
 export const forms = {
@@ -264,8 +502,38 @@ export const forms = {
 };
 
 export const clickBindings = [
+  {
+    priority: 14,
+    matches: target => target.dataset.action === 'set-planner-mode' ||
+      target.closest('[data-action="set-planner-mode"]'),
+    action: 'set-planner-mode'
+  },
+  {
+    priority: 15,
+    matches: target => target.dataset.action === 'planner-prev' ||
+      target.closest('[data-action="planner-prev"]'),
+    action: 'planner-prev'
+  },
+  {
+    priority: 15,
+    matches: target => target.dataset.action === 'planner-next' ||
+      target.closest('[data-action="planner-next"]'),
+    action: 'planner-next'
+  },
+  {
+    priority: 15,
+    matches: target => target.dataset.action === 'planner-today' ||
+      target.closest('[data-action="planner-today"]'),
+    action: 'planner-today'
+  },
   {priority: 18, matches: target => target.dataset.recordRun, action: 'record-run'},
   {priority: 19, matches: target => target.dataset.feedbackSession, action: 'feedback-session'},
   {priority: 20, matches: target => target.dataset.sessionRecord, action: 'session-record'},
   {priority: 21, matches: target => target.dataset.revealRecord, action: 'reveal-record'},
 ];
+
+export const events = {
+  change: {
+    '.planner-date-input': accionPlannerJumpDate,
+  }
+};

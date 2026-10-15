@@ -675,11 +675,28 @@ locales configurables. No hay fallback automático entre proveedores.
 
 `static/style.css` es un manifiesto de `@import` locales sin parámetros de versión.
 `static/css/` separa variables (`tokens.css`), base, componentes, las cinco vistas,
-material del alumnado, infografías, impresión y responsive. Diario y Ajustes usan
-actualmente estilos compartidos; sus archivos solo documentan esa situación y no
-añaden reglas. Se conservan todas las declaraciones originales, sin eliminar
-supuestas reglas muertas. Las capturas de referencia verifican la cascada y la
-impresión en escritorio y móvil. El servidor mantiene `Cache-Control: no-store`.
+material del alumnado, infografías, impresión y responsive. `diario.css` define las reglas
+de la vista semanal (grid por días, tarjetas de sesión con código de materia, barra de
+navegación de semanas y estados de recursos). Se conservan todas las declaraciones
+originales, sin eliminar supuestas reglas muertas. Las capturas de referencia verifican la
+cascada y la impresión en escritorio y móvil. El servidor mantiene `Cache-Control: no-store`.
+
+### Planificador semanal y diario de clase
+
+La vista Diario articula la planificación docente a través de dos modos: el **Planificador semanal** y el **Historial de registros**.
+
+- **Rango y calendario semanal (`calendar.py`):** `week_range(target_day: date) -> tuple[date, date]` calcula los límites de lunes a domingo correspondientes a la fecha indicada (o el día en curso en la zona horaria del centro).
+- **Proyección semanal de sesiones (`workspace.py`):** `weekly_planner(config, day=None, runs=None, records=None, eventos_centro=None)` genera la estructura semanal. Para cada día de la semana proyecta las sesiones programadas según las reglas de horario (`schedule_rules`) y excepciones del calendario (`calendar_exceptions`). Cada sesión se vincula con:
+  - Su materia y color visual (`subjectStyle`).
+  - La unidad didáctica de la programación curricular (`curriculum_unit`).
+  - La propuesta docente preparada (`generation_runs`), indicando si la guía está lista o en borrador, junto a los recursos asociados (contador de ejemplos MusicXML y componentes interactivos calculados).
+  - Las notas de aula registradas en el diario (`records`).
+  - Los eventos del centro del día (`eventos_centro`), indicando hora, título y prioridad.
+- **Endpoint API (`app.py`):** `GET /api/planner?date=YYYY-MM-DD` devuelve la planificación semanal calculada para la fecha solicitada. Además, `/api/state` incluye la semana en curso en el objeto `planner` para su hidratación inmediata.
+- **Frontend y componentes (`diario.js`, `diario.css`):**
+  - Selector de modo mediante pestañas (`set-planner-mode`).
+  - Barra de navegación (`planner-prev`, `planner-next`, `planner-today`, salto con `<input type="date">` y descarga de horario `.ics`).
+  - Grid de días (`renderPlannerWeek`, `renderPlannerDay`) con tarjetas de sesión (`renderPlannerSessionCard`) que ofrecen accesos directos para abrir la guía docente, ver el material del alumnado, registrar feedback o preparar la sesión si aún no existe propuesta.
 
 ### Grafo de módulos locales
 
@@ -1066,3 +1083,23 @@ Para evitar que propuestas de un periodo histórico incorporen conceptos, autore
 
 
 
+
+## Secciones de teoría y repertorio real (pedagogy:11)
+
+La propuesta se organiza en **secciones de teoría**: cada `claim` lleva `title`, `text` (explicación
+desarrollada para el profesor), `student_summary` (explicación para el alumnado), `key_points` (ideas
+clave) y `example_ids` (ejemplos musicales que la ilustran). Las citas siguen el mismo contrato de
+`quote_XXX`, pero la guía del profesor ya no las muestra tras cada párrafo: cada sección lleva números
+de nota y los pasajes completos se agrupan al final («Notas y fuentes»). La cobertura de requisitos pasa
+a un bloque plegado de «Control de calidad»; el panel rojo de requisitos no cumplidos se mantiene arriba.
+
+**Repertorio real.** `docente_ai/music/repertorio.py` indexa obras del corpus libre de music21
+(misas de Palestrina, canciones y motetes de Josquin, madrigal de Lusitano, trecento y Ars nova). El
+índice (`music/datos/repertorio_corpus.json`) solo contiene metadatos leídos de los propios archivos;
+se regenera con `construir_indice_corpus()`. Antes de generar, `build_prompt` envía al modelo un
+`repertorio_disponible` con las obras cuyos compositores aparecen en el tema, las indicaciones o los
+pasajes recuperados. El modelo elige por `catalog_id`; el resolvedor toma compositor, obra y
+movimiento del archivo (nunca de la petición), amplía el fragmento hasta que han entrado todas las
+voces y calcula con music21 el orden de entrada y la proporción de ataques simultáneos. Estas obras se
+muestran al alumnado como «Edición: corpus libre de music21»; un `catalog_id` inexistente deja la
+petición sin resolver. La colección de madrigales de Monteverdi del corpus queda fuera por su texto OCR.

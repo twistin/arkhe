@@ -470,6 +470,11 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
         content = await run_in_threadpool(ws.calendar_ics, group_id=group_id, reminder_minutes=reminder)
         return Response(content, media_type='text/calendar', headers={'Content-Disposition': 'attachment; filename="horario-docente.ics"'})
 
+    async def planner_route(request):
+        date_param = request.query_params.get('date')
+        data = await run_in_threadpool(ws.weekly_planner, date_param)
+        return JSONResponse(visible(data) if server else data)
+
     async def exportar_eventos(request):
         from docente_ai.teaching.eventos_centro import cargar_eventos, calendario_eventos
         eventos = await run_in_threadpool(cargar_eventos, ws.root)
@@ -627,6 +632,7 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
               Route('/api/records/{id}/download', record_download), Route('/api/records/{id}/reveal', record_reveal, methods=['POST']),
               Route('/api/groups/{id}/records', group_records),
               Route('/api/calendar.ics', export_calendar),
+              Route('/api/planner', planner_route),
               Route('/api/eventos-centro.ics', exportar_eventos),
               Route('/api/ejemplos', listar_ejemplos),
               Route('/api/ejemplos/{id}', obtener_ejemplo),

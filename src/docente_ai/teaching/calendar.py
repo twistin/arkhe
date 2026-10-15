@@ -18,6 +18,13 @@ def local_start(day: date, clock: str, zone: str) -> datetime:
     return next(iter(candidates)).astimezone(tz)
 
 
+def week_range(target_day: date) -> tuple[date, date]:
+    """Retorna el lunes y domingo de la semana que contiene a target_day."""
+    monday = target_day - timedelta(days=target_day.weekday())
+    sunday = monday + timedelta(days=6)
+    return monday, sunday
+
+
 def sessions(config: dict, start: date, end: date, group_id: str | None = None) -> list[dict]:
     if start > end:
         raise ValueError("La fecha inicial debe ser anterior o igual a la final.")

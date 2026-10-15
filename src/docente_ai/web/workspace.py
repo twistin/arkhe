@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from copy import deepcopy
 from dataclasses import asdict, replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import hashlib
 import json
 from pathlib import Path
@@ -42,7 +42,8 @@ from docente_ai.record.service import (
     add_record as _add_record, get_record as _get_record, list_records as _list_records,
 )
 from docente_ai.storage import import_config, read_config, connect, migrate
-from docente_ai.teaching.calendar import sessions as calendar_sessions
+from docente_ai.teaching.calendar import sessions as calendar_sessions, week_range
+from docente_ai.teaching.curriculum import show_curriculum
 from docente_ai.teaching.eventos_centro import cargar_eventos
 
 CATEGORIES = {'documental': '01 Fuentes', 'profesor': '02 Material docente'}
@@ -60,6 +61,142 @@ def daily_agenda(config, day=None):
         'date': selected_day.isoformat(),
         'timezone': timezone,
         'sessions': calendar_sessions(config, selected_day, selected_day),
+    }
+
+
+DIAS_SEMANA_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+MESES_ES = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+]
+MESES_ABREV_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+
+
+def weekly_planner(config, day=None, runs=None, records=None, eventos_centro=None):
+    """Retorna la planificación semanal de clases vinculando propuestas, recursos y anotaciones."""
+    timezone_str = config.get('timezone', 'Europe/Madrid')
+    tz = ZoneInfo(timezone_str)
+    if day is None:
+        selected_day = datetime.now(tz).date()
+    elif isinstance(day, str):
+        selected_day = date.fromisoformat(day[:10])
+    elif isinstance(day, date):
+        selected_day = day
+    else:
+        raise ValueError('La fecha del planificador no es válida.')
+
+    monday, sunday = week_range(selected_day)
+    friday = monday + timedelta(days=4)
+
+    sessions_week = calendar_sessions(config, monday, sunday)
+    has_weekend = any(datetime.fromisoformat(s['start']).date() > friday for s in sessions_week)
+    end_day = sunday if has_weekend else friday
+
+    num_days = (end_day - monday).days + 1
+    day_dates = [monday + timedelta(days=i) for i in range(num_days)]
+
+    proposals_by_date_group = {}
+    if runs:
+        for r in runs:
+            req = r.get('request') or {}
+            ped = req.get('pedagogy') or {}
+            s_date = req.get('session_date') or ped.get('session_date') or (ped.get('session') or {}).get('date')
+            g_id = req.get('group') or (ped.get('group', {}).get('id') if isinstance(ped.get('group'), dict) else ped.get('group'))
+            if s_date and g_id:
+                key = (s_date, g_id)
+                if key not in proposals_by_date_group:
+                    res = r.get('result') or {}
+                    music_reqs = res.get('music_requests') or []
+                    did_comps = res.get('didactic_components') or []
+                    proposals_by_date_group[key] = {
+                        'id': r['id'],
+                        'title': r.get('display_title') or r.get('title') or 'Propuesta',
+                        'status': r.get('status', 'draft'),
+                        'music_examples_count': len(music_reqs),
+                        'components_count': len(did_comps),
+                    }
+
+    records_by_date_group = {}
+    if records:
+        for rec in records:
+            s_date = rec.get('session_date')
+            g_id = rec.get('group_id')
+            if s_date and g_id:
+                key = (s_date, g_id)
+                if key not in records_by_date_group:
+                    fb = rec.get('feedback') or {}
+                    records_by_date_group[key] = {
+                        'id': rec['id'],
+                        'topic': rec.get('topic', ''),
+                        'what_worked': fb.get('what_worked') or rec.get('what_worked') or '',
+                        'what_failed': fb.get('what_failed') or rec.get('what_failed') or '',
+                        'next_session_note': fb.get('next_session_note') or rec.get('next_session_note') or '',
+                        'notes': rec.get('notes', ''),
+                    }
+
+    events_by_date = {}
+    if eventos_centro:
+        for ev in eventos_centro:
+            ev_date = ev.get('inicio', '')[:10]
+            if ev_date:
+                events_by_date.setdefault(ev_date, []).append({
+                    'id': ev.get('id', ''),
+                    'titulo': ev.get('titulo', ''),
+                    'prioridad': ev.get('prioridad', 'informativo'),
+                    'categoria': ev.get('categoria', ''),
+                    'hora': ev.get('inicio', '')[11:16] if len(ev.get('inicio', '')) >= 16 else '',
+                })
+
+    today = datetime.now(tz).date()
+
+    days_data = []
+    for d in day_dates:
+        d_iso = d.isoformat()
+        day_sessions = [s for s in sessions_week if datetime.fromisoformat(s['start']).date() == d]
+        enriched_sessions = []
+        for s in day_sessions:
+            g_id = s.get('group_id')
+            prop = proposals_by_date_group.get((d_iso, g_id))
+            rec = records_by_date_group.get((d_iso, g_id))
+
+            curr_unit = None
+            try:
+                c_info = show_curriculum(config, g_id, on_date=d)
+                sug_ids = set(c_info.get('suggested_units') or [])
+                for u in c_info.get('units') or []:
+                    if u['id'] in sug_ids:
+                        curr_unit = {'id': u['id'], 'title': u.get('title', '')}
+                        break
+            except Exception:
+                pass
+
+            s_copy = dict(s)
+            s_copy['proposal'] = prop
+            s_copy['record'] = rec
+            s_copy['curriculum_unit'] = curr_unit
+            enriched_sessions.append(s_copy)
+
+        days_data.append({
+            'date': d_iso,
+            'weekday': d.isoweekday(),
+            'weekday_name': DIAS_SEMANA_ES[d.weekday()],
+            'day_label': f"{d.day} {MESES_ABREV_ES[d.month - 1]}",
+            'is_today': d == today,
+            'sessions': enriched_sessions,
+            'events': events_by_date.get(d_iso, []),
+        })
+
+    week_label = f"Semana del {monday.day} de {MESES_ES[monday.month-1]} al {end_day.day} de {MESES_ES[end_day.month-1]} de {monday.year}"
+
+    return {
+        'selected_date': selected_day.isoformat(),
+        'week_start': monday.isoformat(),
+        'week_end': end_day.isoformat(),
+        'week_label': week_label,
+        'prev_week': (monday - timedelta(days=7)).isoformat(),
+        'next_week': (monday + timedelta(days=7)).isoformat(),
+        'days': days_data,
+        'total_sessions': len(sessions_week),
     }
 
 
@@ -334,7 +471,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                     norm_q = normalize_topic(raw_q)
                     disp_q = (norm_q[:1].upper() + norm_q[1:]) if norm_q else raw_q
 
-                item.update(title=disp_q, display_title=disp_q, original_topic=raw_q, raw_title=raw_q, subject=request.get('subject'), kind='proposal' if 'pedagogy' in request else 'answer')
+                item.update(request=request, title=disp_q, display_title=disp_q, original_topic=raw_q, raw_title=raw_q, subject=request.get('subject'), kind='proposal' if 'pedagogy' in request else 'answer')
         try:
             gen_cfg = generation_settings(self.root / 'config/generation.yaml')
             gen_provider = gen_cfg.provider
@@ -353,10 +490,13 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             records.extend(self._record_with_archive(_get_record(self.db, item['id']))
                            for item in _list_records(self.db, group['id'], limit=20))
         records.sort(key=lambda item: (item['session_date'], item['created_at']), reverse=True)
+        eventos = cargar_eventos(self.root)
+        planner = weekly_planner(config, day=None, runs=runs, records=records, eventos_centro=eventos)
         return {'config': config, 'documents': self.documents(), 'runs': runs,
                 'subject_periods': {s['id']: [p['id'] for p in s.get('periods', [])] for s in config['subjects']},
                 'agenda': daily_agenda(config),
-                'eventos_centro': cargar_eventos(self.root),
+                'planner': planner,
+                'eventos_centro': eventos,
                 'records': records,
                 'knowledge_path': str(self.knowledge), 'jobs': self.job_list(),
                 'generation_provider': gen_provider, 'generation_model': gen_model,
@@ -364,6 +504,17 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
                 'provider_info': provider_info, 'pedagogy_provider_info': pedagogy_info, 'provider_presets': PRESETS,
                 'music_capabilities': self.music_capabilities(),
                 'run_stats': run_stats(self.db, 100)}
+
+    def weekly_planner(self, target_date=None):
+        config = read_config(self.db)
+        state_dict = self.state()
+        return weekly_planner(
+            config,
+            day=target_date,
+            runs=state_dict.get('runs', []),
+            records=state_dict.get('records', []),
+            eventos_centro=state_dict.get('eventos_centro', []),
+        )
 
     def model_status(self):
         status = {'connected': False, 'models': [], 'ollama_models': [], 'embedding_models': [],
@@ -1086,6 +1237,14 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
         resolved_path: Path | None = None
 
+        # 0a. Repertorio real del catálogo (rep:<archivo del corpus>), validado contra el índice
+        if score_id.startswith("rep:"):
+            from docente_ai.music.repertorio import ruta_archivo
+            ruta_rep = ruta_archivo(score_id)
+            if ruta_rep is None:
+                raise FileNotFoundError(f"Obra no presente en el catálogo de repertorio: {score_id}")
+            resolved_path = ruta_rep
+
         # 0. Teoría calculable (ej. tetracordos griegos)
         if score_id == "teoria-tetracordos-tres-generos" or "tetracordos" in score_id.lower():
             from docente_ai.music.greek import asegurar_archivo_partitura_tres_generos
@@ -1329,10 +1488,16 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             m21 = get_music21()
             try:
                 score = m21.converter.parse(str(p))
+                if isinstance(score, m21.stream.Opus):
+                    score = score.mergeScores()
             except Exception as exc:
                 raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
 
             recorte = slice_measures(score, start_measure, end_measure)
+            from docente_ai.music.repertorio import letra_no_fiable
+            if letra_no_fiable(p):
+                for nota in recorte.recurse().notes:
+                    nota.lyrics = []
             for el in list(recorte.recurse().getElementsByClass("MetronomeMark")):
                 if el.activeSite:
                     el.activeSite.remove(el)
@@ -1365,8 +1530,11 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
 
         hl_target = (highlight_voice or "tenor").strip().lower() if highlight_voice else "tenor"
         target_staff_n = None
+        sin_resaltado = hl_target in ("ninguna", "none", "")
 
         try:
+            if sin_resaltado:
+                raise LookupError
             mei = tk.getMEI()
             for m in re.finditer(r'<staffDef[^>]+n="([^"]+)"[^>]*>([\s\S]*?)</staffDef>', mei):
                 st_n = m.group(1)
@@ -1378,7 +1546,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         except Exception:
             pass
 
-        if not target_staff_n and ext == ".krn":
+        if not target_staff_n and ext == ".krn" and not sin_resaltado:
             try:
                 krn_txt = p.read_text(encoding="utf-8", errors="ignore")
                 m_st = re.search(
@@ -1391,7 +1559,7 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
             except Exception:
                 pass
 
-        if not target_staff_n and hl_target == "tenor":
+        if not target_staff_n and hl_target == "tenor" and not sin_resaltado:
             target_staff_n = "3"
 
         if target_staff_n:
@@ -1485,6 +1653,8 @@ No coloques generaciones de IA en esta carpeta como si fueran fuentes.
         m21 = get_music21()
         try:
             score = m21.converter.parse(str(p))
+            if isinstance(score, m21.stream.Opus):
+                score = score.mergeScores()
         except Exception as exc:
             raise ValueError(f"No se pudo cargar la partitura para análisis: {exc}") from exc
 

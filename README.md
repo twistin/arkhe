@@ -17,8 +17,8 @@ Haz doble clic en **Arkhe.app**, dentro de esta carpeta, o ejecuta:
 uv run --locked docente-ai ui
 ```
 
-La interfaz se abre en http://127.0.0.1:8765. Biblioteca, Asistente, Propuestas y
-Ajustes reúnen el trabajo habitual. El lanzador utiliza el entorno `.venv` del
+La interfaz se abre en http://127.0.0.1:8765. Biblioteca, Asistente, Propuestas,
+Diario y Ajustes reúnen el trabajo habitual. El lanzador utiliza el entorno `.venv` del
 proyecto: debe permanecer junto a él; no es un instalador autónomo.
 Abrirlo de nuevo reutiliza el servidor existente. Para detenerlo, utiliza
 **Ajustes → Cerrar aplicación**. Cerrar la pestaña no detiene el servidor.
@@ -91,6 +91,10 @@ Si una ejecución se interrumpe o queda en curso de forma anómala, al reiniciar
 cualquier propuesta en estado «En curso» con más de 30 minutos de antigüedad se marca
 automáticamente como fallida con el motivo «interrumpido».
 La revisión pedagógica sigue siendo del profesor.
+
+En **Diario**, el profesor dispone de dos modos de trabajo mediante pestañas:
+- **Planificador semanal:** vista de calendario semanal donde cada columna representa un día y muestra los eventos del centro (con su prioridad) y las sesiones de clase programadas para cada grupo según el horario y las excepciones del calendario. Cada tarjeta de sesión se asocia al color de su materia y enlaza directamente con la unidad didáctica de la programación (`curriculum_unit`), la propuesta docente preparada (mostrando el estado de la guía, el contador de partituras MusicXML y de componentes didácticos interactivos, con acceso a la guía docente y material del alumnado, o botón para «Preparar sesión»), y las notas de clase registradas. La barra de navegación permite saltar entre semanas («Anterior», «Hoy», «Siguiente»), seleccionar una fecha en el calendario o descargar el horario en formato iCalendar (.ics).
+- **Historial de registros:** listado cronológico de las sesiones pasadas con las reflexiones de aula anotadas por el docente («qué funcionó», «qué cambiarías», «por dónde continuar») y acceso directo a la carpeta local `03 Diario docente`.
 
 Para la ilustración analítica de obras y técnicas, las propuestas pueden solicitar
 ejemplos mediante `music_requests` (obra, compositor, sección, técnica y actividad).
@@ -214,6 +218,14 @@ se detiene sin borrar la clave original. No se guardan credenciales en YAML ni
 en los registros de generación de SQLite. Los handlers de logging enmascaran
 patrones de clave `sk-` seguidos de al menos 16 caracteres alfanuméricos, también
 en excepciones. El filtro protege las nuevas entradas, no modifica logs históricos.
+
+### Ejemplos musicales en las propuestas
+
+Las propuestas incluyen fragmentos de partituras reales cuando el tema lo permite: Arkhé ofrece al
+modelo un catálogo de obras libres (Palestrina, Josquin, Lusitano, trecento…) y solo acepta obras de
+ese catálogo. La guía del profesor muestra cada ejemplo dentro de su sección, con el análisis calculado
+de las entradas de las voces y la textura, y permite cambiar los compases. El material del alumnado
+muestra el mismo fragmento con la indicación «Observa».
 
 ## Instalación
 

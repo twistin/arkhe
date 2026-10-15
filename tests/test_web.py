@@ -133,6 +133,25 @@ def test_daily_agenda_and_proposal_keep_scheduled_session(web):
     assert captured['pedagogy_context']['session']['date'] == '2026-09-07'
 
 
+def test_weekly_planner_endpoint_and_structure(web):
+    client, ws = web
+    res = client.get('/api/planner?date=2026-09-07')
+    assert res.status_code == 200
+    data = res.json()
+    assert data['selected_date'] == '2026-09-07'
+    assert data['week_start'] == '2026-09-07'
+    assert len(data['days']) >= 5
+    monday = data['days'][0]
+    assert monday['weekday'] == 1
+    assert monday['weekday_name'] == 'Lunes'
+    assert monday['date'] == '2026-09-07'
+    assert any(s['group_id'] == 'historia-3gp' for s in monday['sessions'])
+    # Comprobar que en state viene también el planner
+    state = client.get('/api/state').json()
+    assert 'planner' in state
+    assert 'days' in state['planner']
+
+
 def test_upload_review_prepare_ask_and_exclude(web):
     client,ws=web
     doc,path=add(web)
