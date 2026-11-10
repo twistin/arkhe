@@ -175,6 +175,20 @@ def resolver_peticion_musical(
             'candidatos': [],
         }
 
+    # 0b. Repertorio real del catálogo (corpus libre). El modelo solo aporta el identificador;
+    # compositor, obra, movimiento y análisis se toman del archivo, nunca de la petición.
+    ejemplo_rep = resolver_desde_repertorio(request)
+    if ejemplo_rep is not None:
+        return {
+            'request_id': req_id,
+            'request': dict(request),
+            'status': 'resuelto_repertorio',
+            'origen': 'repertorio_corpus',
+            'ejemplo': ejemplo_rep,
+            'verificado': False,
+            'candidatos': [],
+        }
+
     # 1. Catálogo local data/ejemplos/
     ejemplos_locales = load_all_ejemplos(directorio_ejemplos)
     for ej in ejemplos_locales:
@@ -251,6 +265,49 @@ def resolver_peticion_musical(
     if es_peticion_teoria_calculable(request):
         resultado['sugerencia_teorica'] = crear_ejemplo_teoria_tetracordos()
     return resultado
+
+
+def resolver_desde_repertorio(request: dict[str, Any], compases: tuple[int, int] = (1, 8)) -> dict[str, Any] | None:
+    """Devuelve el ejemplo de repertorio real para una petición con catalog_id válido (o None)."""
+    from docente_ai.music import repertorio
+    obra_id = str(request.get('catalog_id') or '').strip()
+    if not obra_id:
+        return None
+    ent = repertorio.resolver_obra(obra_id, request.get('section') or request.get('movement'))
+    if ent is None:
+        return None
+    ruta = repertorio.ruta_archivo(ent['id'])
+    if ruta is None:
+        return None
+    analisis = None
+    inicio, fin = compases
+    try:
+        # El fragmento llega hasta que han entrado todas las voces (más tres compases), con un tope,
+        # para que se vea, por ejemplo, la voz que entra tarde con el cantus firmus.
+        previo = repertorio.analizar_fragmento(ruta, inicio, inicio + 23, ent.get('nombres_voces'))
+        ultima = max((en['compas'] for en in previo['entradas']), default=fin)
+        fin = min(max(fin, ultima + 3), inicio + 15)
+        analisis = repertorio.analizar_fragmento(ruta, inicio, fin, ent.get('nombres_voces'))
+    except Exception:
+        analisis = None
+    compases = (inicio, fin)
+    return {
+        'id': ent['id'],
+        'obra_id': ent['obra_id'],
+        'titulo': ent['obra'],
+        'compositor': ent['compositor'],
+        'obra': ent['obra'],
+        'seccion': ent.get('movimiento') or '',
+        'genero': ent.get('genero'),
+        'compases': f'{compases[0]}-{compases[1]}',
+        'voces': [{'id': str(i + 1), 'nombre': n} for i, n in enumerate(ent.get('nombres_voces') or [])],
+        'voz_resaltada': None,
+        'fuente': ent.get('edicion') or repertorio.EDICION_CORPUS,
+        'licencia': 'Corpus libre incluido en music21',
+        'edicion_reconocida': True,
+        'analisis': analisis,
+        'que_observar': (request.get('description') or '').strip(),
+    }
 
 
 def resolver_todas_las_peticiones(

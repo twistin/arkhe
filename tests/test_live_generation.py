@@ -279,7 +279,7 @@ def test_propuesta_utiliza_el_mismo_streaming_y_validacion(web):
     from test_pedagogy import proposal
     client, ws = ready(web)
     config = ws.root / 'config/pedagogy.yaml'  # Solo el espacio temporal del fixture.
-    config.write_text(config.read_text().replace('num_ctx: 6144', 'num_ctx: 8192'))
+    config.write_text(config.read_text().replace('num_ctx: 6144', 'num_ctx: 10240'))  # El prompt docente creció en pedagogy:11.
     ws.ask_function = lambda *args, **kw: ask(*args, **kw, embedder_factory=FakeEmbedder,
         generator_factory=lambda settings: StreamingFake(settings, response=proposal()))
     identifier = client.post('/api/generate', json={

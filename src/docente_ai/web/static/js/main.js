@@ -17,6 +17,9 @@ import * as trabajos from './componentes/trabajos.js';
 import * as material_alumnado from './componentes/material-alumnado.js';
 import * as audiciones from './componentes/audiciones.js';
 import * as partituras from './componentes/partituras.js';
+import * as secciones from './componentes/secciones.js';
+import * as presentacion from './componentes/presentacion.js';
+import { initDidacticInteractions } from './componentes/didacticos/index.js';
 import * as dialogo from './componentes/dialogo.js';
 
 const modules = [
@@ -33,7 +36,8 @@ const modules = [
   trabajos,
   material_alumnado,
   audiciones,
-  partituras,
+  partituras, secciones,
+  presentacion,
   dialogo,
 ];
 const actions = new Map(), forms = new Map();
@@ -118,6 +122,10 @@ export function renderPage() {
       selectionStart, selectionEnd);
   }
   partituras.initScorePreviews?.();
+  document.querySelectorAll('.result-document:not([data-didactic-init])').forEach(node => {
+    node.dataset.didacticInit = '1';
+    initDidacticInteractions(node);
+  });
 }
 
 document.querySelectorAll('[data-icon]').forEach(el => el.innerHTML = icon(el.dataset.icon));

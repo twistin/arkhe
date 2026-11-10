@@ -23,6 +23,33 @@ proyecto: debe permanecer junto a él; no es un instalador autónomo.
 Abrirlo de nuevo reutiliza el servidor existente. Para detenerlo, utiliza
 **Ajustes → Cerrar aplicación**. Cerrar la pestaña no detiene el servidor.
 
+### Acceso permanente desde tableta (Tailscale) en macOS
+
+Para acceder a la aplicación desde una tableta (Android, iPad, etc.) mediante **Tailscale** de forma continua siempre que el Mac esté encendido (sin necesidad de abrir la aplicación a mano ni mantener una terminal abierta):
+
+1. **Servicio persistente en macOS (`LaunchAgent`)**:
+   El repositorio incluye la definición en `deploy/com.sdcarr.arkhe.plist` instalada en `~/Library/LaunchAgents/com.sdcarr.arkhe.plist`.
+   - Inicia automáticamente en segundo plano al encender el Mac e iniciar sesión (`RunAtLoad: true`).
+   - Se mantiene siempre en ejecución y se recupera automáticamente si el proceso se detiene (`KeepAlive: true`).
+   - Escucha en `0.0.0.0:8765`, permitiendo conexiones tanto locales (`localhost`) como a través de la IP de Tailscale del Mac.
+   - Registra logs en `~/Library/Logs/arkhe.log` y `~/Library/Logs/arkhe.err`.
+
+2. **Conexión desde la tableta**:
+   - Conecta la tableta a tu misma red de Tailscale.
+   - Abre el navegador de la tableta (Chrome, Firefox, etc.) y navega a la IP de Tailscale de tu Mac en el puerto 8765:
+     ```text
+     http://<IP-Tailscale-del-Mac>:8765
+     ```
+     (ejemplo: `http://100.101.153.106:8765` o `http://macbook-pro:8765` si usas MagicDNS).
+   - Puedes añadir la página a la pantalla de inicio de Android como acceso directo o aplicación web.
+
+3. **Comandos de control del servicio**:
+   - Detener el servicio: `launchctl unload ~/Library/LaunchAgents/com.sdcarr.arkhe.plist`
+   - Iniciar / recargar el servicio: `launchctl load ~/Library/LaunchAgents/com.sdcarr.arkhe.plist`
+   - Comprobar estado: `launchctl list | grep arkhe`
+
+*Nota para portátiles Mac:* Para que responda con la pantalla apagada o en reposo cuando esté conectado a la corriente, asegúrate en *Ajustes del Sistema → Batería / Pantalla de bloqueo* de permitir el acceso de red o evitar la suspensión total del equipo.
+
 ## Tu carpeta de conocimiento
 
 ### Audiciones y conciertos del centro
@@ -93,8 +120,23 @@ automáticamente como fallida con el motivo «interrumpido».
 La revisión pedagógica sigue siendo del profesor.
 
 En **Diario**, el profesor dispone de dos modos de trabajo mediante pestañas:
-- **Planificador semanal:** vista de calendario semanal donde cada columna representa un día y muestra los eventos del centro (con su prioridad) y las sesiones de clase programadas para cada grupo según el horario y las excepciones del calendario. Cada tarjeta de sesión se asocia al color de su materia y enlaza directamente con la unidad didáctica de la programación (`curriculum_unit`), la propuesta docente preparada (mostrando el estado de la guía, el contador de partituras MusicXML y de componentes didácticos interactivos, con acceso a la guía docente y material del alumnado, o botón para «Preparar sesión»), y las notas de clase registradas. La barra de navegación permite saltar entre semanas («Anterior», «Hoy», «Siguiente»), seleccionar una fecha en el calendario o descargar el horario en formato iCalendar (.ics).
+- **Planificador semanal:** vista de calendario semanal donde cada columna representa un día y muestra los eventos del centro (con su prioridad) y las sesiones de clase programadas para cada grupo según el horario y las excepciones del calendario. Cada tarjeta de sesión se asocia al color de su materia y enlaza directamente con la unidad didáctica de la programación (`curriculum_unit`), la propuesta docente preparada (mostrando el estado de la guía, el contador de partituras MusicXML y de componentes didácticos interactivos, con acceso a la guía docente, material del alumnado y botón directo para «Proyectar»), y las notas de clase registradas. La barra de navegación permite saltar entre semanas («Anterior», «Hoy», «Siguiente»), seleccionar una fecha en el calendario o descargar el horario en formato iCalendar (.ics).
 - **Historial de registros:** listado cronológico de las sesiones pasadas con las reflexiones de aula anotadas por el docente («qué funcionó», «qué cambiarías», «por dónde continuar») y acceso directo a la carpeta local `03 Diario docente`.
+
+### Presentaciones docentes para proyección en el aula
+
+Para cada propuesta pedagógica preparada, Arkhé crea automáticamente una presentación visual en formato 16:9 pensada para proyectar directamente en el aula o mostrar en pantallas grandes:
+- **Secuencia didáctica por diapositivas:**
+  1. **Portada formal:** título del tema, materia, nivel educativo, duración estimada y fecha de la sesión.
+  2. **Hoja de ruta y objetivos:** listado claro de lo que se va a trabajar y aprender hoy.
+  3. **Contenidos y conceptos clave:** síntesis clara de las fuentes documentales, ideas esenciales y ejemplos musicales vinculados (con compases y aspectos a observar).
+  4. **Esquemas y modelos didácticos:** visualizaciones conceptuales y modelos acústicos calculados deterministamente.
+  5. **Audiciones comentadas:** repertorio de audición activa con pautas específicas de escucha para el aula.
+  6. **Actividades prácticas:** diapositiva para cada actividad con tiempo en minutos, modalidad de trabajo (individual, parejas, grupo) y consigna clara proyectada para el alumnado.
+  7. **Cierre de sesión:** síntesis final, balance y tareas para la próxima clase.
+- **Visor interactivo integrado:** botón **«Proyectar»** disponible en la cabecera de cada propuesta y en las tarjetas del planificador. Permite controlar la presentación a pantalla completa (teclas `←`, `→`, `Espacio`, `F` para alternar pantalla completa y `Esc` para cerrar), navegar con botones táctiles o barra de progreso y abrirla en pestaña independiente para proyección en doble pantalla.
+- **Exportación versátil:** descarga directa en **HTML autónomo e interactivo** (funciona 100% offline sin necesidad de tener el servidor en marcha ni conexión a internet), **Markdown de diapositivas** delimitado por `---` (compatible con Marp, Slidev u Obsidian), e impresión a **PDF apaisado** con salto de página automático por diapositiva. Endpoint API disponible mediante `/api/runs/{id}?presentation=1` (con opción `&format=md`).
+
 
 Para la ilustración analítica de obras y técnicas, las propuestas pueden solicitar
 ejemplos mediante `music_requests` (obra, compositor, sección, técnica y actividad).

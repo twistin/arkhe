@@ -124,7 +124,7 @@ def test_diario_no_entra_en_prompts_remotos(corpus, provider):
     for marker in ('TEMA PRIVADO DEL DIARIO','NOTAS PRIVADAS DEL DIARIO','FEEDBACK PRIVADO DEL DIARIO','prior_experience','session_records','session_feedback'):
         assert marker not in messages
     payload = json.loads(generator.dialogues[0][1]['content'])
-    assert set(payload['context']).issubset({'group','duration_minutes','teacher_criteria','unit','requirements'})
+    assert set(payload['context']).issubset({'group','duration_minutes','teacher_criteria','unit','requirements','repertorio_disponible'})
     assert {'group','duration_minutes','teacher_criteria','unit'}.issubset(set(payload['context']))
     assert 'Criterio explícito' in messages
     local = build_prompt('Pulso',[candidate(corpus)],replace(corpus[3],num_ctx=16384),context)

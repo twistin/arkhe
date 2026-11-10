@@ -665,7 +665,7 @@ def render_student(run: dict[str, Any]) -> str:
 
     # --- SECCIÓN 01: CONTENIDO TEÓRICO DE LAS FUENTES ---
     claims = result.get('claims') or []
-    lines += ['', '## 01 · Contenido teórico de las fuentes', '']
+    lines += ['', '## 01 · Contenido teórico', '']
 
     # Cabecera de autores derivada dinámicamente de las fuentes reales citadas
     cited_authors: list[str] = []
@@ -693,10 +693,24 @@ def render_student(run: dict[str, Any]) -> str:
             '*Análisis musicológico e histórico basado en las fuentes documentales autorizadas.*', ''
         ]
 
+    resolved_by_id = {r.get('request_id'): r for r in (result.get('resolved_music_requests') or [])}
     for index, claim in enumerate(claims, 1):
         summary_text = str(claim.get('student_summary') or claim.get('text', '')).strip()
         cleaned_summary = clean_student_text(summary_text, by_id, is_consigna=False)
-        lines += [f"### {index}. Punto clave", '', plain(cleaned_summary), '']
+        title = plain(claim.get('title') or '') or 'Punto clave'
+        lines += [f"### {index}. {title}", '', plain(cleaned_summary), '']
+        points = [plain(p) for p in (claim.get('key_points') or []) if str(p).strip()]
+        if points:
+            lines += ['**Ideas clave:**'] + [f'- {p}' for p in points] + ['']
+        for ex_id in claim.get('example_ids') or []:
+            item = resolved_by_id.get(ex_id) or {}
+            ej = item.get('ejemplo') or {}
+            if item.get('status') == 'resuelto_repertorio' and ej:
+                obra = ' · '.join(x for x in (plain(ej.get('obra', '')), plain(ej.get('seccion', ''))) if x)
+                lines.append(f"🎼 **Ejemplo:** {obra} — {plain(ej.get('compositor', ''))} (compases {plain(ej.get('compases', '1-8'))}).")
+                if ej.get('que_observar'):
+                    lines.append(f"*Observa:* {plain(ej['que_observar'])}")
+                lines.append('')
 
     # --- SECCIÓN 02: ESQUEMAS ---
     lines += ['', '## 02 · Esquemas de estudio', '']
@@ -745,14 +759,18 @@ def render_student(run: dict[str, Any]) -> str:
             if desc_dc:
                 lines += [f"*{plain(desc_dc)}*", '']
             if tipo_dc == 'tetracordos':
+                # Tabla generada con los mismos datos calculados que el gráfico (nunca escrita a mano).
+                afin = dc.get('afinacion_pitagorica') or {}
                 lines += [
-                    '| Género | Subdivisión interválica | Frecuencias exactas (Mi4 descendente) | Cents |',
+                    f"*{plain(afin.get('nombre_sistema', 'Afinación pitagórica'))}. Tetracordo descendente de mi a si.*", '',
+                    '| Género | Intervalos (de agudo a grave) | Notas y frecuencias | Cents |',
                     '| --- | --- | --- | --- |',
-                    '| **Diatónico** | Semitono – Tono – Tono | 329.6 Hz, 293.7 Hz, 261.6 Hz, 246.9 Hz | 0, 100, 300, 500 c |',
-                    '| **Cromático** | Semitono – Semitono – Trihemitono | 329.6 Hz, 277.2 Hz, 261.6 Hz, 246.9 Hz | 0, 100, 200, 500 c |',
-                    '| **Enarmónico** | Cuarto de tono – Cuarto de tono – Ditono | 329.6 Hz, 261.6 Hz, 254.2 Hz (cuarto de tono), 246.9 Hz | 0, 50, 100, 500 c |',
-                    '',
                 ]
+                for gen in (afin.get('generos') or {}).values():
+                    notas = ', '.join(f"{plain(n.get('nombre', ''))} ({n.get('freq_hz')} Hz)" for n in gen.get('notas', []))
+                    cents = ' + '.join(str(c) for c in gen.get('cents', [])) + f" = {gen.get('suma_cents', '')}"
+                    lines.append(f"| **{plain(gen.get('nombre', ''))}** | {plain(gen.get('formula', ''))} | {notas} | {cents} |")
+                lines.append('')
             elif tipo_dc == 'gran_sistema_perfecto':
                 lines += [
                     '| Tetracordo / Función | Nota griega | Transliteración | Nota moderna | Frecuencia Hz |',
@@ -981,6 +999,604 @@ def render_student(run: dict[str, Any]) -> str:
             ]
 
     return clean_terminologia_output(sanitize_student_output('\n'.join(lines).rstrip() + '\n'))
+
+
+def _build_presentation_slides(run: dict[str, Any]) -> list[dict[str, Any]]:
+    """Construye la secuencia estructurada de diapositivas para proyección pedagógica."""
+    context = (run.get('request') or {}).get('pedagogy') or {}
+    result = run.get('result') or {}
+    plan = result.get('plan') or {}
+    group = context.get('group') or {}
+    session = context.get('session') or {}
+    topic_raw = str(run.get('original_topic') or (run.get('request') or {}).get('original_topic') or (run.get('request') or {}).get('question', '')).strip()
+    display_title = run.get('display_title') or (run.get('request') or {}).get('display_title')
+    if not display_title:
+        from docente_ai.teaching.terms import normalize_topic
+        norm = normalize_topic(topic_raw)
+        display_title = (norm[:1].upper() + norm[1:]) if norm else topic_raw
+    topic = display_title or 'Presentación pedagógica'
+
+    by_id = {item['source_id']: item for item in (run.get('evidence') or []) if 'source_id' in item}
+    slides: list[dict[str, Any]] = []
+
+    # 1. Diapositiva de Portada
+    meta_badges: list[str] = []
+    if group.get('name'):
+        lvl = f" ({group['level']})" if group.get('level') else ""
+        meta_badges.append(f"{group['name']}{lvl}")
+    if context.get('duration_minutes'):
+        meta_badges.append(f"{context['duration_minutes']} min")
+    if session.get('date'):
+        meta_badges.append(str(session['date']))
+
+    slides.append({
+        'tipo': 'portada',
+        'kicker': 'Presentación pedagógica · Arkhé',
+        'titulo': topic,
+        'subtitulo': 'Material docente estructurado para proyección en el aula',
+        'metadatos': meta_badges,
+    })
+
+    # 2. Hoja de ruta / Objetivos
+    objectives = [
+        clean_student_text(item, by_id, is_consigna=True)
+        for item in plan.get('objectives', [])
+        if str(item).strip()
+    ]
+    if objectives:
+        slides.append({
+            'tipo': 'objetivos',
+            'kicker': 'Hoja de ruta',
+            'titulo': '¿Qué vamos a trabajar hoy?',
+            'subtitulo': 'Objetivos de aprendizaje de la sesión',
+            'items': objectives,
+        })
+
+    # 3. Conceptos teóricos y contenidos clave (claims)
+    claims = result.get('claims') or []
+    resolved_by_id = {r.get('request_id'): r for r in (result.get('resolved_music_requests') or [])}
+    for idx, claim in enumerate(claims, 1):
+        ctitle = claim.get('title') or f"Concepto {idx}"
+        csummary = str(claim.get('student_summary') or claim.get('text', '')).strip()
+        cleaned_summary = clean_student_text(csummary, by_id, is_consigna=False)
+        pts = [str(p).strip() for p in (claim.get('key_points') or []) if str(p).strip()]
+
+        ejemplo_info = None
+        for ex_id in claim.get('example_ids') or []:
+            item = resolved_by_id.get(ex_id) or {}
+            ej = item.get('ejemplo') or {}
+            if item.get('status') == 'resuelto_repertorio' and ej:
+                obra = ' · '.join(x for x in (ej.get('obra', ''), ej.get('seccion', '')) if x)
+                ejemplo_info = {
+                    'obra': obra,
+                    'compositor': ej.get('compositor', ''),
+                    'compases': ej.get('compases', '1-8'),
+                    'que_observar': ej.get('que_observar', ''),
+                }
+                break
+
+        slides.append({
+            'tipo': 'concepto',
+            'kicker': f'Contenido clave {idx:02d}',
+            'titulo': ctitle,
+            'resumen': cleaned_summary,
+            'puntos_clave': pts,
+            'ejemplo': ejemplo_info,
+        })
+
+    # 4. Esquemas didácticos y visualizaciones
+    visualizations = result.get('visualizations') or []
+    for visual in visualizations:
+        slides.append({
+            'tipo': 'esquema',
+            'kicker': 'Esquema conceptual',
+            'titulo': visual.get('title', 'Estructura'),
+            'caption': visual.get('caption', ''),
+            'items': visual.get('items', []),
+        })
+
+    didactic_comps = result.get('resolved_didactic_components') or []
+    for dc in didactic_comps:
+        tipo_dc = dc.get('tipo', '')
+        tit_dc = dc.get('titulo') or tipo_dc.replace('_', ' ').title()
+        items_dc = []
+        if tipo_dc == 'monocordio':
+            for div in dc.get('divisiones', [])[:6]:
+                items_dc.append({
+                    'label': f"{div.get('fraccion', '')} ({div.get('proporcion', '')})",
+                    'detail': f"{div.get('intervalo_moderno', '')} · {div.get('freq_hz', 0):.1f} Hz",
+                })
+        elif tipo_dc == 'tetracordos':
+            afin = dc.get('afinacion_pitagorica') or {}
+            for gen in (afin.get('generos') or {}).values():
+                items_dc.append({
+                    'label': gen.get('nombre', ''),
+                    'detail': f"{gen.get('formula', '')} (cents: {' + '.join(str(c) for c in gen.get('cents', []))})",
+                })
+        else:
+            items_dc.append({
+                'label': 'Modelo acústico',
+                'detail': dc.get('descripcion', 'Cálculo determinista de teoría musical'),
+            })
+
+        slides.append({
+            'tipo': 'componente_didactico',
+            'kicker': 'Modelo didáctico determinista',
+            'titulo': tit_dc,
+            'caption': dc.get('descripcion', ''),
+            'items': items_dc,
+        })
+
+    # 5. Audiciones comentadas
+    listenings: list[dict[str, Any]] = []
+    if _is_15th_century_topic(run):
+        listenings = POLYPHONY_15TH_CENTURY_LISTENINGS
+    elif _is_ancient_egypt_topic(run):
+        listenings = ANCIENT_EGYPT_LISTENINGS
+    else:
+        from docente_ai.teaching.audiciones import find_audiciones_for_topic, is_audicion_verified
+        cat = find_audiciones_for_topic(topic_raw, str(context.get('teacher_criteria', '')), limit=4)
+        listenings = [item for item in cat if is_audicion_verified(item)]
+
+    if listenings:
+        items_aud = []
+        for l in listenings:
+            obra = l.get('obra') or l.get('title') or l.get('titulo') or ''
+            comp = l.get('compositor') or l.get('composer') or ''
+            fecha = f" ({l['ano_periodo']})" if l.get('ano_periodo') else ""
+            guia = l.get('criterios_escucha') or l.get('que_escuchar') or l.get('aspectos_clave') or l.get('subtitle') or ''
+            items_aud.append({
+                'obra': f"{obra} — {comp}{fecha}".strip(' —'),
+                'guia': guia,
+            })
+        slides.append({
+            'tipo': 'audiciones',
+            'kicker': 'Audición activa',
+            'titulo': 'Repertorio y audiciones comentadas',
+            'subtitulo': 'Aspectos clave a observar durante la audición en clase',
+            'audiciones': items_aud,
+        })
+
+    # 6. Actividades prácticas de aula
+    activities = plan.get('activities') or []
+    for idx, act in enumerate(activities, 1):
+        atitle = act.get('title') or f"Actividad {idx}"
+        mins = act.get('minutes', 0)
+        grouping = act.get('grouping') or 'En el aula'
+        task = clean_student_text(act.get('student_task') or act.get('instructions', ''), by_id, is_consigna=True)
+        slides.append({
+            'tipo': 'actividad',
+            'numero': idx,
+            'kicker': f'Actividad {idx:02d} · {mins} min',
+            'titulo': atitle,
+            'agrupamiento': grouping,
+            'minutos': mins,
+            'consigna': task,
+            'recursos': act.get('materials') or act.get('resources') or [],
+        })
+
+    # 7. Diapositiva de Cierre
+    slides.append({
+        'tipo': 'cierre',
+        'kicker': 'Cierre de la sesión',
+        'titulo': 'Conclusiones y balance',
+        'subtitulo': 'Puntos esenciales fijados en el aula',
+        'items': [
+            'Puesta en común de dudas y resultados del trabajo práctico.',
+            'Síntesis de los conceptos clave abordados.',
+            'Orientaciones y entrega para la siguiente sesión.',
+        ],
+    })
+
+    return slides
+
+
+def render_presentation_md(run: dict[str, Any]) -> str:
+    """Genera diapositivas en Markdown delimitadas por --- para proyectar en el aula."""
+    slides_data = _build_presentation_slides(run)
+    md_slides: list[str] = []
+
+    for s in slides_data:
+        stype = s.get('tipo')
+        if stype == 'portada':
+            kicker_str = f"{s.get('kicker')} · " if s.get('kicker') else ""
+            lines = [
+                f"# {plain(s['titulo'])}",
+                f"### {plain(kicker_str)}{plain(s['subtitulo'])}",
+                "",
+                *[f"- **{plain(m)}**" for m in s.get('metadatos', [])],
+            ]
+        elif stype == 'objetivos':
+            lines = [
+                f"## {plain(s['titulo'])}",
+                f"### {plain(s['subtitulo'])}",
+                "",
+                *[f"- {plain(item)}" for item in s.get('items', [])],
+            ]
+        elif stype == 'concepto':
+            lines = [
+                f"## {plain(s['titulo'])}",
+                "",
+                f"> {plain(s['resumen'])}",
+            ]
+            if s.get('puntos_clave'):
+                lines.extend(["", "**Aspectos clave:**", *[f"- {plain(p)}" for p in s['puntos_clave']]])
+            ej = s.get('ejemplo')
+            if ej:
+                lines.extend([
+                    "",
+                    f"🎼 **Ejemplo:** {plain(ej['obra'])} — {plain(ej['compositor'])} (c. {plain(ej['compases'])})",
+                ])
+                if ej.get('que_observar'):
+                    lines.append(f"*Qué observar:* {plain(ej['que_observar'])}")
+        elif stype in ('esquema', 'componente_didactico'):
+            lines = [f"## {plain(s['titulo'])}"]
+            if s.get('caption'):
+                lines.extend(["", f"*{plain(s['caption'])}*"])
+            lines.append("")
+            for itm in s.get('items', []):
+                lines.append(f"- **{plain(itm.get('label', ''))}:** {plain(itm.get('detail', ''))}")
+        elif stype == 'audiciones':
+            lines = [
+                f"## {plain(s['titulo'])}",
+                f"### {plain(s['subtitulo'])}",
+                "",
+            ]
+            for aud in s.get('audiciones', []):
+                lines.append(f"- 🎧 **{plain(aud['obra'])}**")
+                if aud.get('guia'):
+                    lines.append(f"  *En qué fijarse:* {plain(aud['guia'])}")
+        elif stype == 'actividad':
+            lines = [
+                f"## Actividad {s.get('numero', 1)} · {plain(s['titulo'])}",
+                f"### ⏱️ {s.get('minutos', 0)} min · Modalidad: {plain(s.get('agrupamiento', ''))}",
+                "",
+                "**Consigna:**",
+                plain(s.get('consigna', '')),
+            ]
+        elif stype == 'cierre':
+            kicker_str = f"{s.get('kicker')} · " if s.get('kicker') else ""
+            lines = [
+                f"## {plain(kicker_str)}{plain(s['titulo'])}",
+                f"### {plain(s['subtitulo'])}",
+                "",
+                *[f"- {plain(item)}" for item in s.get('items', [])],
+            ]
+        else:
+            lines = [f"## {plain(s.get('titulo', 'Diapositiva'))}", "", plain(s.get('resumen', ''))]
+
+        md_slides.append('\n'.join(lines).strip())
+
+    raw_output = '\n\n---\n\n'.join(md_slides)
+    return clean_terminologia_output(sanitize_student_output(raw_output + '\n'))
+
+
+def render_presentation_html(run: dict[str, Any]) -> str:
+    """Genera una presentación HTML interactiva y autónoma para proyectar en el aula."""
+    slides_data = _build_presentation_slides(run)
+    context = (run.get('request') or {}).get('pedagogy') or {}
+    group = context.get('group') or {}
+    group_name = html.escape(group.get('name') or 'Espacio docente', quote=True)
+    main_title = html.escape(slides_data[0]['titulo'] if slides_data else 'Presentación', quote=True)
+
+    deck_html_parts: list[str] = []
+    for idx, s in enumerate(slides_data):
+        active_cls = ' active' if idx == 0 else ''
+        stype = s.get('tipo')
+        kicker_html = f"<div class=\"slide-kicker\">{html.escape(s.get('kicker', ''), quote=False)}</div>" if s.get('kicker') else ""
+        title_html = f"<h1 class=\"slide-title\">{html.escape(s.get('titulo', ''), quote=False)}</h1>"
+
+        body_lines: list[str] = []
+        if stype == 'portada':
+            if s.get('subtitulo'):
+                body_lines.append(f"<p class=\"slide-lead\">{html.escape(s['subtitulo'], quote=False)}</p>")
+            meta_chips = ''.join(f"<span class=\"slide-chip\">{html.escape(m, quote=False)}</span>" for m in s.get('metadatos', []))
+            if meta_chips:
+                body_lines.append(f"<div class=\"slide-chips\">{meta_chips}</div>")
+        elif stype == 'objetivos':
+            if s.get('subtitulo'):
+                body_lines.append(f"<p class=\"slide-lead\">{html.escape(s['subtitulo'], quote=False)}</p>")
+            items_li = ''.join(f"<li><span class=\"bullet-icon\">✓</span><div>{html.escape(item, quote=False)}</div></li>" for item in s.get('items', []))
+            body_lines.append(f"<ul class=\"slide-objectives\">{items_li}</ul>")
+        elif stype == 'concepto':
+            if s.get('resumen'):
+                body_lines.append(f"<div class=\"slide-quote\"><p>{html.escape(s['resumen'], quote=False)}</p></div>")
+            if s.get('puntos_clave'):
+                pts_li = ''.join(f"<li>{html.escape(p, quote=False)}</li>" for p in s['puntos_clave'])
+                body_lines.append(f"<div class=\"slide-keypoints\"><h3>Aspectos clave</h3><ul>{pts_li}</ul></div>")
+            ej = s.get('ejemplo')
+            if ej:
+                obs_html = f"<p class=\"example-obs\"><strong>Qué observar:</strong> {html.escape(ej['que_observar'], quote=False)}</p>" if ej.get('que_observar') else ""
+                body_lines.append(
+                    f"<div class=\"slide-example-box\">"
+                    f"<div class=\"example-head\">🎼 <strong>{html.escape(ej['obra'], quote=False)}</strong> — {html.escape(ej['compositor'], quote=False)} (c. {html.escape(ej['compases'], quote=False)})</div>"
+                    f"{obs_html}"
+                    f"</div>"
+                )
+        elif stype in ('esquema', 'componente_didactico'):
+            if s.get('caption'):
+                body_lines.append(f"<p class=\"slide-lead\">{html.escape(s['caption'], quote=False)}</p>")
+            cards = ''.join(
+                f"<div class=\"slide-schema-card\"><strong>{html.escape(itm.get('label', ''), quote=False)}</strong><p>{html.escape(itm.get('detail', ''), quote=False)}</p></div>"
+                for itm in s.get('items', [])
+            )
+            body_lines.append(f"<div class=\"slide-schema-grid\">{cards}</div>")
+        elif stype == 'audiciones':
+            if s.get('subtitulo'):
+                body_lines.append(f"<p class=\"slide-lead\">{html.escape(s['subtitulo'], quote=False)}</p>")
+            aud_cards = []
+            for aud in s.get('audiciones', []):
+                guia_html = f"<p>{html.escape(aud['guia'], quote=False)}</p>" if aud.get('guia') else ""
+                aud_cards.append(f"<div class=\"slide-listening-card\"><div class=\"aud-icon\">🎧</div><div><h4>{html.escape(aud['obra'], quote=False)}</h4>{guia_html}</div></div>")
+            body_lines.append(f"<div class=\"slide-listening-grid\">{''.join(aud_cards)}</div>")
+        elif stype == 'actividad':
+            body_lines.append(
+                f"<div class=\"slide-activity-meta\">"
+                f"<span class=\"slide-chip highlight\">⏱️ {s.get('minutos', 0)} minutos</span>"
+                f"<span class=\"slide-chip\">Modalidad: {html.escape(s.get('agrupamiento', 'En el aula'), quote=False)}</span>"
+                f"</div>"
+            )
+            body_lines.append(f"<div class=\"slide-activity-task\"><h3>Consigna de trabajo</h3><p>{html.escape(s.get('consigna', ''), quote=False)}</p></div>")
+            if s.get('recursos'):
+                recs_str = ', '.join(html.escape(str(r), quote=False) for r in s['recursos'])
+                body_lines.append(f"<p class=\"slide-resources\"><strong>Recursos:</strong> {recs_str}</p>")
+        elif stype == 'cierre':
+            if s.get('subtitulo'):
+                body_lines.append(f"<p class=\"slide-lead\">{html.escape(s['subtitulo'], quote=False)}</p>")
+            items_li = ''.join(f"<li><span class=\"bullet-icon\">✦</span><div>{html.escape(item, quote=False)}</div></li>" for item in s.get('items', []))
+            body_lines.append(f"<ul class=\"slide-objectives\">{items_li}</ul>")
+        else:
+            if s.get('resumen'):
+                body_lines.append(f"<p>{html.escape(s['resumen'], quote=False)}</p>")
+
+        body_html = '\n'.join(body_lines)
+        deck_html_parts.append(
+            f"<section class=\"slide{active_cls}\" data-slide=\"{idx + 1}\" aria-label=\"Diapositiva {idx + 1}\">\n"
+            f"  <div class=\"slide-header\">{kicker_html}{title_html}</div>\n"
+            f"  <div class=\"slide-content\">{body_html}</div>\n"
+            f"  <footer class=\"slide-footer\"><span>Arkhé · {group_name}</span><span>{idx + 1} / {len(slides_data)}</span></footer>\n"
+            f"</section>"
+        )
+
+    deck_html = '\n'.join(deck_html_parts)
+    total_slides = len(slides_data)
+
+    page_html = f"""<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{main_title} · Presentación Arkhé</title>
+  <style>
+    :root {{
+      --bg: #090d16;
+      --card-bg: #111827;
+      --ink: #f8fafc;
+      --ink-muted: #94a3b8;
+      --accent: #0f766e;
+      --accent-light: #2dd4bf;
+      --gold: #f59e0b;
+      --border: #1f2937;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --serif: Baskerville, Georgia, serif;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    html, body {{
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      overflow: hidden;
+      user-select: none;
+    }}
+    .presentation-container {{
+      width: 100vw; height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      position: relative;
+    }}
+    .slide-deck {{
+      width: 94vw; max-width: 1400px;
+      height: 86vh; max-height: 840px;
+      aspect-ratio: 16 / 9;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      display: flex; flex-direction: column;
+      position: relative; overflow: hidden;
+    }}
+    .slide {{
+      display: none; width: 100%; height: 100%;
+      padding: 3rem 4rem 2.5rem;
+      flex-direction: column; justify-content: space-between;
+      animation: fadeIn 0.25s ease-out;
+    }}
+    .slide.active {{ display: flex; }}
+    @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+    .slide-header {{ margin-bottom: 1.5rem; }}
+    .slide-kicker {{
+      font-size: 0.95rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--accent-light); margin-bottom: 0.5rem;
+    }}
+    .slide-title {{
+      font-family: var(--serif);
+      font-size: clamp(2rem, 3.8vw, 3.2rem);
+      line-height: 1.15; color: var(--ink);
+      letter-spacing: -0.02em;
+    }}
+    .slide-lead {{
+      font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+      color: var(--ink-muted); margin-bottom: 1.5rem; line-height: 1.4;
+    }}
+    .slide-content {{
+      flex: 1; display: flex; flex-direction: column;
+      justify-content: center; min-height: 0; overflow-y: auto;
+    }}
+    .slide-chips {{ display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }}
+    .slide-chip {{
+      padding: 0.4rem 1rem; border-radius: 9999px; font-size: 1rem;
+      background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border); color: var(--ink);
+    }}
+    .slide-chip.highlight {{ background: rgba(45, 212, 191, 0.15); border-color: var(--accent-light); color: var(--accent-light); font-weight: 600; }}
+    .slide-objectives {{ list-style: none; display: flex; flex-direction: column; gap: 1rem; }}
+    .slide-objectives li {{
+      display: flex; align-items: flex-start; gap: 1rem;
+      font-size: clamp(1.2rem, 2vw, 1.6rem); line-height: 1.4;
+    }}
+    .bullet-icon {{ color: var(--accent-light); font-weight: bold; flex-shrink: 0; }}
+    p {{ color: var(--ink); }}
+    .slide-quote {{
+      border-left: 5px solid var(--accent-light);
+      padding: 1.25rem 1.75rem; background: rgba(15, 118, 110, 0.28);
+      border-radius: 0 10px 10px 0; font-size: clamp(1.2rem, 2vw, 1.55rem);
+      line-height: 1.55; margin-bottom: 1.5rem;
+      border-top: 1px solid rgba(45, 212, 191, 0.2);
+      border-right: 1px solid rgba(45, 212, 191, 0.2);
+      border-bottom: 1px solid rgba(45, 212, 191, 0.2);
+    }}
+    .slide-quote p {{
+      color: #ffffff !important;
+      font-weight: 500;
+    }}
+    .slide-keypoints {{ margin-top: 0.5rem; }}
+    .slide-keypoints h3 {{ font-size: 1.15rem; color: var(--gold); margin-bottom: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }}
+    .slide-keypoints ul {{ list-style: square; padding-left: 1.5rem; display: flex; flex-direction: column; gap: 0.45rem; }}
+    .slide-keypoints li {{ font-size: clamp(1.1rem, 1.6vw, 1.35rem); color: #f8fafc; line-height: 1.45; }}
+    .slide-example-box {{
+      margin-top: 1rem; padding: 1rem 1.35rem;
+      background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.5);
+      border-radius: 10px;
+    }}
+    .example-head {{ font-size: 1.15rem; color: var(--gold); margin-bottom: 0.25rem; font-weight: 600; }}
+    .example-obs {{ font-size: 1.05rem; color: #f8fafc; }}
+    .slide-schema-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }}
+    .slide-schema-card {{
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+      padding: 1.25rem; border-radius: 10px;
+    }}
+    .slide-schema-card strong {{ display: block; font-size: 1.2rem; color: var(--accent-light); margin-bottom: 0.4rem; }}
+    .slide-schema-card p {{ font-size: 1.05rem; color: #f1f5f9; line-height: 1.45; }}
+    .slide-listening-grid {{ display: flex; flex-direction: column; gap: 1rem; }}
+    .slide-listening-card {{
+      display: flex; align-items: center; gap: 1.25rem;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+      padding: 1.25rem; border-radius: 10px;
+    }}
+    .aud-icon {{ font-size: 2rem; }}
+    .slide-listening-card h4 {{ font-size: 1.25rem; color: #ffffff; margin-bottom: 0.25rem; }}
+    .slide-listening-card p {{ font-size: 1.05rem; color: #e2e8f0; }}
+    .slide-activity-meta {{ display: flex; gap: 0.75rem; margin-bottom: 1.25rem; }}
+    .slide-activity-task {{
+      background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border);
+      padding: 1.75rem; border-radius: 12px; margin-bottom: 1rem;
+    }}
+    .slide-activity-task h3 {{ font-size: 1.1rem; color: var(--accent-light); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; }}
+    .slide-activity-task p {{ font-size: clamp(1.25rem, 2vw, 1.6rem); line-height: 1.5; color: #ffffff !important; font-weight: 500; }}
+    .slide-resources {{ font-size: 1.05rem; color: #e2e8f0; }}
+    .slide-footer {{
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.95rem; color: var(--ink-muted);
+    }}
+    .presentation-controls {{
+      position: fixed; bottom: 1.5rem; display: flex; align-items: center;
+      gap: 1rem; background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px);
+      padding: 0.6rem 1.25rem; border-radius: 9999px; border: 1px solid var(--border);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); z-index: 100;
+    }}
+    .presentation-controls button {{
+      background: none; border: none; color: var(--ink); cursor: pointer;
+      font-size: 1rem; padding: 0.35rem 0.65rem; border-radius: 6px;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }}
+    .presentation-controls button:hover {{ background: rgba(255, 255, 255, 0.12); }}
+    .slide-counter {{ font-size: 0.95rem; font-weight: 600; color: var(--ink-muted); min-width: 65px; text-align: center; }}
+    .progress-bar-container {{
+      position: fixed; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255, 255, 255, 0.05);
+    }}
+    .progress-bar {{ height: 100%; width: {(1.0 / total_slides * 100) if total_slides else 0}%; background: var(--accent-light); transition: width 0.2s; }}
+    @media print {{
+      body, html {{ overflow: visible !important; background: #fff !important; color: #000 !important; }}
+      .presentation-container {{ display: block !important; height: auto !important; }}
+      .presentation-controls, .progress-bar-container {{ display: none !important; }}
+      .slide-deck {{ width: 100% !important; height: auto !important; aspect-ratio: auto !important; border: none !important; box-shadow: none !important; background: #fff !important; }}
+      .slide {{ display: flex !important; page-break-after: always; break-after: page; height: 100vh !important; padding: 2rem !important; color: #000 !important; background: #fff !important; }}
+      .slide-title {{ color: #000 !important; }}
+      .slide-lead, .slide-keypoints li, .slide-footer {{ color: #475569 !important; }}
+      .slide-quote {{ background: #f1f5f9 !important; color: #000 !important; border-left-color: #0f766e !important; }}
+      .slide-schema-card, .slide-activity-task, .slide-listening-card {{ background: #f8fafc !important; border-color: #cbd5e1 !important; color: #000 !important; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="presentation-container">
+    <main class="slide-deck">
+{deck_html}
+    </main>
+    <nav class="presentation-controls" aria-label="Controles de la presentación">
+      <button id="btn-prev" aria-label="Anterior diapositiva" title="Anterior (← o Espacio)">◀</button>
+      <span class="slide-counter" id="counter">1 / {total_slides}</span>
+      <button id="btn-next" aria-label="Siguiente diapositiva" title="Siguiente (→ o Espacio)">▶</button>
+      <button id="btn-fs" aria-label="Pantalla completa" title="Pantalla completa (F)">⛶</button>
+      <button id="btn-print" aria-label="Imprimir presentación" title="Imprimir / PDF">🖨️</button>
+    </nav>
+    <div class="progress-bar-container"><div class="progress-bar" id="progress"></div></div>
+  </div>
+  <script>
+    (function() {{
+      const slides = document.querySelectorAll('.slide');
+      const counter = document.getElementById('counter');
+      const progress = document.getElementById('progress');
+      const total = slides.length;
+      let current = 0;
+
+      function update(idx) {{
+        if (idx < 0) idx = 0;
+        if (idx >= total) idx = total - 1;
+        current = idx;
+        slides.forEach((s, i) => s.classList.toggle('active', i === current));
+        if (counter) counter.textContent = (current + 1) + ' / ' + total;
+        if (progress) progress.style.width = (((current + 1) / total) * 100) + '%';
+      }}
+
+      document.getElementById('btn-prev').addEventListener('click', () => update(current - 1));
+      document.getElementById('btn-next').addEventListener('click', () => update(current + 1));
+      document.getElementById('btn-fs').addEventListener('click', () => {{
+        if (!document.fullscreenElement) {{
+          document.documentElement.requestFullscreen().catch(() => {{}});
+        }} else {{
+          document.exitFullscreen().catch(() => {{}});
+        }}
+      }});
+      document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+      window.addEventListener('keydown', (e) => {{
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {{
+          e.preventDefault(); update(current + 1);
+        }} else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {{
+          e.preventDefault(); update(current - 1);
+        }} else if (e.key === 'Home') {{
+          e.preventDefault(); update(0);
+        }} else if (e.key === 'End') {{
+          e.preventDefault(); update(total - 1);
+        }} else if (e.key === 'f' || e.key === 'F') {{
+          if (!document.fullscreenElement) {{
+            document.documentElement.requestFullscreen().catch(() => {{}});
+          }} else {{
+            document.exitFullscreen().catch(() => {{}});
+          }}
+        }} else if (e.key === 'p' && (e.ctrlKey || e.metaKey)) {{
+          // Permitir atajo nativo
+        }}
+      }});
+    }})();
+  </script>
+</body>
+</html>"""
+
+    return clean_terminologia_output(sanitize_student_output(page_html))
 
 
 def clean_terminologia_output(text: str) -> str:

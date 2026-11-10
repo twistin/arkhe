@@ -963,6 +963,10 @@ Para garantizar rigor pedagógico y eliminar contenido no contrastado en los ent
   - Eliminación de identificadores internos de fuentes (`Fuente: S12`, `pasajes de S9`, `(S8, S10)`) en consignas y textos del estudiante, sustituidos por referencias a autor y página o por redacciones pedagógicas limpias.
   - La bibliografía y cabeceras de autor se generan dinámicamente de forma exclusiva a partir de las fuentes efectivamente citadas en las evidencias del plan, deduplicando por autor y eliminando entradas fijas no utilizadas.
   - Unificación de audiciones en un único bloque y redacción estructurada de recursos pendientes: el modelo devuelve `{ recurso, tipo: partitura | grabacion | texto | imagen | dato, pendiente: true }`. El material del alumnado los redacta según el tipo («partitura que te entregará el profesor», «grabación que escucharemos en clase», «texto que te entregará el profesor», «imagen que proyectará el profesor»); los recursos de tipo «dato» pendientes (fechas, cifras) nunca se muestran al alumnado y quedan restringidos a la guía docente.
+- **Motor de presentaciones pedagógicas para el aula (`docente_ai.generation.render: render_presentation_html, render_presentation_md`):**
+  - Generación determinista de diapositivas en relación de aspecto 16:9 organizadas por secuencia pedagógica: portada formal, objetivos, conceptos teóricos con puntos clave y ejemplos musicales vinculados, esquemas/modelos didácticos, audiciones activas, consignas de actividad con tiempos destacados y cierre de clase.
+  - Módulo cliente interactivo (`componentes/presentacion.js`, `css/presentacion.css`): visor modal integrado con modo de pantalla completa nativo, navegación completa por teclado (`←`, `→`, `Espacio`, `F`, `Esc`), atajos táctiles y barra de progreso.
+  - Endpoints de exportación en el servidor: `/api/runs/{id}?presentation=1` genera HTML autónomo (100% offline, utilizable sin servidor ni conexión) y `&format=md` genera diapositivas en Markdown delimitado por `---` para Marp, Slidev y Obsidian, con soporte de impresión apaisada a PDF.
 
 ## Creación flexible de propuestas y gestión de calendario (`docente_ai.agents.pedagogy`)
 
@@ -1103,3 +1107,10 @@ movimiento del archivo (nunca de la petición), amplía el fragmento hasta que h
 voces y calcula con music21 el orden de entrada y la proporción de ataques simultáneos. Estas obras se
 muestran al alumnado como «Edición: corpus libre de music21»; un `catalog_id` inexistente deja la
 petición sin resolver. La colección de madrigales de Monteverdi del corpus queda fuera por su texto OCR.
+
+## Servicio de fondo persistente y acceso remoto vía Tailscale
+
+Para permitir el uso continuo de Arkhé desde dispositivos externos (como tabletas Android o iPad) mientras el Mac permanece encendido:
+- **Lanzador LaunchAgent (`deploy/com.sdcarr.arkhe.plist`)**: Define un agente de usuario en macOS gestionado por `launchd`. Se activa al inicio de sesión (`RunAtLoad: true`) y se mantiene supervisado con reinicio automático (`KeepAlive: true`).
+- **Enlace de red (`--host 0.0.0.0 --port 8765 --no-browser`)**: El servidor ASGI/uvicorn se enlaza a todas las interfaces disponibles en la máquina. Esto permite que tanto el navegador local (`127.0.0.1`) como los dispositivos autorizados en la malla privada Tailscale (`100.64.0.0/10` o dominios `.ts.net`) se conecten sin reconfigurar direcciones dinámicas.
+- **Validación de host y orígenes**: El middleware `LocalOnly` valida las cabeceras `Host` y `Origin` aceptando direcciones loopback, privadas y el rango CGNAT de Tailscale, conservando la protección contra orígenes no autorizados y el aislamiento por token de sesión.

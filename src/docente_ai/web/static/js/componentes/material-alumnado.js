@@ -13,6 +13,9 @@ import {
 } from './audiciones.js';
 import { initScorePreviews } from './partituras.js';
 import { renderDidacticComponent, initDidacticInteractions } from './didacticos/index.js';
+import {
+  sectionTitle, examplesForClaim, unlinkedExamples, scoreExampleCard, keyPointsHTML
+} from './secciones.js';
 // Módulo local: material para el alumnado estructurado por requisitos.
 
 export function cleanStudentText(text, isConsigna = false) {
@@ -112,6 +115,20 @@ export function renderStudentScoreBox(score, runId) {
   ].join('');
 }
 
+export function studentVisualHTML(visual) {
+  const type = ['sequence', 'relationship', 'table'].includes(visual?.type) ? visual.type : 'relationship';
+  const items = (visual?.items || []).map(item =>
+    `<div class="visual-node"><strong>${e(item.label)}</strong>` +
+    `<span>${e(cleanStudentText(item.detail, false))}</span></div>`
+  ).join('');
+  return [
+    `<div class="student-visual source-visual source-visual-${e(type)}"><h3>${e(visual.title)}</h3>`,
+    `<div class="visual-canvas">${items}</div>`,
+    visual.caption ? `<p class="visual-caption">${e(cleanStudentText(visual.caption, false))}</p>` : '',
+    `</div>`
+  ].join('');
+}
+
 export function renderDidacticSection(run, options = {}) {
   const comps = run.result?.resolved_didactic_components || [];
   if (!comps.length) return '';
@@ -164,18 +181,6 @@ export function studentDocumentHTML(run) {
   const requirements = run.result?.requirements || run.request?.pedagogy?.requirements ||
     run.request?.requirements || [];
   const resolvedComps = run.result?.resolved_didactic_components || [];
-  const resolvedScores = (run.result?.resolved_music_requests || []).filter(item => {
-    if (item.status !== 'resuelto_catalogo' || !item.ejemplo) return false;
-    const ej = item.ejemplo;
-    const isTheory = ej.calculado_teoria || ej.fuente === 'Calculado a partir de la teoría' ||
-      item.origen === 'calculado_teoria';
-    const hasUiVerification = Boolean(ej.verificado_por && ej.verificado_en);
-    return isTheory || (Boolean(item.verificado) && hasUiVerification);
-  });
-
-  const renderedArtifacts = new Set();
-  const usedGlossaryTerms = new Set();
-  const renderedClaimIndices = new Set();
   let elapsed = 0;
 
   // Fuentes deduplicadas por autor para el pie
@@ -228,201 +233,101 @@ export function studentDocumentHTML(run) {
     `\n      </ol>\n    </section>\n\n`
   ].join('');
 
-  // --- 3. CUERPO ESTRUCTURADO POR REQUISITOS ---
+  // --- 3. CUERPO: SECCIONES DE TEORÍA CON EJEMPLOS Y GRÁFICOS ---
+  // Cada sección procede de un bloque de contenido de la propuesta (título, explicación para el
+  // alumnado, ideas clave y ejemplos musicales reales). Los requisitos no cumplidos no generan
+  // texto de relleno: sus partituras pendientes simplemente no aparecen.
   let sectionsHtml = '';
   let sectionIndex = 0;
-
-  if (requirements.length > 0) {
-    for (const req of requirements) {
-      const reqId = req.id;
-      // Requisito no cumplido: nunca se entrega en silencio ni se rellena con genérico, se omite
-      if (unmetReqIds.has(reqId)) {
-        continue;
-      }
-
-      sectionIndex += 1;
-      const secNum = String(sectionIndex).padStart(2, '0');
-      const secTitle = formatStudentRequirementTitle(req, sectionIndex);
-
-      // (a) Artefactos resueltos para este requisito
-      let artifactsHtml = '';
-
-      // Componentes calculados
-      for (const dc of resolvedComps) {
-        const matchesReq = dc.requirement_id === reqId ||
-          (req.ejecutor === 'componente_calculado' && req.description?.toLowerCase().includes(dc.tipo)) ||
-          (req.ejecutor === 'linea_temporal' && dc.tipo === 'linea_temporal');
-        if (matchesReq && !renderedArtifacts.has(dc.tipo)) {
-          renderedArtifacts.add(dc.tipo);
-          artifactsHtml += renderDidacticComponent(dc);
-        }
-      }
-
-      // Partituras Verovio verificadas
-      if (req.ejecutor === 'partitura_obra' || req.ejecutor === 'analisis_sobre_partitura' ||
-          /partitura/i.test(req.description || '')) {
-        for (const sc of resolvedScores) {
-          const scKey = sc.ejemplo?.id || sc.request_id || 'score';
-          if (!renderedArtifacts.has(scKey)) {
-            renderedArtifacts.add(scKey);
-            artifactsHtml += renderStudentScoreBox(sc, run.id);
-          }
-        }
-      }
-
-      // Infografía de ficha verificada (si aplica al tema o primer requisito)
-      if (run.ficha?.verificado && run.ficha?.infografia && !renderedArtifacts.has('ficha_infografia')) {
-        const infogRegex = /infograf|l[aá]mina|esquema|organolog|instrument|marco|misa|t[eé]cnica/i;
-        const matchesInfog = infogRegex.test(req.description || '') || (requirements.indexOf(req) === 0);
-        if (matchesInfog) {
-          renderedArtifacts.add('ficha_infografia');
-          artifactsHtml += renderFichaInfographic(run);
-        }
-      }
-
-      // (b) Texto de 2–3 frases que remite a la figura y citas
-      const covItem = coverage.find(c => c.requirement_id === reqId);
-      const reqClaimIds = covItem?.claim_ids || [];
-      const assignedClaims = [];
-
-      for (let i = 0; i < claims.length; i++) {
-        const cNum = i + 1;
-        if (reqClaimIds.includes(cNum) && !renderedClaimIndices.has(i)) {
-          assignedClaims.push({ claim: claims[i], index: i });
-          renderedClaimIndices.add(i);
-        }
-      }
-
-      // Si no tenía claim_ids directos, buscar claim temático afín
-      if (!assignedClaims.length) {
-        const reqDescLower = (req.description || '').toLowerCase();
-        for (let i = 0; i < claims.length; i++) {
-          if (!renderedClaimIndices.has(i)) {
-            const cText = (claims[i].text || '').toLowerCase();
-            if (reqDescLower.split(/\s+/).filter(w => w.length > 5).some(w => cText.includes(w))) {
-              assignedClaims.push({ claim: claims[i], index: i });
-              renderedClaimIndices.add(i);
-              break;
-            }
-          }
-        }
-      }
-
-      let textBlocksHtml = '';
-      let sectionCombinedText = '';
-
-      for (const { claim } of assignedClaims) {
-        const rawText = cleanStudentText(claim.student_summary || claim.text, false);
-        const limitedText = limitWords(rawText, 60);
-        sectionCombinedText += ' ' + rawText;
-
-        const ev0 = claim.evidence?.[0];
-        let sourceBadge = '';
-        if (ev0) {
-          const src = (run.evidence || []).find(it => it.source_id === ev0.source_id);
-          const author = normalizeAuthorDisplay(src?.metadata?.authors?.[0]?.split(',')[0]?.trim());
-          const pIdx = src?.locator?.pdf_page_index;
-          const loc = pIdx ? ('pág. ' + String(pIdx)) : '';
-          const badgeLabel = author ? (loc ? (author + ', ' + loc) : author) : '';
-          if (badgeLabel) {
-            sourceBadge = `<div class="claim-source-badge"><span>📖 ${e(badgeLabel)}</span></div>`;
-          }
-        }
-
-        textBlocksHtml += [
-          `\n          <div class="theory-claim-card">\n`,
-          `            <div class="claim-body">\n`,
-          `              ${formatMarkdown(limitedText)}\n`,
-          `              ${sourceBadge}\n`,
-          `            </div>\n          </div>\n`
-        ].join('');
-      }
-
-      // Si no hubo claim pero hay artefacto, descripción sintética breve
-      if (!textBlocksHtml && artifactsHtml) {
-        textBlocksHtml = [
-          `\n          <div class="theory-claim-card">\n`,
-          `            <div class="claim-body">\n`,
-          `              <p>Observa con atención el modelo musical y las proporciones representadas arriba.</p>\n`,
-          `            </div>\n          </div>\n`
-        ].join('');
-      }
-
-      // (c) Glosario verificado como recuadro lateral dentro de la sección
-      let glossaryHtml = '';
-      if (fichaConceptos.length > 0) {
-        const fullSecStr = (secTitle + ' ' + sectionCombinedText + ' ' + (req.description || '')).toLowerCase();
-        for (const conc of fichaConceptos) {
-          const term = (conc.termino || '').toLowerCase();
-          if (term && fullSecStr.includes(term) && !usedGlossaryTerms.has(conc.termino)) {
-            usedGlossaryTerms.add(conc.termino);
-            glossaryHtml += [
-              `\n          <aside class="glossary-callout">\n`,
-              `            <div class="glossary-callout-header">\n`,
-              `              <span class="glossary-callout-badge">GLOSARIO</span>\n`,
-              `              <strong>${e(conc.termino)}</strong>\n`,
-              `            </div>\n`,
-              `            <p>${e(limitWords(conc.definicion, 60))}</p>\n`,
-              `          </aside>\n`
-            ].join('');
-          }
-        }
-      }
-
-      sectionsHtml += [
-        `    <!-- SECCIÓN REQUISITO ${e(secNum)}: ${e(secTitle)} -->\n`,
-        `    <section class="student-section section-theory section-req-${e(reqId.toLowerCase())}">\n`,
-        `      <div class="student-section-header">\n`,
-        `        <span class="student-section-number">${e(secNum)}</span>\n`,
-        `        <div>\n`,
-        `          <h2>${e(secTitle)}</h2>\n`,
-        `        </div>\n`,
-        `      </div>\n`,
-        artifactsHtml ? `      <div class="requirement-artifacts-box">\n${artifactsHtml}\n      </div>\n` : '',
-        `      <div class="theory-claims-list">\n`,
-        textBlocksHtml,
-        glossaryHtml,
-        `      </div>\n`,
-        `    </section>\n\n`
-      ].join('');
+  const renderedArtifacts = new Set();
+  const usedGlossaryTerms = new Set();
+  const covByClaim = new Map();
+  for (const c of coverage) {
+    for (const cid of c.claim_ids || []) {
+      if (!covByClaim.has(cid)) covByClaim.set(cid, c.requirement_id);
     }
-  } else {
-    // Modo fallback para propuestas antiguas sin requisitos explícitos
-    const infographicHtml = renderFichaInfographic(run);
+  }
+  const compsForClaim = (claimIndex) => resolvedComps.filter(dc => {
+    if (renderedArtifacts.has('comp:' + dc.tipo)) return false;
+    const reqId = covByClaim.get(claimIndex + 1);
+    return Boolean(dc.requirement_id && reqId && dc.requirement_id === reqId);
+  });
+
+  claims.forEach((claim, i) => {
+    sectionIndex += 1;
+    const secNum = String(sectionIndex).padStart(2, '0');
+    const secTitle = sectionTitle(claim, i);
+    const bodyText = cleanStudentText(claim.student_summary || claim.text, false);
+    const maxWords = claim.student_summary ? 180 : 90;
+
+    let artifactsHtml = '';
+    for (const dc of compsForClaim(i)) {
+      renderedArtifacts.add('comp:' + dc.tipo);
+      artifactsHtml += renderDidacticComponent(dc);
+    }
+    for (const item of examplesForClaim(run, claim)) {
+      const key = 'score:' + item.ejemplo.id;
+      if (renderedArtifacts.has(key)) continue;
+      renderedArtifacts.add(key);
+      artifactsHtml += scoreExampleCard(item, run.id);
+    }
+
+    let glossaryHtml = '';
+    if (fichaConceptos.length > 0) {
+      const fullSecStr = (secTitle + ' ' + bodyText).toLowerCase();
+      for (const conc of fichaConceptos) {
+        const term = (conc.termino || '').toLowerCase();
+        if (term && fullSecStr.includes(term) && !usedGlossaryTerms.has(conc.termino)) {
+          usedGlossaryTerms.add(conc.termino);
+          glossaryHtml += [
+            `<aside class="glossary-callout"><div class="glossary-callout-header">`,
+            `<span class="glossary-callout-badge">GLOSARIO</span><strong>${e(conc.termino)}</strong></div>`,
+            `<p>${e(limitWords(conc.definicion, 60))}</p></aside>`
+          ].join('');
+        }
+      }
+    }
+
     sectionsHtml += [
       `    <section class="student-section section-theory">\n`,
-      `      <div class="student-section-header">\n`,
-      `        <span class="student-section-number">01</span>\n`,
-      `        <div>\n`,
-      `          <h2>Contenido y fundamentos</h2>\n`,
-      `        </div>\n`,
+      `      <div class="student-section-header"><span class="student-section-number">${e(secNum)}</span>`,
+      `<div><h2>${e(secTitle)}</h2></div></div>\n`,
+      `      <div class="theory-layout">\n`,
+      `        <div class="theory-text">${formatMarkdown(limitWords(bodyText, maxWords))}</div>\n`,
+      keyPointsHTML(claim.key_points),
+      glossaryHtml,
       `      </div>\n`,
-      `      <div class="theory-claims-list">\n`,
-      claims.map((claim, index) => {
-        const limitedText = limitWords(cleanStudentText(claim.student_summary || claim.text, false), 60);
-        return [
-          `          <div class="theory-claim-card">\n`,
-          `            <span class="claim-index-badge">${e(String(index + 1).padStart(2, '0'))}</span>\n`,
-          `            <div class="claim-body">\n`,
-          `              ${formatMarkdown(limitedText)}\n`,
-          `            </div>\n`,
-          `          </div>\n`
-        ].join('');
-      }).join(''),
-      `      </div>\n`,
-      `    </section>\n\n`,
-      infographicHtml ? [
-        `    <section class="student-section section-infographic">\n`,
-        `      <div class="student-section-header">\n`,
-        `        <span class="student-section-number">02</span>\n`,
-        `        <div>\n`,
-        `          <h2>Esquema gráfico y estructuras</h2>\n`,
-        `        </div>\n`,
-        `      </div>\n`,
-        infographicHtml,
-        `\n    </section>\n\n`
-      ].join('') : '',
-      renderDidacticSection(run)
+      artifactsHtml ? `      <div class="section-artifacts">${artifactsHtml}</div>\n` : '',
+      `    </section>\n\n`
+    ].join('');
+  });
+
+  // Ejemplos y gráficos no ligados a una sección concreta
+  let extraArtifacts = '';
+  for (const item of unlinkedExamples(run)) {
+    const key = 'score:' + item.ejemplo.id;
+    if (renderedArtifacts.has(key)) continue;
+    renderedArtifacts.add(key);
+    extraArtifacts += scoreExampleCard(item, run.id);
+  }
+  for (const dc of resolvedComps) {
+    if (renderedArtifacts.has('comp:' + dc.tipo)) continue;
+    renderedArtifacts.add('comp:' + dc.tipo);
+    extraArtifacts += renderDidacticComponent(dc);
+  }
+  const visualsHtml = (run.result?.visualizations || []).map(v => studentVisualHTML(v)).join('');
+  const infographicHtml = renderFichaInfographic(run);
+  if (extraArtifacts || visualsHtml || infographicHtml) {
+    sectionIndex += 1;
+    sectionsHtml += [
+      `    <section class="student-section section-schemes">\n`,
+      `      <div class="student-section-header">`,
+      `<span class="student-section-number">${e(String(sectionIndex).padStart(2, '0'))}</span>`,
+      `<div><h2>Esquemas y ejemplos</h2>`,
+      `<p class="student-section-intro">Para repasar y comparar lo visto en clase.</p></div></div>\n`,
+      infographicHtml, visualsHtml,
+      extraArtifacts ? `      <div class="section-artifacts">${extraArtifacts}</div>\n` : '',
+      `    </section>\n\n`
     ].join('');
   }
 
@@ -510,8 +415,8 @@ export function studentDocumentHTML(run) {
     `      <div class="student-section-header">\n`,
     `        <span class="student-section-number">${e(sourcesSecNum)}</span>\n`,
     `        <div>\n`,
-    `          <h2>Fuentes y antologías de consulta</h2>\n`,
-    `          <p class="student-section-intro">Bibliografía autorizada utilizada para elaborar este material.</p>\n`,
+    `          <h2>Para saber más</h2>\n`,
+    `          <p class="student-section-intro">Libros y antologías con los que se ha preparado este material.</p>\n`,
     `        </div>\n`,
     `      </div>\n`,
     `      <div class="sources-pills-list">\n`,

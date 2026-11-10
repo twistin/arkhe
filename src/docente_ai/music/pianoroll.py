@@ -147,6 +147,8 @@ def render_pianoroll_svg(
         if not p.is_file():
             raise FileNotFoundError(f"Partitura no encontrada: {score_or_path}")
         score = m21.converter.parse(str(p))
+        if isinstance(score, m21.stream.Opus):
+            score = score.mergeScores()
     else:
         score = score_or_path
 

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sdcarr.arkhe</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/sdcarr/Desktop/arkhe/.venv/bin/docente-ai</string>
+        <string>ui</string>
+        <string>--host</string>
+        <string>0.0.0.0</string>
+        <string>--port</string>
+        <string>8765</string>
+        <string>--no-browser</string>
+        <string>--workspace</string>
+        <string>/Users/sdcarr/Desktop/arkhe</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/sdcarr/Desktop/arkhe</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/sdcarr/Library/Logs/arkhe.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/sdcarr/Library/Logs/arkhe.err</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+</dict>
+</plist>

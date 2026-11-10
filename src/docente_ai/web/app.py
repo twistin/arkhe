@@ -16,7 +16,13 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Respon
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
 
-from docente_ai.generation.render import render, render_sources, render_student
+from docente_ai.generation.render import (
+    render,
+    render_sources,
+    render_student,
+    render_presentation_html,
+    render_presentation_md,
+)
 from docente_ai.generation.service import get_run
 from docente_ai.library.service import show_document, authorize_document, update_document, original_file
 from docente_ai.web.workspace import Workspace, SUFFIXES, MAX_BYTES
@@ -283,6 +289,15 @@ def create_app(root, *, port=8765, workspace=None, allowed_hosts=None, server=No
             filename = f"anexo-fuentes-{title_slug}.md" if title_slug else f"anexo-fuentes-{result['id']}.md"
             return Response(render_sources(result), media_type='text/markdown', headers={
                 'Content-Disposition': f'attachment; filename="{filename}"'})
+        if request.query_params.get('presentation') == '1' or request.query_params.get('slides') == '1':
+            fmt = request.query_params.get('format', 'html')
+            if fmt == 'md':
+                filename = f"presentacion-{title_slug}.md" if title_slug else f"presentacion-{result['id']}.md"
+                return Response(render_presentation_md(result), media_type='text/markdown', headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"'})
+            filename = f"presentacion-{title_slug}.html" if title_slug else f"presentacion-{result['id']}.html"
+            return Response(render_presentation_html(result), media_type='text/html; charset=utf-8', headers={
+                'Content-Disposition': f'inline; filename="{filename}"'})
         if request.query_params.get('download') == '1':
             filename = f"propuesta-{title_slug}.md" if title_slug else f"{result['id']}.md"
             return Response(render(result), media_type='text/markdown', headers={'Content-Disposition': f'attachment; filename="{filename}"'})

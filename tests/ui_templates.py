@@ -214,6 +214,8 @@ HTML_SEGURO = frozenset(
         "renderFulfillmentAlertPanel",
         "renderAffectedActivities",
         "renderFichaInfographic",
+        "presentationModalHTML",
+        "renderSlideCard",
     }
 )
 

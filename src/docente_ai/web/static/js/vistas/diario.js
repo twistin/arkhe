@@ -159,6 +159,7 @@ function renderPlannerSessionCard(s) {
       `  <div class="planner-prop-actions">`,
       `    <button class="button small ghost" data-expand-proposal="${e(s.proposal.id)}">Guía docente</button>`,
       `    <button class="button small ghost" data-student-run="${e(s.proposal.id)}">Alumnado</button>`,
+      `    <button class="button small ghost" data-presentation-run="${e(s.proposal.id)}">Proyectar</button>`,
       `  </div>`,
       `</div>`
     ].join('');

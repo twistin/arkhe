@@ -33,6 +33,7 @@ const paths = {
   copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V3H3v13h5"/>',
   record: '<path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 ' +
     '2-2z"/><path d="M9 7h6M7 12h10M7 17h7"/>',
+  screen: '<rect x="3" y="4" width="19" height="12" rx="2"/><path d="M8 20h9M12 16v4"/>',
   trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 ' +
     '2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>'
 };

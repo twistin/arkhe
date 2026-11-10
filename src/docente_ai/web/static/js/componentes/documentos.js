@@ -13,6 +13,11 @@ import {
 import { renderEgyptInfographic } from '../infografias/egipto.js';
 import { renderStudentInfographic } from '../infografias/musica.js';
 import { renderMusicRequestsBlock } from './partituras.js';
+import { renderDidacticComponent } from './didacticos/index.js';
+import {
+  sectionTitle, examplesForClaim, unlinkedExamples, scoreExampleCard, keyPointsHTML,
+  buildNotes, noteRefs, notesListHTML, isShowableScore, hasStructuredSections
+} from './secciones.js';
 // Módulo local: responsabilidad separada sin alterar el contenido.
 
 export function formatPedagogyResource(r) {
@@ -127,12 +132,16 @@ export function resultHTML(run) {
     `<button class="button small primary student-button" data-student-run="${e(run.id)}">`,
     `${icon('document')}Material para el alumnado</button>`
   ].join('') : '';
+  const presentationControl = isPedagogy && run.status === 'draft' && run.result?.plan ? [
+    `<button class="button small secondary presentation-button" data-presentation-run="${e(run.id)}" `,
+    `title="Proyectar presentación en el aula">${icon('screen')}Proyectar</button>`
+  ].join('') : '';
   const sourceControl = isPedagogy && run.evidence?.length ? [
     `<button class="button small ghost" data-sources-run="${e(run.id)}">${icon('document')}`,
     `Anexo documental</button>`
   ].join('') : '';
   const controls = [
-    `<div class="result-action-group">${studentControl}${sourceControl}`,
+    `<div class="result-action-group">${studentControl}${presentationControl}${sourceControl}`,
     [
       `</div><div class="result-action-group"><button class="button small" data-download="${e(run.id)}">`
     ].join(''),
@@ -281,14 +290,21 @@ export function resultHTML(run) {
     `<div class="notice"><strong>Notas del profesor:</strong> ${e(review.notes)}</div>`
   ].join('');
 
+  let qualityHtml = '';
+  // Solo las propuestas generadas con secciones (pedagogy:11) usan el formato nuevo; las anteriores
+  // se muestran como se generaron, sin mezclar formatos.
+  const structured = Boolean(plan) && hasStructuredSections(run);
+  const { notes, refsByClaim } = buildNotes(run);
+  const theoryHtml = structured ? teacherTheoryHTML(run, claims, refsByClaim) : '';
+
   if (plan) {
     let elapsed = 0;
     content += renderFulfillmentAlertPanel(run);
     content += [
       `\n    <div class="proposal-outline" aria-label="Mapa de la propuesta">\n      `,
       `<span><strong>01</strong> Objetivos</span>\n      <span><strong>02</strong> `,
-      `Secuencia de aula</span>\n      <span><strong>03</strong> Organización</span>\n  `,
-      `    <span><strong>04</strong> Guía teórica</span>\n      `,
+      `Contenidos y ejemplos</span>\n      <span><strong>03</strong> Secuencia de aula</span>\n  `,
+      `    <span><strong>04</strong> Organización</span>\n      `,
       `${hasGraphic ? '<span><strong>05</strong> Esquema gráfico</span>' : ''}\n      `,
       `${hasListenings ? '<span><strong>06</strong> Audiciones</span>' : ''}\n      `,
       [
@@ -316,7 +332,7 @@ export function resultHTML(run) {
       const reqMap = new Map(requirements.map(item => [item.id, item]));
       const allIds = [...new Set([...reqMap.keys(), ...covMap.keys()])];
 
-      content += [
+      qualityHtml += [
         `\n    <div class="pedagogy-block coverage-block">\n      <div class="block-header">\n        `,
         `<span class="block-num">🎯</span>\n        <div>\n          <h3>Cobertura de requisitos del profesor`,
         `</h3>\n          <p class="block-desc">Verificación de peticiones temáticas frente a la biblioteca.</p>\n`,
@@ -362,8 +378,10 @@ export function resultHTML(run) {
           ].join('')).join('')
         }`
       ].join(''),
-      `\n      </div>\n    </div>\n\n    <div class="pedagogy-block">\n      <div `,
-      `class="block-header">\n        <span class="block-num">02</span>\n        <div>`,
+      `\n      </div>\n    </div>\n`,
+      theoryHtml,
+      `\n\n    <div class="pedagogy-block">\n      <div `,
+      `class="block-header">\n        <span class="block-num">03</span>\n        <div>`,
       `\n          <h3>Secuencia de aula</h3>\n          <p class="block-desc">Ritmo de `,
       `trabajo, dinámica y propósito de cada tramo.</p>\n        </div>\n      </div>\n `,
       `      <div class="timeline-stepper">\n        `,
@@ -393,10 +411,7 @@ export function resultHTML(run) {
             ).toLowerCase();
             if (/partitura|notaci[oó]n|transcripci[oó]n|epitafio|seikilos/i.test(textToScan)) {
               const reqs = run.result?.resolved_music_requests || [];
-              const hasScore = reqs.some(r =>
-                (r.verificado || r.origen === 'calculado_teoria' || r.ejemplo?.calculado_teoria) &&
-                r.status === 'resuelto_catalogo'
-              );
+              const hasScore = reqs.some(r => isShowableScore(r));
               if (!hasScore) {
                 const obra = /epitafio|seikilos/i.test(textToScan) ? ' del Epitafio' : '';
                 warnings.push('Actividad ' + (idx + 1) + ' sin material: falta la partitura' + obra);
@@ -423,9 +438,10 @@ export function resultHTML(run) {
               `   <div class="step-card-header">\n                <div class="step-title-row">`,
               `\n                  <h4>${e(a.title)}</h4>\n                  ${dynamicBadge}`,
               [
-                `\n                </div>\n                <span class="step-claims-badge">Fundamento: Contenidos `
+                `\n                </div>\n                <span class="step-claims-badge">Trabaja: `
               ].join(''),
-              `${e(a.claim_ids.map(c => '#' + c).join(', '))}`,
+              `${e(a.claim_ids.map(c => (claims[c - 1] ? sectionTitle(claims[c - 1], c - 1) : '#' + c))
+                .join(' · '))}</span>\n              </div>`,
               warningsBadge,
               a.teacher_notes ? [
                 `              <p class="step-teacher-notes"><strong>Pautas docentes:</strong> `,
@@ -450,7 +466,7 @@ export function resultHTML(run) {
         }`
       ].join(''),
       `\n      </div>\n    </div>\n\n    <div class="pedagogy-block">\n      <div `,
-      `class="block-header">\n        <span class="block-num">03</span>\n        <div>`,
+      `class="block-header">\n        <span class="block-num">04</span>\n        <div>`,
       `\n          <h3>Organización y evaluación</h3>\n          <p class="block-desc">Recursos, `,
       `evaluación formativa, dificultad y observaciones.</p>\n        </div>\n      </div>\n `,
       `     <div class="pedagogy-details-grid">\n        <div class="detail-card">\n    `,
@@ -471,6 +487,7 @@ export function resultHTML(run) {
     ].join('');
   }
 
+  if (!structured) {
   content += [
     [
       `\n  <div class="pedagogy-block">\n    <div class="block-header">\n      <span class="block-num">`
@@ -531,6 +548,7 @@ export function resultHTML(run) {
     ].join('');
   }
   content += `</div></div>`;
+  }
 
   if (hasGraphic) {
     content += [
@@ -617,10 +635,52 @@ export function resultHTML(run) {
     for (const visual of visuals) content += visualHTML(run, visual);
   }
   if (isPedagogy && (run.result?.music_requests?.length || run.result?.resolved_music_requests?.length)) {
-    content += renderMusicRequestsBlock(run);
+    // Las partituras ya mostradas en las secciones no se repiten: aquí solo quedan las pendientes.
+    const resolved = run.result?.resolved_music_requests || [];
+    const pending = structured ? resolved.filter(item => !isShowableScore(item)) : resolved;
+    if (!structured || pending.length) {
+      const pendingIds = new Set(pending.map(item => item.request_id));
+      content += renderMusicRequestsBlock(structured ? {
+        ...run,
+        result: {
+          ...run.result,
+          resolved_music_requests: pending,
+          music_requests: (run.result?.music_requests || []).filter(r => pendingIds.has(r.id)),
+        },
+      } : run);
+    }
   }
   if (run.ficha?.conceptos?.length) {
     content += renderFichaGlosarioBlock(run);
+  }
+  if (structured) {
+    const extra = unlinkedExamples(run);
+    if (extra.length) {
+      content += [
+        `<div class="pedagogy-block"><div class="block-header"><span class="block-num">🎼</span><div>`,
+        `<h3>Otros ejemplos musicales</h3>`,
+        `<p class="block-desc">Partituras reales del catálogo propuestas para la sesión.</p>`,
+        `</div></div>${extra.map(item => scoreExampleCard(item, run.id, { teacher: true })).join('')}</div>`
+      ].join('');
+    }
+    if (notes.length) {
+      content += [
+        `<details class="pedagogy-block notes-block" open><summary><span class="block-num">📚</span> `,
+        `<strong>Notas y fuentes</strong> `,
+        `<span class="block-desc">Pasajes de tu biblioteca que respaldan cada sección `,
+        `(los números aparecen junto a cada título).</span></summary>`,
+        notesListHTML(notes, locatorLabel),
+        `</details>`
+      ].join('');
+    }
+    if (qualityHtml) {
+      content += [
+        `<details class="pedagogy-block quality-block"><summary><span class="block-num">🎯</span> `,
+        `<strong>Control de calidad: cobertura de tus indicaciones</strong></summary>`,
+        qualityHtml,
+        `</details>`
+      ].join('');
+    }
   }
   if (run.status === 'draft' && isPedagogy && !review) {
     content += [
@@ -642,6 +702,42 @@ export function resultHTML(run) {
     ].join('');
   }
   return content + '</section>';
+}
+
+export function teacherTheoryHTML(run, claims, refsByClaim) {
+  if (!claims.length) return '';
+  const sections = claims.map((claim, i) => {
+    const examples = examplesForClaim(run, claim)
+      .map(item => scoreExampleCard(item, run.id, { teacher: true })).join('');
+    const isInf = claim.kind === 'inference';
+    return [
+      `\n      <article class="theory-section" id="seccion-${e(i + 1)}">`,
+      `<header class="theory-section-head">`,
+      `<span class="theory-section-num">${e(String(i + 1).padStart(2, '0'))}</span>`,
+      `<h4>${e(sectionTitle(claim, i))}</h4>${noteRefs(refsByClaim[i])}`,
+      isInf ? [
+        `<span class="theory-inference" `,
+        `title="Deducción a partir de los pasajes, no afirmación literal de una fuente">inferencia</span>`
+      ].join('') : '',
+      `</header>`,
+      `<div class="theory-section-body">${formatMarkdown(claim.text)}</div>`,
+      keyPointsHTML(claim.key_points, 'Lo que el alumnado debe retener'),
+      examples ? `<div class="section-artifacts">${examples}</div>` : '',
+      `</article>`
+    ].join('');
+  }).join('');
+  const comps = (run.result?.resolved_didactic_components || []).filter(dc => dc && dc.estado !== 'descartado');
+  const compsHtml = comps.length ? [
+    `<article class="theory-section"><header class="theory-section-head">`,
+    `<h4>Esquemas calculados para proyectar</h4></header>`,
+    `<div class="section-artifacts">${comps.map(dc => renderDidacticComponent(dc)).join('')}</div></article>`
+  ].join('') : '';
+  return [
+    `\n    <div class="pedagogy-block theory-block">\n      <div class="block-header">`,
+    `<span class="block-num">02</span><div><h3>Contenidos y ejemplos</h3>`,
+    `<p class="block-desc">Lo que vas a explicar, con los ejemplos musicales de cada punto.</p>`,
+    `</div></div>${sections}${compsHtml}\n    </div>`
+  ].join('');
 }
 
 export function teacherWorkedExample(run) {

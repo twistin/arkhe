@@ -71,6 +71,15 @@ def finish(db, run_id, *, status, result=None, raw=None, metrics=None, error=Non
                            (status, now(), dump(result) if result is not None else None, raw, dump(metrics or {}), error, run_id))
 
 
+def es_tema_griego(texto: str) -> bool:
+    """True si el tema o las indicaciones tratan expresamente de la música de la Grecia antigua."""
+    import re as _re
+    import unicodedata as _ud
+    t = ''.join(c for c in _ud.normalize('NFKD', texto or '') if not _ud.combining(c)).lower()
+    return bool(_re.search(r'\b(grecia|griega|griego|griegos|helen\w*|pitagor\w*|aristoxeno|seikilos|'
+                           r'tetracordo\w*|sistema perfecto)\b', t))
+
+
 def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
         category='documental', document_ids=None, top_k=12, max_distance=None,
         embedder_factory=OllamaEmbedder, generator_factory=OllamaGenerator, pedagogy_context=None, progress=None):
@@ -410,6 +419,22 @@ def ask(db: Path, rag_settings, settings, question: str, *, subject: str,
                                 tipos_existentes.add(tipo)
                         except Exception as comp_err:
                             report(f'Aviso en componente didáctico {tipo}: {comp_err}')
+
+                # Temas explícitamente de la Grecia antigua: si el modelo no pidió ningún esquema calculable,
+                # se incorporan los dos básicos (tetracordos y Gran Sistema Perfecto). Solo se miran el tema y
+                # las indicaciones del profesor, nunca la materia, para no contaminar otros periodos.
+                texto_tema = f"{topic_req} {(pedagogy_context or {}).get('teacher_criteria') or ''}"
+                if not any(c.get('tipo') in ('tetracordos', 'gran_sistema_perfecto') for c in resolved_comps) and \
+                        es_tema_griego(texto_tema):
+                    for tipo_auto in ('tetracordos', 'gran_sistema_perfecto'):
+                        try:
+                            res_auto = resolver_componente_didactico(tipo_auto, {}, topic=topic_req, subject=subject_req)
+                        except Exception as comp_err:
+                            report(f'Aviso en componente didáctico {tipo_auto}: {comp_err}')
+                            continue
+                        if res_auto.get('estado') != 'descartado':
+                            res_auto['origen'] = 'tema_grecia'
+                            resolved_comps.append(res_auto)
 
                 result['didactic_components'] = [
                     {'tipo': c.get('tipo'), 'parametros': c.get('parametros', {}), 'origen': c.get('origen', 'regla_requisito')}

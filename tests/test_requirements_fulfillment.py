@@ -263,8 +263,8 @@ def test_fulfillment_panel_rojo_en_vista_profesor():
 def test_omision_seccion_pendiente_y_aviso_en_actividades_alumnado():
     """Verifica el Punto 1, 3 y 4: omisión de requisitos no cumplidos y aviso en actividades."""
     mat_js = Path("src/docente_ai/web/static/js/componentes/material-alumnado.js").read_text(encoding="utf-8")
-    # Estructura por requisitos
-    assert "unmetReqIds.has(reqId)" in mat_js
+    # Requisitos no cumplidos: las actividades afectadas se marcan como pendientes
+    assert "unmetReqIds" in mat_js
     assert "activity-resource-pending" in mat_js
     assert "Material que te entregará el profesor" in mat_js
     assert "limitWords" in mat_js

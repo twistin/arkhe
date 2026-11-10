@@ -73,7 +73,7 @@ def perform(corpus, **kwargs):
 def test_pedagogical_draft_roundtrip_and_history(corpus):
     result = perform(corpus)
     assert result['status'] == 'draft'
-    assert result['prompt_version'] == 'pedagogy:10'
+    assert result['prompt_version'] == 'pedagogy:11'
     assert result['request']['pedagogy']['group']['level'] == '3º GP'
     assert result['request']['pedagogy']['unit']['id'] == 'unidad-1'
     assert result['result']['plan'] == proposal()['plan']
@@ -809,3 +809,25 @@ def test_validacion_recursos_estructurados_en_plan():
 
 
 
+
+
+def test_secciones_con_titulo_ideas_clave_y_ejemplo_de_repertorio(corpus):
+    data = proposal()
+    data['claims'][0].update({
+        'title': 'El pulso como referencia',
+        'key_points': ['El pulso es regular.', ''],
+        'example_ids': ['MR1', 'MR9'],
+    })
+    data['music_requests'] = [{
+        'id': 'MR1', 'composer': 'Josquin des Prez', 'work': 'Mille regrets', 'section': '',
+        'catalog_id': 'josquin:mille-regrets', 'description': 'Escucha si las voces atacan juntas.'}]
+    result = perform(corpus, generator_factory=lambda s: FakeGenerator(s, response=data))
+    claim = result['result']['claims'][0]
+    assert claim['title'] == 'El pulso como referencia'
+    assert claim['key_points'] == ['El pulso es regular.']
+    assert claim['example_ids'] == ['MR1']                      # MR9 no existe y se descarta
+    resuelto = result['result']['resolved_music_requests'][0]
+    assert resuelto['status'] == 'resuelto_repertorio'
+    assert resuelto['ejemplo']['obra'] == 'Mille regrets'
+    handout = render_student(result)
+    assert '### 1. El pulso como referencia' in handout and 'Mille regrets' in handout

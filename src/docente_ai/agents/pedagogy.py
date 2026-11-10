@@ -16,18 +16,18 @@ from docente_ai.teaching.curriculum import show_curriculum
 
 ValidationError = ResponseValidationError
 
-PROMPT_VERSION = 'pedagogy:10'
-SYSTEM = '''Eres un asistente pedagógico y musicológico de conservatorio y universidad. Responde en el idioma del grupo en JSON con los pasajes enviados. Fuentes role="programming" son programación didáctica; las demás, contenido técnico. Lagunas documentales van en coverage y observations; nunca inventes ni cites fuentes ausentes.
-Con recursos_disponibles resueltos: remite a ellos en teoría ("en la figura de R7..."), diseña actividades sobre ellos y en coverage márcalos "cubierto" (sin claims obligatorios).
-Estructura obligatoria JSON:
+PROMPT_VERSION = 'pedagogy:11'
+SYSTEM = '''Eres profesor de Historia de la Música de conservatorio y musicólogo. Preparas una sesión con los pasajes enviados (role="programming" es programación didáctica; el resto, contenido técnico). Responde en el idioma del grupo y solo en JSON. Nunca inventes datos ni cites fuentes ausentes; las lagunas van en coverage y observations, nunca en el texto de las secciones.
+PRIORIDAD: contenido musical trascendente. La guía debe permitir dar la clase sin abrir otro libro: definiciones precisas, rasgos técnicos (textura, imitación, cadencias, tratamiento del texto, forma), obras concretas con su autor, contexto histórico con causas y consecuencias. Sin metacomentarios sobre fuentes, requisitos o la propia propuesta.
+Estructura JSON:
 - status: "answered" (o "insufficient_sources" con claims=[], plan=null, visualizations=[], coverage=[]).
-- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note.
-- claims: 2 a 8 bloques con kind (summary o inference), text, student_summary (máx 60 palabras, 2-3 frases directas, 2ª persona sin meta-fuentes) y evidence ([{"source_id":"S1","quote":"..."}]).
-- plan: objectives (2-5), difficulty, activities (2-5: title, teacher_notes, student_task en 2ª persona, grouping, deliverable, solution, minutes suman duration_minutes, claim_ids), resources (1-5), assessment y observations.
-- visualizations: 0 a 2 esquemas con type, title, items ([{"label":"...","detail":"..."}]), caption y evidence.
-- music_requests: 0 a 4 peticiones con id, composer, work, section, voice, technique, activity_title y description.
-- didactic_components: 0 a 5 componentes ("tetracordos", "gran_sistema_perfecto", "monocordio", "escalera_intervalos", "linea_temporal") con tipo, parametros y actividad.
-Devuelve solo JSON.'''
+- claims: de 4 a 6 SECCIONES de teoría en orden didáctico. Cada una con: title (título breve y concreto, p. ej. "La misa parodia"); text (para el profesor: 2-3 párrafos, 150-300 palabras, técnico y con ejemplos de obras); student_summary (para el alumnado, 2ª persona, 70-130 palabras, claro, sin hablar de fuentes); key_points (2-4 ideas clave muy breves); example_ids (ids de music_requests que ilustran la sección, o []); kind ("summary" o "inference"); evidence ([{"source_id":"S1","quote":"quote_001"}]).
+- music_requests: de 2 a 5 ejemplos musicales, cada uno ligado a una sección por example_ids. Si hay repertorio_disponible, elige SOLO obras de esa lista: catalog_id = su id, composer y work copiados tal cual, section = uno de sus movimientos (si los tiene). description = qué observar en los primeros compases (1-2 frases sobre textura, entradas de las voces o relación texto-música, sin afirmar datos que no se vean en la partitura). Sin repertorio_disponible, pide obras citadas en los pasajes y deja catalog_id vacío.
+- plan: objectives (2-5), difficulty, activities (2-5: title, teacher_notes, student_task en 2ª persona, grouping, deliverable, solution, minutes que suman duration_minutes, claim_ids), resources (1-5), assessment y observations. Las actividades trabajan sobre los ejemplos musicales y los esquemas, no solo sobre texto.
+- coverage: requisitos ("R1"-"RN") con status ("cubierto", "sin_fuentes" o "parcial"), claim_ids y note. Con recursos_disponibles resueltos, remite a ellos en las secciones y márcalos "cubierto".
+- visualizations: 0 a 2 esquemas (type, title, items [{"label","detail"}], caption, evidence) solo si ordenan información (cronología, comparación de géneros o escuelas).
+- didactic_components: 0 a 3 componentes calculables ("tetracordos", "gran_sistema_perfecto", "monocordio", "escalera_intervalos", "linea_temporal") con tipo y parametros, solo si el tema los requiere.
+Nunca escribas notación musical. Devuelve solo JSON.'''
 
 
 TEXT = {'type': 'string'}
@@ -77,6 +77,9 @@ COVERAGE_ITEM_SCHEMA = {
 RESPONSE_SCHEMA = deepcopy(grounded.RESPONSE_SCHEMA)
 # Claims en schema generativo: text, kind, student_summary, evidence
 RESPONSE_SCHEMA['properties']['claims']['items']['properties']['student_summary'] = TEXT
+RESPONSE_SCHEMA['properties']['claims']['items']['properties']['title'] = TEXT
+RESPONSE_SCHEMA['properties']['claims']['items']['properties']['key_points'] = STRINGS
+RESPONSE_SCHEMA['properties']['claims']['items']['properties']['example_ids'] = STRINGS
 RESPONSE_SCHEMA['properties']['coverage'] = {
     'type': 'array',
     'items': COVERAGE_ITEM_SCHEMA
@@ -117,6 +120,7 @@ MUSIC_REQUEST_SCHEMA = {
         'technique': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
         'activity_title': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
         'description': TEXT,
+        'catalog_id': {'anyOf': [{'type': 'string'}, {'type': 'null'}]},
     },
     'required': ['id', 'composer', 'work', 'section', 'description'],
 }
@@ -197,7 +201,24 @@ def context_for(db, group_id, duration, *, unit_id=None, criteria='', session_da
             'teacher_criteria': criteria, 'prior_experience': prior or None, 'session': session}
 
 
+def repertorio_para_contexto(question, context, candidates, limite=24):
+    """Selecciona obras reales del catálogo según el tema, las indicaciones y los pasajes recuperados."""
+    try:
+        from docente_ai.music.repertorio import seleccionar_repertorio, resumen_para_llm
+    except Exception:
+        return []
+    reqs = ' '.join(str(r.get('description', '')) for r in (context.get('requirements') or []) if isinstance(r, dict))
+    tema = ' '.join([str(question or ''), str(context.get('teacher_criteria') or ''), reqs])
+    fuentes = ' '.join(str(c.get('text', '')) for c in candidates or [])
+    try:
+        return resumen_para_llm(seleccionar_repertorio(tema, fuentes, limite=limite))
+    except Exception:
+        return []
+
+
 def build_prompt(question, candidates, settings, context):
+    if isinstance(context, dict) and 'repertorio_disponible' not in context:
+        context = {**context, 'repertorio_disponible': repertorio_para_contexto(question, context, candidates)}
     if settings.is_remote:
         context = remote_context(context)
     else:
@@ -220,6 +241,12 @@ def build_prompt(question, candidates, settings, context):
     def size(sources):
         dialogue = messages(sources)
         return grounded.estimate_input(dialogue, grounded.response_schema(dialogue, RESPONSE_SCHEMA))
+    if size([]) > settings.input_budget and context.get('repertorio_disponible'):
+        # El catálogo de repertorio es prescindible: se recorta antes que los pasajes.
+        while context.get('repertorio_disponible') and size([]) > settings.input_budget:
+            context['repertorio_disponible'] = context['repertorio_disponible'][:len(context['repertorio_disponible']) // 2]
+        if not context.get('repertorio_disponible'):
+            context.pop('repertorio_disponible', None)
     if size([]) > settings.input_budget:
         raise ValueError('El contexto pedagógico no cabe; reduce criterios o amplía num_ctx.')
     
@@ -276,6 +303,8 @@ def compact_context(context):
     }
     if context.get('prior_experience'):
         res['prior_experience'] = context['prior_experience']
+    if context.get('repertorio_disponible'):
+        res['repertorio_disponible'] = context['repertorio_disponible']
     if context.get('recursos_disponibles'):
         recs = context['recursos_disponibles']
         if isinstance(recs, dict):
@@ -294,13 +323,17 @@ def remote_context(context):
     """Lista permitida: ningún registro, feedback, calendario o identificador personal."""
     group = context.get('group') or {}
     unit = context.get('unit')
-    return {
+    res = {
         'group': {key: group[key] for key in ('level', 'language') if key in group},
         'duration_minutes': context.get('duration_minutes'),
         'teacher_criteria': context.get('teacher_criteria', ''),
         'requirements': context.get('requirements', []),
-        'unit': {key: unit[key] for key in ('title', 'objectives', 'contents', 'competencies', 'criteria') if key in unit} if isinstance(unit, dict) else None
+        'unit': {key: unit[key] for key in ('title', 'objectives', 'contents', 'competencies', 'criteria') if key in unit} if isinstance(unit, dict) else None,
     }
+    if context.get('repertorio_disponible'):
+        # Catálogo de partituras libres (solo metadatos públicos de obras, sin datos personales).
+        res['repertorio_disponible'] = context['repertorio_disponible']
+    return res
 
 
 def normalize_claims(claims):
@@ -338,12 +371,15 @@ def validate(content, evidence, context, *, retry: bool = True):
     if 'claims' in data:
         data['claims'] = normalize_claims(data['claims'])
     student_summaries = []
+    extras_secciones = []
     if 'claims' in data and isinstance(data['claims'], list):
         for c in data['claims']:
             if isinstance(c, dict):
                 student_summaries.append(c.pop('student_summary', None))
+                extras_secciones.append({k: c.pop(k) for k in ('title', 'key_points', 'example_ids') if k in c})
             else:
                 student_summaries.append(None)
+                extras_secciones.append({})
     grounding_payload = {k: data[k] for k in ('status', 'claims')}
     if 'visualizations' in data:
         grounding_payload['visualizations'] = data['visualizations']
@@ -389,6 +425,23 @@ def validate(content, evidence, context, *, retry: bool = True):
                     'en la guía docente (cobertura y observaciones del plan).'
                 )
             claim['student_summary'] = ss.strip()
+        extra = extras_secciones[index] if index < len(extras_secciones) else {}
+        titulo = extra.get('title')
+        if isinstance(titulo, str) and titulo.strip():
+            titulo = re.sub(r'\s+', ' ', titulo.strip())
+            if len(titulo) > 120:
+                fail(f'claims[{index}].title demasiado largo (máximo 120 caracteres).')
+            claim['title'] = titulo
+        puntos = extra.get('key_points')
+        if isinstance(puntos, list):
+            limpios = [re.sub(r'\s+', ' ', p.strip()) for p in puntos if isinstance(p, str) and p.strip()]
+            if any(len(p) > 240 for p in limpios):
+                fail(f'claims[{index}].key_points: cada idea clave debe ser breve (máximo 240 caracteres).')
+            if limpios:
+                claim['key_points'] = limpios[:4]
+        ids_ej = extra.get('example_ids')
+        if isinstance(ids_ej, list):
+            claim['example_ids'] = [str(x).strip() for x in ids_ej if isinstance(x, (str, int)) and str(x).strip()]
 
     if isinstance(plan, dict):
         if 'difficulty_reason' in plan:
@@ -738,7 +791,9 @@ def validate(content, evidence, context, *, retry: bool = True):
         for idx, mr in enumerate(m_reqs):
             if not isinstance(mr, dict):
                 fail(f'music_requests[{idx}] debe ser un objeto.')
-            for req_field in ('id', 'composer', 'work', 'section', 'description'):
+            campos = ('id', 'composer', 'work', 'description') if mr.get('catalog_id') else \
+                ('id', 'composer', 'work', 'section', 'description')
+            for req_field in campos:
                 val = mr.get(req_field)
                 if not isinstance(val, str) or not val.strip():
                     fail(f'music_requests[{idx}].{req_field} es obligatorio y debe ser texto no vacío.')
@@ -746,13 +801,18 @@ def validate(content, evidence, context, *, retry: bool = True):
                 'id': str(mr['id']).strip(),
                 'composer': str(mr['composer']).strip(),
                 'work': str(mr['work']).strip(),
-                'section': str(mr['section']).strip(),
+                'section': str(mr.get('section') or '').strip(),
                 'voice': str(mr['voice']).strip() if mr.get('voice') else None,
                 'technique': str(mr['technique']).strip() if mr.get('technique') else None,
                 'activity_title': str(mr['activity_title']).strip() if mr.get('activity_title') else None,
                 'description': str(mr['description']).strip(),
+                'catalog_id': str(mr['catalog_id']).strip() if mr.get('catalog_id') else None,
             })
         data['music_requests'] = valid_requests
+        ids_validos = {r['id'] for r in valid_requests}
+        for claim in data.get('claims') or []:
+            if isinstance(claim, dict) and 'example_ids' in claim:
+                claim['example_ids'] = [i for i in claim['example_ids'] if i in ids_validos]
 
     VALID_DIDACTIC_TYPES = {'tetracordos', 'gran_sistema_perfecto', 'monocordio', 'escalera_intervalos', 'linea_temporal'}
     if 'didactic_components' in data:
